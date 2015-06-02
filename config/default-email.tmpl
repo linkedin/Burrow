@@ -1,0 +1,17 @@
+From: {{.From}}
+To: {{.To}}
+Subject: [Burrow] Kafka Consumer Lag Alert
+
+The Kafka consumer groups you are monitoring are currently showing problems. The following groups are in a problem state (groups not listed are OK):
+
+{{range .Results}}{{if or (ne 0 .Status) (ne 5 .Status)}}Cluster:  {{.Cluster}}
+Group:    {{.Group}}
+Status:   {{if eq 1 .Status}}WARNING{{else if eq 2 .Status}}ERROR{{end}}
+Complete: {{.Complete}}
+Errors:   {{len .Partitions}} partitions have problems
+{{range .Partitions}}          {{if eq 1 .Status}} WARN{{else if eq 2 .Status}}  ERR{{else if eq 3 .Status}} STOP{{else if eq 4 .Status}}STALL{{end}} {{.Topic}}:{{.Partition}} ({{.Start.Timestamp}}, {{.Start.Offset}}, {{.Start.Lag}}) -> ({{.End.Timestamp}}, {{.End.Offset}}, {{.End.Lag}})
+{{end}}{{end}}
+
+----------------------------------------------------------------------
+{{end}}
+
