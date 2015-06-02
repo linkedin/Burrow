@@ -30,7 +30,7 @@ $ $GOPATH/bin/burrow --config path/to/burrow.cfg
 ```
 
 ### Configuration
-For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/burrow/wiki)
+For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)
 
 ## License
 Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
