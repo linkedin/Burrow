@@ -24,9 +24,9 @@ import (
 type KafkaClient struct {
 	app                *ApplicationContext
 	cluster            string
-	client             *sarama.Client
-	masterConsumer     *sarama.Consumer
-	partitionConsumers []*sarama.PartitionConsumer
+	client             sarama.Client
+	masterConsumer     sarama.Consumer
+	partitionConsumers []sarama.PartitionConsumer
 	requestChannel     chan *BrokerTopicRequest
 	messageChannel     chan *sarama.ConsumerMessage
 	errorChannel       chan *sarama.ConsumerError
@@ -49,15 +49,15 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	}
 
 	// Set up sarama client
-	clientConfig := sarama.NewClientConfig()
-	sclient, err := sarama.NewClient(app.Config.General.ClientID, brokerHosts, clientConfig)
+	clientConfig := sarama.NewConfig()
+  clientConfig.ClientID = app.Config.General.ClientID
+	sclient, err := sarama.NewClient(brokerHosts, clientConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create sarama master consumer
-	consumerConfig := sarama.NewConsumerConfig()
-	master, err := sarama.NewConsumer(sclient, consumerConfig)
+	master, err := sarama.NewConsumerFromClient(sclient)
 	if err != nil {
 		sclient.Close()
 		return nil, err
@@ -116,10 +116,10 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	}
 
 	// Start consumers for each partition with fan in
-	client.partitionConsumers = make([]*sarama.PartitionConsumer, len(partitions))
+	client.partitionConsumers = make([]sarama.PartitionConsumer, len(partitions))
 	log.Infof("Starting consumers for %v partitions of %s in cluster %s", len(partitions), client.app.Config.Kafka[client.cluster].OffsetsTopic, client.cluster)
 	for i, partition := range partitions {
-		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, nil)
+		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, sarama.OffsetNewest)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +191,7 @@ func (client *KafkaClient) getOffsets() error {
 				requests[broker.ID()] = &sarama.OffsetRequest{}
 			}
 			brokers[broker.ID()] = broker
-			requests[broker.ID()].AddBlock(topic, int32(i), sarama.LatestOffsets, 1)
+			requests[broker.ID()].AddBlock(topic, int32(i), sarama.OffsetNewest, 1)
 		}
 	}
 
@@ -201,7 +201,7 @@ func (client *KafkaClient) getOffsets() error {
 
 	getBrokerOffsets := func(brokerID int32, request *sarama.OffsetRequest) {
 		defer wg.Done()
-		response, err := brokers[brokerID].GetAvailableOffsets(client.app.Config.General.ClientID, request)
+		response, err := brokers[brokerID].GetAvailableOffsets(request)
 		if err != nil {
 			log.Errorf("Cannot fetch offsets from broker %v: %v", brokerID, err)
 			return
