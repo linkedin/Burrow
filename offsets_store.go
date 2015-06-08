@@ -544,11 +544,15 @@ func (storage *OffsetStorage) requestOffsets(request *RequestOffsets) {
 			if _, ok := storage.offsets[request.Cluster].consumer[request.Group][request.Topic]; ok {
 				response.OffsetList = make([]int64, len(storage.offsets[request.Cluster].consumer[request.Group][request.Topic]))
 				for partition, oring := range storage.offsets[request.Cluster].consumer[request.Group][request.Topic] {
-					offset, _ := oring.Prev().Value.(*ConsumerOffset)
-					if offset == nil {
+					if oring == nil {
 						response.OffsetList[partition] = -1
 					} else {
-						response.OffsetList[partition] = offset.Offset
+						offset, _ := oring.Prev().Value.(*ConsumerOffset)
+						if offset == nil {
+							response.OffsetList[partition] = -1
+						} else {
+							response.OffsetList[partition] = offset.Offset
+						}
 					}
 				}
 			} else {
