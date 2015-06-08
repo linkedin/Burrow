@@ -12,7 +12,7 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/pborman/uuid"
 	"encoding/json"
 	log "github.com/cihub/seelog"
 	"net/http"
