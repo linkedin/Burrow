@@ -177,7 +177,7 @@ func burrowMain() int {
 	}
 
 	// Set up the Zookeeper lock for notification
-	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, make([]zk.ACL, 0))
+	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, zk.WorldACL(zk.PermAll))
 
 	// Load the notifiers, but do not start them
 	err = loadNotifiers(appContext)
