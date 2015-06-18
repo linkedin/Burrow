@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sync"
 	"time"
+  log "github.com/cihub/seelog"
 )
 
 type PartitionOffset struct {
@@ -309,9 +310,9 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 
 	// Make sure the group even exists
-	storage.offsets[cluster].consumerLock.Lock()
+	storage.offsets[cluster].consumerLock.RLock()
 	if _, ok := storage.offsets[cluster].consumer[group]; !ok {
-		storage.offsets[cluster].consumerLock.Unlock()
+		storage.offsets[cluster].consumerLock.RUnlock()
 		resultChannel <- status
 		return
 	}
@@ -319,11 +320,9 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	// Scan the offsets table once and store all the offsets for the group locally
 	status.Status = StatusOK
 	offsetList := make(map[string][][]ConsumerOffset, len(storage.offsets[cluster].consumer[group]))
-	expireTime := time.Now().Unix() * 1000
-	expireWindow := storage.app.Config.Lagcheck.ExpireGroup * 1000
+  var youngestOffset int64
 	for topic, partitions := range storage.offsets[cluster].consumer[group] {
 		offsetList[topic] = make([][]ConsumerOffset, len(partitions))
-		clearTopic := true
 		for partition, offsetRing := range partitions {
 			// If we don't have our ring full yet, make sure we let the caller know
 			if (offsetRing == nil) || (offsetRing.Prev().Value == nil) || (offsetRing.Value == nil) {
@@ -332,39 +331,34 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 
 			// Pull out the offsets once so we can unlock the map
-			omap := make([]ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
+			offsetList[topic][partition] = make([]ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
 			idx := -1
 			offsetRing.Do(func(val interface{}) {
 				idx += 1
 				ptr, _ := val.(*ConsumerOffset)
-				omap[idx] = *ptr
+				offsetList[topic][partition][idx] = *ptr
+
+        // Track the youngest offset we have found to check expiration
+        if offsetList[topic][partition][idx].Timestamp > youngestOffset {
+          youngestOffset = offsetList[topic][partition][idx].Timestamp
+        }
 			})
-
-			// If the youngest offset is older than the expiry window, flush the partition
-			if (omap[idx].Timestamp + expireWindow) < expireTime {
-				partitions[partition] = nil
-			} else {
-				offsetList[topic][partition] = omap
-				clearTopic = false
-			}
-		}
-
-		// If all the partitions in this topic are expired, flush the topic
-		if clearTopic {
-			delete(offsetList, topic)
-			delete(storage.offsets[cluster].consumer[group], topic)
 		}
 	}
+	storage.offsets[cluster].consumerLock.RUnlock()
 
-	// If all the topics for this group are expired, flush the group and return not found
-	if len(storage.offsets[cluster].consumer[group]) == 0 {
-		delete(storage.offsets[cluster].consumer, group)
-		storage.offsets[cluster].consumerLock.Unlock()
-		status.Status = StatusNotFound
+  // If the youngest offset is older than our expiration window, flush the group
+  if (youngestOffset > 0) && (youngestOffset < ((time.Now().Unix() - storage.app.Config.Lagcheck.ExpireGroup) * 1000)) {
+    storage.offsets[cluster].consumerLock.Lock()
+    log.Infof("Removing expired group %s from cluster %s", group, cluster)
+    delete(storage.offsets[cluster].consumer, group)
+    storage.offsets[cluster].consumerLock.Unlock()
+
+    // Return the group as a 404
+	  status.Status = StatusNotFound
 		resultChannel <- status
 		return
-	}
-	storage.offsets[cluster].consumerLock.Unlock()
+  }
 
 	for topic, partitions := range offsetList {
 		for partition, offsets := range partitions {
