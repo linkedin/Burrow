@@ -238,7 +238,7 @@ func ValidateConfig(app *ApplicationContext) error {
 			errs = append(errs, "Email template file does not exist")
 		}
 		if app.Config.Smtp.AuthType != "" {
-			if (app.Config.Smtp.AuthType != "plain") || (app.Config.Smtp.AuthType != "crammd5") {
+			if (app.Config.Smtp.AuthType != "plain") && (app.Config.Smtp.AuthType != "crammd5") {
 				errs = append(errs, "Email auth-type must be plain, crammd5, or blank")
 			}
 		}
