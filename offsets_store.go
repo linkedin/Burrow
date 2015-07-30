@@ -131,6 +131,11 @@ type RequestConsumerStatus struct {
 	Cluster string
 	Group   string
 }
+type RequestConsumerDrop struct {
+	Result  chan StatusConstant
+	Cluster string
+	Group   string
+}
 
 func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 	storage := &OffsetStorage{
@@ -181,6 +186,9 @@ func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 				case *RequestConsumerStatus:
 					request, _ := r.(*RequestConsumerStatus)
 					go storage.evaluateGroup(request.Cluster, request.Group, request.Result)
+				case *RequestConsumerDrop:
+					request, _ := r.(*RequestConsumerDrop)
+					go storage.dropGroup(request.Cluster, request.Group, request.Result)
 				default:
 					// Silently drop unknown requests
 				}
@@ -292,6 +300,20 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 
 func (storage *OffsetStorage) Stop() {
 	close(storage.quit)
+}
+
+func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChannel chan StatusConstant) {
+	storage.offsets[cluster].consumerLock.Lock()
+
+	if _, ok := storage.offsets[cluster].consumer[group]; ok {
+		log.Infof("Removing group %s from cluster %s by request", group, cluster)
+		delete(storage.offsets[cluster].consumer, group)
+		resultChannel <- StatusOK
+	} else {
+		resultChannel <- StatusNotFound
+	}
+
+	storage.offsets[cluster].consumerLock.Unlock()
 }
 
 // Evaluate a consumer group based on specific rules about lag

@@ -52,11 +52,22 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 
 func (ah appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if r.Method != "GET" {
+	switch {
+	case r.Method == "GET":
+		if status, err := ah.handler(ah.app, w, r); status != 200 {
+			http.Error(w, err, status)
+		} else {
+			io.WriteString(w, err)
+		}
+	case r.Method == "DELETE":
+		// Later we can add authentication here
+		if status, err := ah.handler(ah.app, w, r); status != 200 {
+			http.Error(w, err, status)
+		} else {
+			io.WriteString(w, err)
+		}
+	default:
 		http.Error(w, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}", http.StatusMethodNotAllowed)
-	}
-	if status, err := ah.handler(ah.app, w, r); status != 200 {
-		http.Error(w, err, status)
 	}
 }
 
@@ -66,6 +77,9 @@ func handleDefault(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdmin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}", http.StatusMethodNotAllowed)
+	}
 	io.WriteString(w, "GOOD")
 }
 
@@ -76,6 +90,10 @@ type HTTPResponseClusterList struct {
 }
 
 func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.Request) (int, string) {
+	if r.Method != "GET" {
+		return http.StatusMethodNotAllowed, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}"
+	}
+
 	clusterList := make([]string, len(app.Config.Kafka))
 	i := 0
 	for cluster, _ := range app.Config.Kafka {
@@ -112,23 +130,37 @@ func handleKafka(app *ApplicationContext, w http.ResponseWriter, r *http.Request
 	switch pathParts[3] {
 	case "consumer":
 		switch {
-		case (len(pathParts) == 4) || (pathParts[4] == ""):
-			return handleConsumerList(app, w, pathParts[2])
-		case (len(pathParts) == 5) || (pathParts[5] == ""):
-			// Consumer detail - list of consumer streams/hosts? Can be config info later
-			return http.StatusNotFound, "{\"error\":true,\"message\":\"unknown API call\",\"result\":{}}"
-		case pathParts[5] == "topic":
+		case r.Method == "DELETE":
 			switch {
-			case (len(pathParts) == 6) || (pathParts[6] == ""):
-				return handleConsumerTopicList(app, w, pathParts[2], pathParts[4])
-			case (len(pathParts) == 7) || (pathParts[7] == ""):
-				return handleConsumerTopicDetail(app, w, pathParts[2], pathParts[4], pathParts[6])
+			case (len(pathParts) == 5) || (pathParts[5] == ""):
+				return handleConsumerDrop(app, w, pathParts[2], pathParts[4])
+			default:
+				return http.StatusMethodNotAllowed, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}"
 			}
-		case pathParts[5] == "status":
-			return handleConsumerStatus(app, w, pathParts[2], pathParts[4])
+		case r.Method == "GET":
+			switch {
+			case (len(pathParts) == 4) || (pathParts[4] == ""):
+				return handleConsumerList(app, w, pathParts[2])
+			case (len(pathParts) == 5) || (pathParts[5] == ""):
+				// Consumer detail - list of consumer streams/hosts? Can be config info later
+				return http.StatusNotFound, "{\"error\":true,\"message\":\"unknown API call\",\"result\":{}}"
+			case pathParts[5] == "topic":
+				switch {
+				case (len(pathParts) == 6) || (pathParts[6] == ""):
+					return handleConsumerTopicList(app, w, pathParts[2], pathParts[4])
+				case (len(pathParts) == 7) || (pathParts[7] == ""):
+					return handleConsumerTopicDetail(app, w, pathParts[2], pathParts[4], pathParts[6])
+				}
+			case pathParts[5] == "status":
+				return handleConsumerStatus(app, w, pathParts[2], pathParts[4])
+			}
+		default:
+			return http.StatusMethodNotAllowed, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}"
 		}
 	case "topic":
 		switch {
+		case r.Method != "GET":
+			return http.StatusMethodNotAllowed, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}"
 		case (len(pathParts) == 4) || (pathParts[4] == ""):
 			return handleBrokerTopicList(app, w, pathParts[2])
 		case (len(pathParts) == 5) || (pathParts[5] == ""):
@@ -276,6 +308,17 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, cluste
 	}
 	w.Write(jsonStr)
 	return 200, ""
+}
+
+func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, cluster string, group string) (int, string) {
+	storageRequest := &RequestConsumerDrop{Result: make(chan StatusConstant), Cluster: cluster, Group: group}
+	app.Storage.requestChannel <- storageRequest
+	result := <-storageRequest.Result
+	if result == StatusNotFound {
+		return http.StatusNotFound, "{\"error\":true,\"message\":\"consumer group not found\",\"result\":{}}"
+	}
+
+	return 200, "{\"error\":false,\"message\":\"consumer group removed\",\"result\":{}}"
 }
 
 func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, cluster string) (int, string) {
