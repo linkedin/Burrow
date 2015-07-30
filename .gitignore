@@ -2,3 +2,4 @@ burrow-src
 Burrow
 .*.swp
 !config
+log
