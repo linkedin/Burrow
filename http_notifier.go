@@ -12,9 +12,9 @@ package main
 
 import (
 	"bytes"
-	"github.com/pborman/uuid"
 	"encoding/json"
 	log "github.com/cihub/seelog"
+	"github.com/pborman/uuid"
 	"net/http"
 	"os"
 	"strings"

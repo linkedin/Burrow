@@ -50,7 +50,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 
 	// Set up sarama client
 	clientConfig := sarama.NewConfig()
-  clientConfig.ClientID = app.Config.General.ClientID
+	clientConfig.ClientID = app.Config.General.ClientID
 	sclient, err := sarama.NewClient(brokerHosts, clientConfig)
 	if err != nil {
 		return nil, err
