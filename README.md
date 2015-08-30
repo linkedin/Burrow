@@ -9,6 +9,7 @@ Burrow is a monitoring companion for [Apache Kafka](http://kafka.apache.org) tha
 * HTTP endpoint for consumer group status, as well as broker and consumer information
 * Configurable emailer for sending alerts for specific groups
 * Configurable HTTP client for sending alerts to another system for all groups
+* Supports offsets managed by Storm Kafka Spout
 
 ## Getting Started
 ### Prerequisites

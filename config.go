@@ -45,10 +45,12 @@ type BurrowConfig struct {
 		ZookeeperPath string   `gcfg:"zookeeper-path"`
 		OffsetsTopic  string   `gcfg:"offsets-topic"`
 		ZookeeperOffsetPaths	[]string	`gcfg:"zookeeper-offsets-path"`
+		StormOffsetPaths		[]string	`gcfg:"storm-offsets-path"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
 		ZooKeeperOffsets int `gcfg:"zookeeper-offsets"`
+		StormOffsets int `gcfg:"storm-offsets"`
 	}
 	Lagcheck struct {
 		Intervals   int   `gcfg:"intervals"`
