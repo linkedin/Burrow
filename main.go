@@ -125,11 +125,7 @@ func burrowMain() int {
 
 	// Start a local Zookeeper client (used for application locks)
 	log.Info("Starting Zookeeper client")
-	zkhosts := make([]string, len(appContext.Config.Zookeeper.Hosts))
-	for i, host := range appContext.Config.Zookeeper.Hosts {
-		zkhosts[i] = fmt.Sprintf("%s:%v", host, appContext.Config.Zookeeper.Port)
-	}
-	zkconn, _, err := zk.Connect(zkhosts, time.Duration(appContext.Config.Zookeeper.Timeout)*time.Second)
+	zkconn, _, err := zk.Connect(appContext.Config.Zookeeper.Hosts, time.Duration(appContext.Config.Zookeeper.Timeout)*time.Second)
 	if err != nil {
 		log.Criticalf("Cannot start Zookeeper client: %v", err)
 		return 1

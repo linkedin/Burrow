@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -125,18 +126,16 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 
 	// Zookeeper
+	if app.Config.Zookeeper.Port == 0 {
+    app.Config.Zookeeper.Port = 2181
+	}
 	if len(app.Config.Zookeeper.Hosts) == 0 {
 		errs = append(errs, "No Zookeeper hostnames specified")
 	} else {
-		for _, host := range app.Config.Zookeeper.Hosts {
-			if !validateHostname(host) {
-				errs = append(errs, "One or more Zookeeper hostnames are invalid")
-				break
-			}
+		hostlistError := checkHostlist(app.Config.Zookeeper.Hosts, app.Config.Zookeeper.Port, "Zookeeper")
+		if hostlistError != "" {
+			errs = append(errs, hostlistError)
 		}
-	}
-	if app.Config.Zookeeper.Port == 0 {
-		errs = append(errs, "Zookeeper port is not specified")
 	}
 	if app.Config.Zookeeper.Timeout == 0 {
 		app.Config.Zookeeper.Timeout = 6
@@ -154,31 +153,27 @@ func ValidateConfig(app *ApplicationContext) error {
 		errs = append(errs, "No Kafka clusters are configured")
 	}
 	for cluster, cfg := range app.Config.Kafka {
+		if cfg.BrokerPort == 0 {
+      cfg.BrokerPort = 9092
+		}
 		if len(cfg.Brokers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Kafka brokers specified for cluster %s", cluster))
 		} else {
-			for _, host := range cfg.Brokers {
-				if !validateHostname(host) {
-					errs = append(errs, fmt.Sprintf("One or more Kafka brokers is invalid for cluster %s", cluster))
-					break
-				}
+			hostlistError := checkHostlist(cfg.Brokers, cfg.BrokerPort, "Kafka broker")
+			if hostlistError != "" {
+				errs = append(errs, hostlistError)
 			}
 		}
 		if cfg.ZookeeperPort == 0 {
-			errs = append(errs, fmt.Sprintf("Kafka port is not specified for cluster %s", cluster))
+      cfg.ZookeeperPort = 2181
 		}
 		if len(cfg.Zookeepers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Zookeeper hosts specified for cluster %s", cluster))
 		} else {
-			for _, host := range cfg.Zookeepers {
-				if !validateHostname(host) {
-					errs = append(errs, fmt.Sprintf("One or more Zookeeper hosts is invalid for cluster %s", cluster))
-					break
-				}
+			hostlistError := checkHostlist(cfg.Zookeepers, cfg.ZookeeperPort, "Zookeeper")
+			if hostlistError != "" {
+				errs = append(errs, hostlistError)
 			}
-		}
-		if cfg.ZookeeperPort == 0 {
-			errs = append(errs, fmt.Sprintf("Zookeeper port is not specified for cluster %s", cluster))
 		}
 		if cfg.ZookeeperPath == "" {
 			errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
@@ -375,4 +370,27 @@ func validateEmail(email string) bool {
 func validateUrl(rawUrl string) bool {
 	_, err := url.Parse(rawUrl)
 	return err == nil
+}
+
+// Validate a list of ZK or Kafka hosts with optional ports
+func checkHostlist(hosts []string, defaultPort int, appName string) string {
+	for i, host := range hosts {
+		hostparts := strings.Split(host, ":")
+		if !validateHostname(hostparts[0]) {
+			return fmt.Sprintf("One or more %s hostnames are invalid", appName)
+		}
+
+		if len(hostparts) == 2 {
+			hostport, err := strconv.Atoi(hostparts[1])
+			if (err == nil) && (hostport > 0) {
+				hosts[i] = fmt.Sprintf("%s:%v", hostparts[0], hostport)
+			} else {
+				return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
+			}
+		} else {
+			hosts[i] = fmt.Sprintf("%s:%v", hostparts[0], defaultPort)
+		}
+	}
+
+	return ""
 }

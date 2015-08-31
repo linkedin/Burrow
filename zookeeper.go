@@ -11,7 +11,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/samuel/go-zookeeper/zk"
 	"time"
 )
@@ -23,11 +22,7 @@ type ZookeeperClient struct {
 }
 
 func NewZookeeperClient(app *ApplicationContext, cluster string) (*ZookeeperClient, error) {
-	zkhosts := make([]string, len(app.Config.Kafka[cluster].Zookeepers))
-	for i, host := range app.Config.Kafka[cluster].Zookeepers {
-		zkhosts[i] = fmt.Sprintf("%s:%v", host, app.Config.Kafka[cluster].ZookeeperPort)
-	}
-	zkconn, _, err := zk.Connect(zkhosts, time.Duration(app.Config.Zookeeper.Timeout)*time.Second)
+	zkconn, _, err := zk.Connect(app.Config.Kafka[cluster].Zookeepers, time.Duration(app.Config.Zookeeper.Timeout)*time.Second)
 	if err != nil {
 		return nil, err
 	}

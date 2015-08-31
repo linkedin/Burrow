@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
 	"sync"
@@ -43,15 +42,10 @@ type BrokerTopicRequest struct {
 }
 
 func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, error) {
-	brokerHosts := make([]string, len(app.Config.Kafka[cluster].Brokers))
-	for i, host := range app.Config.Kafka[cluster].Brokers {
-		brokerHosts[i] = fmt.Sprintf("%s:%v", host, app.Config.Kafka[cluster].BrokerPort)
-	}
-
 	// Set up sarama client
 	clientConfig := sarama.NewConfig()
 	clientConfig.ClientID = app.Config.General.ClientID
-	sclient, err := sarama.NewClient(brokerHosts, clientConfig)
+	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
 	if err != nil {
 		return nil, err
 	}
