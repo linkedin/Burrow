@@ -120,7 +120,7 @@ OUTERLOOP:
 				}
 			}
 
-			// Send an email if any of the resoults breaches the threshold
+			// Send an email if any of the results breaches the threshold
 			for _, result := range results {
 				if result.Status >= thresholdVal {
 					emailer.sendEmail(email, results)
