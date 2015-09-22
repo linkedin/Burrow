@@ -50,6 +50,7 @@ type BurrowConfig struct {
 	}
 	Lagcheck struct {
 		Intervals   int   `gcfg:"intervals"`
+		MinDistance int64 `gcfg:"min-distance"`
 		ExpireGroup int64 `gcfg:"expire-group"`
 	}
 	Httpserver struct {
