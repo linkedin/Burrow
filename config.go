@@ -128,7 +128,7 @@ func ValidateConfig(app *ApplicationContext) error {
 
 	// Zookeeper
 	if app.Config.Zookeeper.Port == 0 {
-    app.Config.Zookeeper.Port = 2181
+		app.Config.Zookeeper.Port = 2181
 	}
 	if len(app.Config.Zookeeper.Hosts) == 0 {
 		errs = append(errs, "No Zookeeper hostnames specified")
@@ -155,7 +155,7 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	for cluster, cfg := range app.Config.Kafka {
 		if cfg.BrokerPort == 0 {
-      cfg.BrokerPort = 9092
+			cfg.BrokerPort = 9092
 		}
 		if len(cfg.Brokers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Kafka brokers specified for cluster %s", cluster))
@@ -166,7 +166,7 @@ func ValidateConfig(app *ApplicationContext) error {
 			}
 		}
 		if cfg.ZookeeperPort == 0 {
-      cfg.ZookeeperPort = 2181
+			cfg.ZookeeperPort = 2181
 		}
 		if len(cfg.Zookeepers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Zookeeper hosts specified for cluster %s", cluster))
