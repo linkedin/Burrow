@@ -12,7 +12,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	log "github.com/cihub/seelog"
 	"github.com/pborman/uuid"
 	"net/http"
@@ -39,17 +38,26 @@ type Event struct {
 }
 
 func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
+	// Helper functions for templates
+	fmap := template.FuncMap{
+		"jsonencoder":    templateJsonEncoder,
+		"topicsbystatus": classifyTopicsByStatus,
+	}
+
 	// Compile the templates
-	templatePost, err := template.ParseFiles(app.Config.Httpnotifier.TemplatePost)
+	templatePost, err := template.New("post").Funcs(fmap).ParseFiles(app.Config.Httpnotifier.TemplatePost)
 	if err != nil {
 		log.Criticalf("Cannot parse HTTP notifier POST template: %v", err)
 		os.Exit(1)
 	}
-	templateDelete, err := template.ParseFiles(app.Config.Httpnotifier.TemplateDelete)
+	templatePost = templatePost.Templates()[0]
+
+	templateDelete, err := template.New("delete").Funcs(fmap).ParseFiles(app.Config.Httpnotifier.TemplateDelete)
 	if err != nil {
 		log.Criticalf("Cannot parse HTTP notifier DELETE template: %v", err)
 		os.Exit(1)
 	}
+	templateDelete = templateDelete.Templates()[0]
 
 	// Parse the extra parameters for the templates
 	extras := make(map[string]string)
@@ -67,12 +75,6 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 		groupIds:       make(map[string]map[string]string),
 		resultsChannel: make(chan *ConsumerGroupStatus),
 	}, nil
-}
-
-// Helper function for the templates to encode an object into a JSON string
-func templateJsonEncoder(encodeMe interface{}) string {
-	jsonStr, _ := json.Marshal(encodeMe)
-	return string(jsonStr)
 }
 
 func (notifier *HttpNotifier) sendEvaluationRequests() {
@@ -102,6 +104,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			notifier.groupIds[result.Cluster][result.Group] = eventId.String()
 		}
 
+		// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
 		bytesToSend := new(bytes.Buffer)
 		err := notifier.templatePost.Execute(bytesToSend, struct {
 			Cluster    string

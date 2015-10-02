@@ -272,7 +272,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	} else {
 		// The minimum time as configured since the last offset commit has gone by
 		previousTimestamp := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Prev().Value.(*ConsumerOffset).Timestamp
-		if offset.Timestamp - previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
+		if offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
 			storage.offsets[offset.Cluster].consumerLock.Unlock()
 			return
 		}
