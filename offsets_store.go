@@ -131,6 +131,7 @@ type RequestConsumerStatus struct {
 	Result  chan *ConsumerGroupStatus
 	Cluster string
 	Group   string
+	Showall bool
 }
 type RequestConsumerDrop struct {
 	Result  chan StatusConstant
@@ -186,7 +187,7 @@ func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 					go storage.requestOffsets(request)
 				case *RequestConsumerStatus:
 					request, _ := r.(*RequestConsumerStatus)
-					go storage.evaluateGroup(request.Cluster, request.Group, request.Result)
+					go storage.evaluateGroup(request.Cluster, request.Group, request.Result, request.Showall)
 				case *RequestConsumerDrop:
 					request, _ := r.(*RequestConsumerDrop)
 					go storage.dropGroup(request.Cluster, request.Group, request.Result)
@@ -332,7 +333,7 @@ func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChan
 //         consumer has stopped committing offsets for that partition (error)
 // Rule 5: If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
 // Rule 6: If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
-func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *ConsumerGroupStatus) {
+func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *ConsumerGroupStatus, showall bool) {
 	status := &ConsumerGroupStatus{
 		Cluster:    cluster,
 		Group:      group,
@@ -393,7 +394,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		return
 	}
 
-        var maxlag int64
+	var maxlag int64
 	for topic, partitions := range offsetList {
 		for partition, offsets := range partitions {
 			// Skip partitions we're missing offsets for
@@ -408,27 +409,25 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				continue
 			}
 
+			// We may always add this partition, so create it once
+			thispart := &PartitionStatus{
+				Topic:     topic,
+				Partition: int32(partition),
+				Status:    StatusOK,
+				Start:     offsets[0],
+				End:       offsets[maxidx],
+			}
+
 			// Check if this partition is the one with the most lag currently
 			if offsets[maxidx].Lag > maxlag {
-				status.Maxlag = &PartitionStatus{
-					Topic:     topic,
-					Partition: int32(partition),
-					Status:    StatusOK,
-					Start:     offsets[0],
-					End:       offsets[maxidx],
-				}
+				status.Maxlag = thispart
 			}
 
 			// Rule 4 - Offsets haven't been committed in a while
 			if ((time.Now().Unix() * 1000) - offsets[maxidx].Timestamp) > (offsets[maxidx].Timestamp - offsets[0].Timestamp) {
 				status.Status = StatusError
-				status.Partitions = append(status.Partitions, &PartitionStatus{
-					Topic:     topic,
-					Partition: int32(partition),
-					Status:    StatusStop,
-					Start:     offsets[0],
-					End:       offsets[maxidx],
-				})
+				thispart.Status = StatusStop
+				status.Partitions = append(status.Partitions, thispart)
 				continue
 			}
 
@@ -437,39 +436,37 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			for i := 1; i <= maxidx; i++ {
 				if offsets[i].Offset < offsets[i-1].Offset {
 					status.Status = StatusError
-					status.Partitions = append(status.Partitions, &PartitionStatus{
-						Topic:     topic,
-						Partition: int32(partition),
-						Status:    StatusRewind,
-						Start:     offsets[0],
-						End:       offsets[maxidx],
-					})
+					thispart.Status = StatusRewind
+					status.Partitions = append(status.Partitions, thispart)
 					continue
 				}
 			}
 
 			// Rule 1
 			if offsets[maxidx].Lag == 0 {
+				if showall {
+					status.Partitions = append(status.Partitions, thispart)
+				}
 				continue
 			}
 			if offsets[maxidx].Offset == offsets[0].Offset {
 				// Rule 1
 				if offsets[0].Lag == 0 {
+					if showall {
+						status.Partitions = append(status.Partitions, thispart)
+					}
 					continue
 				}
 
 				// Rule 2
 				status.Status = StatusError
-				status.Partitions = append(status.Partitions, &PartitionStatus{
-					Topic:     topic,
-					Partition: int32(partition),
-					Status:    StatusStall,
-					Start:     offsets[0],
-					End:       offsets[maxidx],
-				})
+				thispart.Status = StatusStall
 			} else {
 				// Rule 1 passes, or shortcut a full check on Rule 3 if we can
 				if (offsets[0].Lag == 0) || (offsets[maxidx].Lag <= offsets[0].Lag) {
+					if showall {
+						status.Partitions = append(status.Partitions, thispart)
+					}
 					continue
 				}
 
@@ -487,26 +484,17 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 					if status.Status == StatusOK {
 						status.Status = StatusWarning
 					}
-					status.Partitions = append(status.Partitions, &PartitionStatus{
-						Topic:     topic,
-						Partition: int32(partition),
-						Status:    StatusWarning,
-						Start:     offsets[0],
-						End:       offsets[maxidx],
-					})
+					thispart.Status = StatusWarning
 				}
+			}
+
+			// Always add the partition if it's not OK
+			if (thispart.Status != StatusOK) || showall {
+				status.Partitions = append(status.Partitions, thispart)
 			}
 		}
 	}
 	resultChannel <- status
-}
-
-func (storage *OffsetStorage) Evaluate(resultChannel chan *ConsumerGroupStatus) {
-	for cluster, _ := range storage.offsets {
-		for group, _ := range storage.offsets[cluster].consumer {
-			go storage.evaluateGroup(cluster, group, resultChannel)
-		}
-	}
 }
 
 func (storage *OffsetStorage) requestClusterList(request *RequestClusterList) {

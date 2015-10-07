@@ -152,7 +152,9 @@ func handleKafka(app *ApplicationContext, w http.ResponseWriter, r *http.Request
 					return handleConsumerTopicDetail(app, w, pathParts[2], pathParts[4], pathParts[6])
 				}
 			case pathParts[5] == "status":
-				return handleConsumerStatus(app, w, pathParts[2], pathParts[4])
+				return handleConsumerStatus(app, w, pathParts[2], pathParts[4], false)
+			case pathParts[5] == "lag":
+				return handleConsumerStatus(app, w, pathParts[2], pathParts[4], true)
 			}
 		default:
 			return http.StatusMethodNotAllowed, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}"
@@ -291,8 +293,8 @@ type HTTPResponseConsumerStatus struct {
 	Status  ConsumerGroupStatus `json:"status"`
 }
 
-func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, cluster string, group string) (int, string) {
-	storageRequest := &RequestConsumerStatus{Result: make(chan *ConsumerGroupStatus), Cluster: cluster, Group: group}
+func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, cluster string, group string, showall bool) (int, string) {
+	storageRequest := &RequestConsumerStatus{Result: make(chan *ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
 	if result.Status == StatusNotFound {
