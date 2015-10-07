@@ -97,6 +97,7 @@ type ConsumerGroupStatus struct {
 	Status     StatusConstant     `json:"status"`
 	Complete   bool               `json:"complete"`
 	Partitions []*PartitionStatus `json:"partitions"`
+	Maxlag     *PartitionStatus   `json:"maxlag"`
 }
 
 type ResponseTopicList struct {
@@ -338,6 +339,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		Status:     StatusNotFound,
 		Complete:   true,
 		Partitions: make([]*PartitionStatus, 0),
+		Maxlag:     nil,
 	}
 
 	// Make sure the group even exists
@@ -391,6 +393,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		return
 	}
 
+        var maxlag int64
 	for topic, partitions := range offsetList {
 		for partition, offsets := range partitions {
 			// Skip partitions we're missing offsets for
@@ -403,6 +406,17 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			if offsets[0].Lag == -1 {
 				status.Complete = false
 				continue
+			}
+
+			// Check if this partition is the one with the most lag currently
+			if offsets[maxidx].Lag > maxlag {
+				status.Maxlag = &PartitionStatus{
+					Topic:     topic,
+					Partition: int32(partition),
+					Status:    StatusOK,
+					Start:     offsets[0],
+					End:       offsets[maxidx],
+				}
 			}
 
 			// Rule 4 - Offsets haven't been committed in a while
