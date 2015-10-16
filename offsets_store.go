@@ -70,7 +70,7 @@ const (
 var StatusStrings = [...]string{"NOTFOUND", "OK", "WARN", "ERR", "STOP", "STALL", "REWIND"}
 
 func (c StatusConstant) String() string {
-	if (c >= 0) && (c <= 5) {
+	if (c >= 0) && (c < len(StatusStrings)) {
 		return StatusStrings[c]
 	} else {
 		return "UNKNOWN"
