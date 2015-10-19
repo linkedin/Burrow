@@ -51,10 +51,11 @@ type BurrowConfig struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
 	}
 	Lagcheck struct {
-		Intervals   int   `gcfg:"intervals"`
-		MinDistance int64 `gcfg:"min-distance"`
-		ExpireGroup int64 `gcfg:"expire-group"`
-		ZKCheck     int64 `gcfg:"zookeeper-interval"`
+		Intervals      int   `gcfg:"intervals"`
+		MinDistance    int64 `gcfg:"min-distance"`
+		ExpireGroup    int64 `gcfg:"expire-group"`
+		ZKCheck        int64 `gcfg:"zookeeper-interval"`
+		ZKGroupRefresh int64 `gcfg:"zk-group-refresh"`
 	}
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
@@ -208,6 +209,9 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	if app.Config.Lagcheck.ZKCheck == 0 {
 		app.Config.Lagcheck.ZKCheck = 60
+	}
+	if app.Config.Lagcheck.ZKGroupRefresh == 0 {
+		app.Config.Lagcheck.ZKGroupRefresh = 300
 	}
 
 	// HTTP Server

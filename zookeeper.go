@@ -13,15 +13,19 @@ package main
 import (
 	log "github.com/cihub/seelog"
 	"github.com/samuel/go-zookeeper/zk"
+	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 )
 
 type ZookeeperClient struct {
-	app            *ApplicationContext
-	cluster        string
-	conn           *zk.Conn
-	zkOffsetTicker *time.Ticker
+	app             *ApplicationContext
+	cluster         string
+	conn            *zk.Conn
+	zkRefreshTicker *time.Ticker
+	zkGroupList     map[string]bool
+	zkGroupLock     sync.RWMutex
 }
 
 func NewZookeeperClient(app *ApplicationContext, cluster string) (*ZookeeperClient, error) {
@@ -31,19 +35,23 @@ func NewZookeeperClient(app *ApplicationContext, cluster string) (*ZookeeperClie
 	}
 
 	client := &ZookeeperClient{
-		app:     app,
-		cluster: cluster,
-		conn:    zkconn,
+		app:         app,
+		cluster:     cluster,
+		conn:        zkconn,
+		zkGroupLock: sync.RWMutex{},
+		zkGroupList: make(map[string]bool),
 	}
 
 	// Check if this cluster is configured to check Zookeeper consumer offsets
 	if client.app.Config.Kafka[cluster].ZKOffsets {
-		// Get the first set of offsets and start a goroutine to continually check them
-		client.getOffsets()
-		client.zkOffsetTicker = time.NewTicker(time.Duration(client.app.Config.Lagcheck.ZKCheck) * time.Second)
+		// Get a group list to start with (this will start the offset checkers)
+		client.refreshConsumerGroups()
+
+		// Set a ticker to refresh the group list periodically
+		client.zkRefreshTicker = time.NewTicker(time.Duration(client.app.Config.Lagcheck.ZKGroupRefresh) * time.Second)
 		go func() {
-			for _ = range client.zkOffsetTicker.C {
-				client.getOffsets()
+			for _ = range client.zkRefreshTicker.C {
+				client.refreshConsumerGroups()
 			}
 		}()
 	}
@@ -52,15 +60,19 @@ func NewZookeeperClient(app *ApplicationContext, cluster string) (*ZookeeperClie
 }
 
 func (zkClient *ZookeeperClient) Stop() {
-	if zkClient.zkOffsetTicker != nil {
-		zkClient.zkOffsetTicker.Stop()
+	if zkClient.zkRefreshTicker != nil {
+		zkClient.zkRefreshTicker.Stop()
+		zkClient.zkGroupLock.Lock()
+		zkClient.zkGroupList = make(map[string]bool)
+		zkClient.zkGroupLock.Unlock()
 	}
 
 	zkClient.conn.Close()
 }
 
-func (zkClient *ZookeeperClient) getOffsets() {
-	log.Debugf("Get ZK consumer offsets for cluster %s", zkClient.cluster)
+func (zkClient *ZookeeperClient) refreshConsumerGroups() {
+	zkClient.zkGroupLock.Lock()
+	defer zkClient.zkGroupLock.Unlock()
 
 	consumerGroups, _, err := zkClient.conn.Children(zkClient.app.Config.Kafka[zkClient.cluster].ZookeeperPath + "/consumers")
 	if err != nil {
@@ -69,9 +81,55 @@ func (zkClient *ZookeeperClient) getOffsets() {
 		return
 	}
 
-	// Spawn a goroutine to handle each consumer group
+	// Mark all existing groups false
+	for consumerGroup := range zkClient.zkGroupList {
+		zkClient.zkGroupList[consumerGroup] = false
+	}
+
+	// Check for new groups, mark existing groups true
 	for _, consumerGroup := range consumerGroups {
+		// Don't bother adding groups in the blacklist
+		if (zkClient.app.Storage.groupBlacklist != nil) && zkClient.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+			continue
+		}
+
+		if _, ok := zkClient.zkGroupList[consumerGroup]; !ok {
+			// Add new consumer group and start it
+			log.Debugf("Add ZK consumer group %s to cluster %s", consumerGroup, zkClient.cluster)
+			go zkClient.startConsumerGroupChecker(consumerGroup)
+		}
+		zkClient.zkGroupList[consumerGroup] = true
+	}
+
+	// Delete groups that are still false
+	for consumerGroup := range zkClient.zkGroupList {
+		if !zkClient.zkGroupList[consumerGroup] {
+			log.Debugf("Remove ZK consumer group %s from cluster %s", consumerGroup, zkClient.cluster)
+			delete(zkClient.zkGroupList, consumerGroup)
+		}
+	}
+}
+
+func (zkClient *ZookeeperClient) startConsumerGroupChecker(consumerGroup string) {
+	// Sleep for a random portion of the check interval
+	time.Sleep(time.Duration(rand.Int63n(zkClient.app.Config.Lagcheck.ZKCheck*1000)) * time.Millisecond)
+
+	for {
+		// Make sure this group still exists
+		zkClient.zkGroupLock.RLock()
+		if _, ok := zkClient.zkGroupList[consumerGroup]; !ok {
+			zkClient.zkGroupLock.RUnlock()
+			log.Debugf("Stopping checker for ZK consumer group %s in cluster %s", consumerGroup, zkClient.cluster)
+			break
+		}
+		zkClient.zkGroupLock.RUnlock()
+
+		// Check this group's offsets
+		log.Debugf("Get ZK offsets for group %s in cluster %s", consumerGroup, zkClient.cluster)
 		go zkClient.getOffsetsForConsumerGroup(consumerGroup)
+
+		// Sleep for the check interval
+		time.Sleep(time.Duration(zkClient.app.Config.Lagcheck.ZKCheck) * time.Second)
 	}
 }
 
