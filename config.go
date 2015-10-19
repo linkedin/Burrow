@@ -45,6 +45,7 @@ type BurrowConfig struct {
 		ZookeeperPort int      `gcfg:"zookeeper-port"`
 		ZookeeperPath string   `gcfg:"zookeeper-path"`
 		OffsetsTopic  string   `gcfg:"offsets-topic"`
+		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
@@ -53,6 +54,7 @@ type BurrowConfig struct {
 		Intervals   int   `gcfg:"intervals"`
 		MinDistance int64 `gcfg:"min-distance"`
 		ExpireGroup int64 `gcfg:"expire-group"`
+		ZKCheck     int64 `gcfg:"zookeeper-interval"`
 	}
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
@@ -203,6 +205,9 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	if app.Config.Lagcheck.ExpireGroup == 0 {
 		app.Config.Lagcheck.ExpireGroup = 604800
+	}
+	if app.Config.Lagcheck.ZKCheck == 0 {
+		app.Config.Lagcheck.ZKCheck = 60
 	}
 
 	// HTTP Server
