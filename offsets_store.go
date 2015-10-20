@@ -272,9 +272,9 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	if storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] == nil {
 		storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
 	} else {
-		// The minimum time as configured since the last offset commit has gone by
+		// Prevent old offset commits, and new commits that are too fast (less than the min-distance config)
 		previousTimestamp := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Prev().Value.(*ConsumerOffset).Timestamp
-		if offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
+		if (offset.Timestamp < previousTimestamp) || (offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000)) {
 			storage.offsets[offset.Cluster].consumerLock.Unlock()
 			return
 		}
