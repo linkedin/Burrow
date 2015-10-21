@@ -186,7 +186,7 @@ func (zkClient *ZookeeperClient) getOffsetForPartition(consumerGroup string, top
 		Topic:     topic,
 		Partition: int32(partitionNum),
 		Group:     consumerGroup,
-		Timestamp: int64(zkNodeStat.Mtime), // note: this is millis
+		Timestamp: zkNodeStat.Mtime,
 		Offset:    offset,
 	}
 	timeoutSendOffset(zkClient.app.Storage.offsetChannel, partitionOffset, 1)
