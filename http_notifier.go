@@ -33,8 +33,8 @@ type HttpNotifier struct {
 }
 
 type Event struct {
-	Id     string
-  Start  time.Time
+	Id    string
+	Start time.Time
 }
 
 func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
@@ -102,9 +102,9 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			// Create Event and Id
 			eventId := uuid.NewRandom()
 			notifier.groupIds[result.Cluster][result.Group] = Event{
-        Id:      eventId.String(),
-        Start:   time.Now(),
-      }
+				Id:    eventId.String(),
+				Start: time.Now(),
+			}
 		}
 
 		// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
@@ -113,7 +113,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			Cluster    string
 			Group      string
 			Id         string
-      Start      time.Time
+			Start      time.Time
 			Extras     map[string]string
 			Result     *ConsumerGroupStatus
 			JsonEncode func(interface{}) string
@@ -158,7 +158,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 				Cluster string
 				Group   string
 				Id      string
-        Start   time.Time
+				Start   time.Time
 				Extras  map[string]string
 			}{
 				Cluster: result.Cluster,
