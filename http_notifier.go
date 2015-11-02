@@ -14,6 +14,7 @@ import (
 	"bytes"
 	log "github.com/cihub/seelog"
 	"github.com/pborman/uuid"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -30,6 +31,7 @@ type HttpNotifier struct {
 	quitChan       chan struct{}
 	groupIds       map[string]map[string]Event
 	resultsChannel chan *ConsumerGroupStatus
+	httpClient     *http.Client
 }
 
 type Event struct {
@@ -74,6 +76,15 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 		quitChan:       make(chan struct{}),
 		groupIds:       make(map[string]map[string]Event),
 		resultsChannel: make(chan *ConsumerGroupStatus),
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout:   time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
+					KeepAlive: time.Duration(app.Config.Httpnotifier.Keepalive) * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout: time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
+			},
+		},
 	}, nil
 }
 
@@ -135,8 +146,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 		req, err := http.NewRequest("POST", notifier.app.Config.Httpnotifier.Url, bytesToSend)
 		req.Header.Set("Content-Type", "application/json")
 
-		client := &http.Client{}
-		resp, err := client.Do(req)
+		resp, err := notifier.httpClient.Do(req)
 		if err != nil {
 			log.Errorf("Failed to send POST (Id %s): %v", notifier.groupIds[result.Cluster][result.Group].Id, err)
 			return
@@ -175,8 +185,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			req, err := http.NewRequest("DELETE", notifier.app.Config.Httpnotifier.Url, bytesToSend)
 			req.Header.Set("Content-Type", "application/json")
 
-			client := &http.Client{}
-			resp, err := client.Do(req)
+			resp, err := notifier.httpClient.Do(req)
 			if err != nil {
 				log.Errorf("Failed to send DELETE: %v", err)
 				return

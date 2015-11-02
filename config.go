@@ -81,6 +81,8 @@ type BurrowConfig struct {
 		Extras         []string `gcfg:"extra"`
 		TemplatePost   string   `gcfg:"template-post"`
 		TemplateDelete string   `gcfg:"template-delete"`
+		Timeout        int      `gcfg:"timeout"`
+		Keepalive      int      `gcfg:"keepalive"`
 	}
 }
 
