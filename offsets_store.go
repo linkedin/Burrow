@@ -343,6 +343,12 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		Maxlag:     nil,
 	}
 
+	// Make sure the cluster exists
+	if _, ok := storage.offsets[cluster]; !ok {
+		resultChannel <- status
+		return
+	}
+
 	// Make sure the group even exists
 	storage.offsets[cluster].consumerLock.RLock()
 	if _, ok := storage.offsets[cluster].consumer[group]; !ok {

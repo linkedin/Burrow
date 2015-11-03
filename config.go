@@ -11,9 +11,9 @@
 package main
 
 import (
-	"code.google.com/p/gcfg"
 	"errors"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -265,8 +265,12 @@ func ValidateConfig(app *ApplicationContext) error {
 						errs = append(errs, "Email notification groups must be specified as 'cluster,groupname'")
 						break
 					}
+					if _, ok := app.Config.Kafka[groupParts[0]]; !ok {
+						errs = append(errs, "One or more email notification groups has a bad cluster name")
+						break
+					}
 					if !validateTopic(groupParts[1]) {
-						errs = append(errs, "One or more email notification groups are invalid")
+						errs = append(errs, "One or more email notification groups has an invalid group name")
 						break
 					}
 				}
