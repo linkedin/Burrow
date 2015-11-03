@@ -5,10 +5,11 @@ Burrow is a monitoring companion for [Apache Kafka](http://kafka.apache.org) tha
 ## Features
 * NO THRESHOLDS! Groups are evaluated over a sliding window.
 * Multiple Kafka Cluster support
-* Automatically monitors all consumers using Kafka-committed offsets
+* Automatically monitors all consumers using Kafka-committed offsets stored in either internal offsets topic or external Zookeeper
 * HTTP endpoint for consumer group status, as well as broker and consumer information
 * Configurable emailer for sending alerts for specific groups
 * Configurable HTTP client for sending alerts to another system for all groups
+* Supports offsets managed by Storm Kafka Spout
 
 ## Getting Started
 ### Prerequisites

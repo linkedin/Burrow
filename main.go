@@ -169,6 +169,28 @@ func burrowMain() int {
 		}
 		defer client.Stop()
 
+		zkOffsetPaths := appContext.Config.Kafka[cluster].ZookeeperOffsetPaths
+		if zkOffsetPaths != nil {
+			log.Infof("Starting Kafka offset client for cluster %s. Offset paths is %s", cluster, zkOffsetPaths)
+			zkOffsetClient, err := NewZooKeeperOffsetClient(appContext, cluster)
+			if err != nil {
+				log.Criticalf("Cannot start Kafka offset client for cluster %s: %v", cluster, err)
+				return 1
+			}
+			defer zkOffsetClient.Stop()
+		}
+
+		stormOffsetPaths := appContext.Config.Kafka[cluster].StormOffsetPaths
+		if stormOffsetPaths != nil {
+			log.Infof("Starting Storm offset client for cluster %s. Offset paths is %s", cluster, stormOffsetPaths)
+			stormOffsetClient, err := NewStormOffsetClient(appContext, cluster)
+			if err != nil {
+				log.Criticalf("Cannot start Storm offset client for cluster %s: %v", cluster, err)
+				return 1
+			}
+			defer stormOffsetClient.Stop()
+		}
+
 		appContext.Clusters[cluster] = &KafkaCluster{Client: client, Zookeeper: zkconn}
 	}
 

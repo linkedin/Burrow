@@ -2,4 +2,5 @@ burrow-src
 Burrow
 .*.swp
 !config
+.idea/
 log
