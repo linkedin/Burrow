@@ -17,6 +17,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -197,6 +198,8 @@ func burrowMain() int {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	rv := burrowMain()
 	if rv != 0 {
 		fmt.Println("Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))

@@ -45,14 +45,17 @@ type BurrowConfig struct {
 		ZookeeperPort int      `gcfg:"zookeeper-port"`
 		ZookeeperPath string   `gcfg:"zookeeper-path"`
 		OffsetsTopic  string   `gcfg:"offsets-topic"`
+		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
 	}
 	Lagcheck struct {
-		Intervals   int   `gcfg:"intervals"`
-		MinDistance int64 `gcfg:"min-distance"`
-		ExpireGroup int64 `gcfg:"expire-group"`
+		Intervals      int   `gcfg:"intervals"`
+		MinDistance    int64 `gcfg:"min-distance"`
+		ExpireGroup    int64 `gcfg:"expire-group"`
+		ZKCheck        int64 `gcfg:"zookeeper-interval"`
+		ZKGroupRefresh int64 `gcfg:"zk-group-refresh"`
 	}
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
@@ -78,6 +81,8 @@ type BurrowConfig struct {
 		Extras         []string `gcfg:"extra"`
 		TemplatePost   string   `gcfg:"template-post"`
 		TemplateDelete string   `gcfg:"template-delete"`
+		Timeout        int      `gcfg:"timeout"`
+		Keepalive      int      `gcfg:"keepalive"`
 	}
 }
 
@@ -203,6 +208,12 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	if app.Config.Lagcheck.ExpireGroup == 0 {
 		app.Config.Lagcheck.ExpireGroup = 604800
+	}
+	if app.Config.Lagcheck.ZKCheck == 0 {
+		app.Config.Lagcheck.ZKCheck = 60
+	}
+	if app.Config.Lagcheck.ZKGroupRefresh == 0 {
+		app.Config.Lagcheck.ZKGroupRefresh = 300
 	}
 
 	// HTTP Server

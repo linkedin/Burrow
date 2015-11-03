@@ -272,7 +272,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	if storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] == nil {
 		storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
 	} else {
-		// The minimum time as configured since the last offset commit has gone by
+		// Prevent old offset commits, and new commits that are too fast (less than the min-distance config)
 		previousTimestamp := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Prev().Value.(*ConsumerOffset).Timestamp
 		if offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
 			storage.offsets[offset.Cluster].consumerLock.Unlock()
@@ -365,7 +365,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		offsetList[topic] = make([][]ConsumerOffset, len(partitions))
 		for partition, offsetRing := range partitions {
 			// If we don't have our ring full yet, make sure we let the caller know
-			if (offsetRing == nil) || (offsetRing.Prev().Value == nil) || (offsetRing.Value == nil) {
+			if (offsetRing == nil) || (offsetRing.Value == nil) {
 				status.Complete = false
 				continue
 			}
@@ -387,7 +387,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 	storage.offsets[cluster].consumerLock.RUnlock()
 
-	// If the youngest offset is older than our expiration window, flush the group
+	// If the youngest offset is earlier than our expiration window, flush the group
 	if (youngestOffset > 0) && (youngestOffset < ((time.Now().Unix() - storage.app.Config.Lagcheck.ExpireGroup) * 1000)) {
 		storage.offsets[cluster].consumerLock.Lock()
 		log.Infof("Removing expired group %s from cluster %s", group, cluster)
