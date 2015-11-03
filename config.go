@@ -11,9 +11,9 @@
 package main
 
 import (
-	"code.google.com/p/gcfg"
 	"errors"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
