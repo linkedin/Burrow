@@ -212,6 +212,9 @@ func ValidateConfig(app *ApplicationContext) error {
 	if app.Config.Lagcheck.ZKCheck == 0 {
 		app.Config.Lagcheck.ZKCheck = 60
 	}
+	if app.Config.Lagcheck.MinDistance == 0 {
+		app.Config.Lagcheck.MinDistance = 1
+	}
 	if app.Config.Lagcheck.ZKGroupRefresh == 0 {
 		app.Config.Lagcheck.ZKGroupRefresh = 300
 	}
