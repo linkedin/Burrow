@@ -181,9 +181,13 @@ func ValidateConfig(app *ApplicationContext) error {
 				errs = append(errs, hostlistError)
 			}
 		}
-		if cfg.ZookeeperPath == "" {
+		switch cfg.ZookeeperPath {
+		case "":
 			errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
-		} else {
+		case "/":
+			// If we're using the root path, instead of chroot, set it blank here so we don't get double slashes
+			cfg.ZookeeperPath = ""
+		default:
 			if !validateZookeeperPath(cfg.ZookeeperPath) {
 				errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
 			}

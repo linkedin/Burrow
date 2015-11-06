@@ -192,13 +192,19 @@ type HTTPResponseClusterDetail struct {
 }
 
 func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, cluster string) (int, string) {
+	// Clearly show the root path in ZK (which we have a blank for after config)
+	zkPath := app.Config.Kafka[cluster].ZookeeperPath
+	if zkPath == "" {
+		zkPath = "/"
+	}
+
 	jsonStr, err := json.Marshal(HTTPResponseClusterDetail{
 		Error:   false,
 		Message: "cluster detail returned",
 		Cluster: HTTPResponseClusterDetailCluster{
 			Zookeepers:    app.Config.Kafka[cluster].Zookeepers,
 			ZookeeperPort: app.Config.Kafka[cluster].ZookeeperPort,
-			ZookeeperPath: app.Config.Kafka[cluster].ZookeeperPath,
+			ZookeeperPath: zkPath,
 			Brokers:       app.Config.Kafka[cluster].Brokers,
 			BrokerPort:    app.Config.Kafka[cluster].BrokerPort,
 			OffsetsTopic:  app.Config.Kafka[cluster].OffsetsTopic,
