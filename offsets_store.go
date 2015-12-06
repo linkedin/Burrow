@@ -246,7 +246,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 
 	// Get broker partition count and offset for this topic and partition first
 	storage.offsets[offset.Cluster].brokerLock.RLock()
-	if topic, ok := storage.offsets[offset.Cluster].broker[offset.Topic]; !ok || (ok && ((int32(len(topic)) <= offset.Partition) || (topic[offset.Partition] == nil))) {
+	if topic, ok := storage.offsets[offset.Cluster].broker[offset.Topic]; !ok || (ok && ((int32(len(topic)) < offset.Partition) || (topic[offset.Partition] == nil))) {
 		// If we don't have the partition or offset from the broker side yet, ignore the consumer offset for now
 		storage.offsets[offset.Cluster].brokerLock.RUnlock()
 		return
