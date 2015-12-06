@@ -14,6 +14,8 @@ import (
 	"bytes"
 	log "github.com/cihub/seelog"
 	"github.com/pborman/uuid"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -77,12 +79,11 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 		groupIds:       make(map[string]map[string]Event),
 		resultsChannel: make(chan *ConsumerGroupStatus),
 		httpClient: &http.Client{
+			Timeout: time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
 			Transport: &http.Transport{
 				Dial: (&net.Dialer{
-					Timeout:   time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
 					KeepAlive: time.Duration(app.Config.Httpnotifier.Keepalive) * time.Second,
 				}).Dial,
-				TLSHandshakeTimeout: time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
 			},
 		},
 	}, nil
@@ -151,7 +152,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			log.Errorf("Failed to send POST (Id %s): %v", notifier.groupIds[result.Cluster][result.Group].Id, err)
 			return
 		}
-		defer resp.Body.Close()
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 
 		if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
 			log.Infof("Sent POST for group %s in cluster %s at severity %v (Id %s)", result.Group,
@@ -190,7 +192,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 				log.Errorf("Failed to send DELETE: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
 
 			if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
 				log.Infof("Sent DELETE for group %s in cluster %s (Id %s)", result.Group, result.Cluster,
