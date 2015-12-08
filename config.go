@@ -210,7 +210,7 @@ func ValidateConfig(app *ApplicationContext) error {
 
 	// Storm Clusters
 	if len(app.Config.Storm) > 0 {
-		for cluster, cfg := range app.Config.Kafka {
+		for cluster, cfg := range app.Config.Storm {
 			if cfg.ZookeeperPort == 0 {
 				cfg.ZookeeperPort = 2181
 			}
