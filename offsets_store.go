@@ -204,33 +204,37 @@ func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 }
 
 func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
-	if _, ok := storage.offsets[offset.Cluster]; !ok {
+	clusterMap, ok := storage.offsets[offset.Cluster]
+	if !ok {
 		// Ignore offsets for clusters that we don't know about - should never happen anyways
 		return
 	}
 
-	storage.offsets[offset.Cluster].brokerLock.Lock()
-	if _, ok := storage.offsets[offset.Cluster].broker[offset.Topic]; !ok {
-		storage.offsets[offset.Cluster].broker[offset.Topic] = make([]*BrokerOffset, offset.TopicPartitionCount)
+	clusterMap.brokerLock.Lock()
+	topicList, ok := clusterMap.broker[offset.Topic]
+	if !ok {
+		clusterMap.broker[offset.Topic] = make([]*BrokerOffset, offset.TopicPartitionCount)
+		topicList = clusterMap.broker[offset.Topic]
 	}
-	if offset.TopicPartitionCount >= len(storage.offsets[offset.Cluster].broker[offset.Topic]) {
+	if offset.TopicPartitionCount >= len(topicList) {
 		// The partition count has increased. Append enough extra partitions to our slice
-		for i := len(storage.offsets[offset.Cluster].broker[offset.Topic]); i < offset.TopicPartitionCount; i++ {
-			storage.offsets[offset.Cluster].broker[offset.Topic] = append(storage.offsets[offset.Cluster].broker[offset.Topic], nil)
+		for i := len(topicList); i < offset.TopicPartitionCount; i++ {
+			topicList = append(topicList, nil)
 		}
 	}
 
-	if storage.offsets[offset.Cluster].broker[offset.Topic][offset.Partition] == nil {
-		storage.offsets[offset.Cluster].broker[offset.Topic][offset.Partition] = &BrokerOffset{
+	partitionEntry := topicList[offset.Partition]
+	if partitionEntry == nil {
+		partitionEntry = &BrokerOffset{
 			Offset:    offset.Offset,
 			Timestamp: offset.Timestamp,
 		}
 	} else {
-		storage.offsets[offset.Cluster].broker[offset.Topic][offset.Partition].Offset = offset.Offset
-		storage.offsets[offset.Cluster].broker[offset.Topic][offset.Partition].Timestamp = offset.Timestamp
+		partitionEntry.Offset = offset.Offset
+		partitionEntry.Timestamp = offset.Timestamp
 	}
 
-	storage.offsets[offset.Cluster].brokerLock.Unlock()
+	clusterMap.brokerLock.Unlock()
 }
 
 func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
@@ -277,11 +281,13 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	clusterOffsets.consumerLock.Lock()
 	consumerMap, ok := clusterOffsets.consumer[offset.Group]
 	if !ok {
-		consumerMap = make(map[string][]*ring.Ring)
+		clusterOffsets.consumer[offset.Group] = make(map[string][]*ring.Ring)
+		consumerMap = clusterOffsets.consumer[offset.Group]
 	}
 	consumerTopicMap, ok := consumerMap[offset.Topic]
 	if !ok {
-		consumerTopicMap = make([]*ring.Ring, partitionCount)
+		consumerMap[offset.Topic] = make([]*ring.Ring, partitionCount)
+		consumerTopicMap = consumerMap[offset.Topic]
 	}
 	if int(offset.Partition) >= len(consumerTopicMap) {
 		// The partition count must have increased. Append enough extra partitions to our slice
@@ -366,24 +372,26 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 
 	// Make sure the cluster exists
-	if _, ok := storage.offsets[cluster]; !ok {
+	clusterMap, ok := storage.offsets[cluster]
+	if !ok {
 		resultChannel <- status
 		return
 	}
 
 	// Make sure the group even exists
-	storage.offsets[cluster].consumerLock.RLock()
-	if _, ok := storage.offsets[cluster].consumer[group]; !ok {
-		storage.offsets[cluster].consumerLock.RUnlock()
+	clusterMap.consumerLock.RLock()
+	consumerMap, ok := clusterMap.consumer[group]
+	if !ok {
+		clusterMap.consumerLock.RUnlock()
 		resultChannel <- status
 		return
 	}
 
 	// Scan the offsets table once and store all the offsets for the group locally
 	status.Status = StatusOK
-	offsetList := make(map[string][][]ConsumerOffset, len(storage.offsets[cluster].consumer[group]))
+	offsetList := make(map[string][][]ConsumerOffset, len(consumerMap))
 	var youngestOffset int64
-	for topic, partitions := range storage.offsets[cluster].consumer[group] {
+	for topic, partitions := range consumerMap {
 		offsetList[topic] = make([][]ConsumerOffset, len(partitions))
 		for partition, offsetRing := range partitions {
 			// If we don't have our ring full yet, make sure we let the caller know
@@ -394,27 +402,28 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 			// Pull out the offsets once so we can unlock the map
 			offsetList[topic][partition] = make([]ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
+			partitionMap := offsetList[topic][partition]
 			idx := -1
 			offsetRing.Do(func(val interface{}) {
 				idx += 1
 				ptr, _ := val.(*ConsumerOffset)
-				offsetList[topic][partition][idx] = *ptr
+				partitionMap[idx] = *ptr
 
 				// Track the youngest offset we have found to check expiration
-				if offsetList[topic][partition][idx].Timestamp > youngestOffset {
-					youngestOffset = offsetList[topic][partition][idx].Timestamp
+				if partitionMap[idx].Timestamp > youngestOffset {
+					youngestOffset = partitionMap[idx].Timestamp
 				}
 			})
 		}
 	}
-	storage.offsets[cluster].consumerLock.RUnlock()
+	clusterMap.consumerLock.RUnlock()
 
 	// If the youngest offset is earlier than our expiration window, flush the group
 	if (youngestOffset > 0) && (youngestOffset < ((time.Now().Unix() - storage.app.Config.Lagcheck.ExpireGroup) * 1000)) {
-		storage.offsets[cluster].consumerLock.Lock()
+		clusterMap.consumerLock.Lock()
 		log.Infof("Removing expired group %s from cluster %s", group, cluster)
-		delete(storage.offsets[cluster].consumer, group)
-		storage.offsets[cluster].consumerLock.Unlock()
+		delete(clusterMap.consumer, group)
+		clusterMap.consumerLock.Unlock()
 
 		// Return the group as a 404
 		status.Status = StatusNotFound
@@ -430,9 +439,11 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				continue
 			}
 			maxidx := len(offsets) - 1
+			firstOffset := offsets[0]
+			lastOffset := offsets[maxidx]
 
 			// Rule 5 - we're missing broker offsets so we're not complete yet
-			if offsets[0].Lag == -1 {
+			if firstOffset.Lag == -1 {
 				status.Complete = false
 				continue
 			}
@@ -442,17 +453,17 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				Topic:     topic,
 				Partition: int32(partition),
 				Status:    StatusOK,
-				Start:     offsets[0],
-				End:       offsets[maxidx],
+				Start:     firstOffset,
+				End:       lastOffset,
 			}
 
 			// Check if this partition is the one with the most lag currently
-			if offsets[maxidx].Lag > maxlag {
+			if lastOffset.Lag > maxlag {
 				status.Maxlag = thispart
 			}
 
 			// Rule 4 - Offsets haven't been committed in a while
-			if ((time.Now().Unix() * 1000) - offsets[maxidx].Timestamp) > (offsets[maxidx].Timestamp - offsets[0].Timestamp) {
+			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
 				status.Status = StatusError
 				thispart.Status = StatusStop
 				status.Partitions = append(status.Partitions, thispart)
@@ -471,15 +482,15 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 
 			// Rule 1
-			if offsets[maxidx].Lag == 0 {
+			if lastOffset.Lag == 0 {
 				if showall {
 					status.Partitions = append(status.Partitions, thispart)
 				}
 				continue
 			}
-			if offsets[maxidx].Offset == offsets[0].Offset {
+			if lastOffset.Offset == firstOffset.Offset {
 				// Rule 1
-				if offsets[0].Lag == 0 {
+				if firstOffset.Lag == 0 {
 					if showall {
 						status.Partitions = append(status.Partitions, thispart)
 					}
@@ -491,7 +502,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				thispart.Status = StatusStall
 			} else {
 				// Rule 1 passes, or shortcut a full check on Rule 3 if we can
-				if (offsets[0].Lag == 0) || (offsets[maxidx].Lag <= offsets[0].Lag) {
+				if (firstOffset.Lag == 0) || (lastOffset.Lag <= firstOffset.Lag) {
 					if showall {
 						status.Partitions = append(status.Partitions, thispart)
 					}
