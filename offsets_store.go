@@ -225,10 +225,11 @@ func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
 
 	partitionEntry := topicList[offset.Partition]
 	if partitionEntry == nil {
-		partitionEntry = &BrokerOffset{
+		topicList[offset.Partition] = &BrokerOffset{
 			Offset:    offset.Offset,
 			Timestamp: offset.Timestamp,
 		}
+		partitionEntry = topicList[offset.Partition]
 	} else {
 		partitionEntry.Offset = offset.Offset
 		partitionEntry.Timestamp = offset.Timestamp
@@ -298,7 +299,8 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 
 	consumerPartitionRing := consumerTopicMap[offset.Partition]
 	if consumerPartitionRing == nil {
-		consumerPartitionRing = ring.New(storage.app.Config.Lagcheck.Intervals)
+		consumerTopicMap[offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
+		consumerPartitionRing = consumerTopicMap[offset.Partition]
 	} else {
 		// Prevent old offset commits, and new commits that are too fast (less than the min-distance config)
 		previousTimestamp := consumerPartitionRing.Prev().Value.(*ConsumerOffset).Timestamp
@@ -331,7 +333,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	}
 
 	// Advance the ring pointer
-	consumerPartitionRing = consumerPartitionRing.Next()
+	consumerTopicMap[offset.Partition] = consumerTopicMap[offset.Partition].Next()
 	clusterOffsets.consumerLock.Unlock()
 }
 
