@@ -11,29 +11,29 @@
 package main
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
-	log "github.com/cihub/seelog"
-	"regexp"
-	"math/rand"
-	"strconv"
-	"time"
-	"errors"
-	"sync"
 	"encoding/json"
+	"errors"
+	log "github.com/cihub/seelog"
+	"github.com/samuel/go-zookeeper/zk"
+	"math/rand"
+	"regexp"
+	"strconv"
+	"sync"
+	"time"
 )
 
 type StormClient struct {
-	app             	*ApplicationContext
-	cluster            	string
-	conn    			*zk.Conn
-	stormRefreshTicker 	*time.Ticker
-	stormGroupList     	map[string]bool
-	stormGroupLock     	sync.RWMutex
+	app                *ApplicationContext
+	cluster            string
+	conn               *zk.Conn
+	stormRefreshTicker *time.Ticker
+	stormGroupList     map[string]bool
+	stormGroupLock     sync.RWMutex
 }
 
 type Topology struct {
-	Id 		string
-	Name 	string
+	Id   string
+	Name string
 }
 
 type Broker struct {
@@ -42,11 +42,11 @@ type Broker struct {
 }
 
 type SpoutState struct {
-	Topology 	Topology
-	Offset 		int
-	Partition 	int
-	Broker 		Broker
-	Topic 		string
+	Topology  Topology
+	Offset    int
+	Partition int
+	Broker    Broker
+	Topic     string
 }
 
 func NewStormClient(app *ApplicationContext, cluster string) (*StormClient, error) {
@@ -57,9 +57,9 @@ func NewStormClient(app *ApplicationContext, cluster string) (*StormClient, erro
 	}
 
 	client := &StormClient{
-		app:     app,
-		cluster: cluster,
-		conn:    zkconn,
+		app:            app,
+		cluster:        cluster,
+		conn:           zkconn,
 		stormGroupLock: sync.RWMutex{},
 		stormGroupList: make(map[string]bool),
 	}
@@ -88,7 +88,7 @@ func (stormClient *StormClient) Stop() {
 	stormClient.conn.Close()
 }
 
-func parsePartitionId(partitionStr string)(int, error) {
+func parsePartitionId(partitionStr string) (int, error) {
 	re := regexp.MustCompile(`^partition_([0-9]+)$`)
 	if parsed := re.FindStringSubmatch(partitionStr); len(parsed) == 2 {
 		return strconv.Atoi(parsed[1])
@@ -97,7 +97,7 @@ func parsePartitionId(partitionStr string)(int, error) {
 	}
 }
 
-func parseStormSpoutStateJson(stateStr string)(int, string, error) {
+func parseStormSpoutStateJson(stateStr string) (int, string, error) {
 	stateJson := new(SpoutState)
 	if err := json.Unmarshal([]byte(stateStr), &stateJson); err == nil {
 		log.Debugf("Parsed storm state [%s] to structure [%v]", stateStr, stateJson)
@@ -117,13 +117,13 @@ func (stormClient *StormClient) getOffsetsForConsumerGroup(consumerGroup string)
 			partition, errConversion := parsePartitionId(partition_id)
 			switch {
 			case errConversion == nil:
-				stormClient.getOffsetsForPartition(consumerGroup, partition, consumerGroupPath + "/" + partition_id)
+				stormClient.getOffsetsForPartition(consumerGroup, partition, consumerGroupPath+"/"+partition_id)
 			default:
 				log.Errorf("Something is very wrong! The partition id %s of consumer group %s in ZK path %s should be a number",
 					partition_id, consumerGroup, consumerGroupPath)
 			}
 		}
-	case err ==  zk.ErrNoNode:
+	case err == zk.ErrNoNode:
 		// it is OK as the offsets may not be managed by ZK
 		log.Debugf("This consumer group's offset is not managed by ZK: " + consumerGroup)
 	default:
@@ -132,7 +132,7 @@ func (stormClient *StormClient) getOffsetsForConsumerGroup(consumerGroup string)
 }
 
 func (stormClient *StormClient) getOffsetsForPartition(consumerGroup string, partition int, partitionPath string) {
-	zkNodeStat := &zk.Stat {}
+	zkNodeStat := &zk.Stat{}
 	stateStr, zkNodeStat, err := stormClient.conn.Get(partitionPath)
 	switch {
 	case err == nil:

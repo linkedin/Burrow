@@ -39,28 +39,28 @@ type BurrowConfig struct {
 		LockPath string   `gcfg:"lock-path"`
 	}
 	Kafka map[string]*struct {
-		Brokers       	[]string 	`gcfg:"broker"`
-		BrokerPort    	int      	`gcfg:"broker-port"`
-		Zookeepers    	[]string 	`gcfg:"zookeeper"`
-		ZookeeperPort 	int      	`gcfg:"zookeeper-port"`
-		ZookeeperPath 	string   	`gcfg:"zookeeper-path"`
-		OffsetsTopic  	string   	`gcfg:"offsets-topic"`
-		ZKOffsets     	bool     	`gcfg:"zookeeper-offsets"`
+		Brokers       []string `gcfg:"broker"`
+		BrokerPort    int      `gcfg:"broker-port"`
+		Zookeepers    []string `gcfg:"zookeeper"`
+		ZookeeperPort int      `gcfg:"zookeeper-port"`
+		ZookeeperPath string   `gcfg:"zookeeper-path"`
+		OffsetsTopic  string   `gcfg:"offsets-topic"`
+		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
 	}
 	Storm map[string]*struct {
-		Zookeepers    	[]string 	`gcfg:"zookeeper"`
-		ZookeeperPort 	int      	`gcfg:"zookeeper-port"`
-		ZookeeperPath 	string   	`gcfg:"zookeeper-path"`
+		Zookeepers    []string `gcfg:"zookeeper"`
+		ZookeeperPort int      `gcfg:"zookeeper-port"`
+		ZookeeperPath string   `gcfg:"zookeeper-path"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
 	}
 	Lagcheck struct {
-		Intervals      int   `gcfg:"intervals"`
-		MinDistance    int64 `gcfg:"min-distance"`
-		ExpireGroup    int64 `gcfg:"expire-group"`
-		ZKCheck        int64 `gcfg:"zookeeper-interval"`
-		ZKGroupRefresh int64 `gcfg:"zk-group-refresh"`
+		Intervals         int   `gcfg:"intervals"`
+		MinDistance       int64 `gcfg:"min-distance"`
+		ExpireGroup       int64 `gcfg:"expire-group"`
+		ZKCheck           int64 `gcfg:"zookeeper-interval"`
+		ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
 		StormCheck        int64 `gcfg:"storm-interval"`
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
 	}
@@ -436,39 +436,39 @@ func validateUrl(rawUrl string) bool {
 func checkHostlist(hosts []string, defaultPort int, appName string) string {
 	for i, host := range hosts {
 		hostparts := strings.Split(host, ":")
-    hostport := defaultPort
-    hostname := hostparts[0]
+		hostport := defaultPort
+		hostname := hostparts[0]
 
-    if len(hostparts) == 2 {
-      // Must be a hostname or IPv4 address with a port
-      var err error
-      hostport, err = strconv.Atoi(hostparts[1])
+		if len(hostparts) == 2 {
+			// Must be a hostname or IPv4 address with a port
+			var err error
+			hostport, err = strconv.Atoi(hostparts[1])
 			if (err != nil) || (hostport == 0) {
 				return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
 			}
-    }
+		}
 
-    if len(hostparts) > 2 {
-      // Must be an IPv6 address
-      // Try without popping off the last segment as a port number first
-      if validateIP(host) {
-        hostname = host
-      } else {
-        // The full host didn't validate as an IP, so let's pull off the last piece as a port number and try again
-        hostname = strings.Join(hostparts[:len(hostparts)-1], ":")
+		if len(hostparts) > 2 {
+			// Must be an IPv6 address
+			// Try without popping off the last segment as a port number first
+			if validateIP(host) {
+				hostname = host
+			} else {
+				// The full host didn't validate as an IP, so let's pull off the last piece as a port number and try again
+				hostname = strings.Join(hostparts[:len(hostparts)-1], ":")
 
-        hostport, err := strconv.Atoi(hostparts[len(hostparts)-1])
-			  if (err != nil) || (hostport == 0) {
-				  return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
-			  }
-      }
-    }
+				hostport, err := strconv.Atoi(hostparts[len(hostparts)-1])
+				if (err != nil) || (hostport == 0) {
+					return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
+				}
+			}
+		}
 
 		if !validateHostname(hostname) {
 			return fmt.Sprintf("One or more %s hostnames are invalid", appName)
 		}
 
-	  hosts[i] = fmt.Sprintf("[%s]:%v", hostname, hostport)
+		hosts[i] = fmt.Sprintf("[%s]:%v", hostname, hostport)
 	}
 
 	return ""

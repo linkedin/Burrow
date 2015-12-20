@@ -28,18 +28,18 @@ type KafkaCluster struct {
 }
 
 type StormCluster struct {
-	Storm    *StormClient
+	Storm *StormClient
 }
 
 type ApplicationContext struct {
-	Config       	*BurrowConfig
-	Storage      	*OffsetStorage
-	Clusters     	map[string]*KafkaCluster
-	Storms			map[string]*StormCluster
-	Server       	*HttpServer
-	Emailer      	*Emailer
-	HttpNotifier 	*HttpNotifier
-	NotifierLock 	*zk.Lock
+	Config       *BurrowConfig
+	Storage      *OffsetStorage
+	Clusters     map[string]*KafkaCluster
+	Storms       map[string]*StormCluster
+	Server       *HttpServer
+	Emailer      *Emailer
+	HttpNotifier *HttpNotifier
+	NotifierLock *zk.Lock
 }
 
 func loadNotifiers(app *ApplicationContext) error {
