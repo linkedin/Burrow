@@ -235,7 +235,8 @@ func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
 
 func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	// Ignore offsets for clusters that we don't know about - should never happen anyways
-	if _, ok := storage.offsets[offset.Cluster]; !ok {
+	clusterOffsets, ok := storage.offsets[offset.Cluster]
+	if !ok {
 		return
 	}
 
@@ -245,37 +246,58 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	}
 
 	// Get broker partition count and offset for this topic and partition first
-	storage.offsets[offset.Cluster].brokerLock.RLock()
-	if topic, ok := storage.offsets[offset.Cluster].broker[offset.Topic]; !ok || (ok && ((int32(len(topic)) < offset.Partition) || (topic[offset.Partition] == nil))) {
-		// If we don't have the partition or offset from the broker side yet, ignore the consumer offset for now
-		storage.offsets[offset.Cluster].brokerLock.RUnlock()
+	clusterOffsets.brokerLock.RLock()
+	topicPartitionList, ok := clusterOffsets.broker[offset.Topic]
+	if !ok {
+		// We don't know about this topic from the brokers yet - skip consumer offsets for now
+		clusterOffsets.brokerLock.RUnlock()
 		return
 	}
-	brokerOffset := storage.offsets[offset.Cluster].broker[offset.Topic][offset.Partition].Offset
-	partitionCount := len(storage.offsets[offset.Cluster].broker[offset.Topic])
-	storage.offsets[offset.Cluster].brokerLock.RUnlock()
+	if offset.Partition < 0 {
+		// This should never happen, but if it does, log an warning with the offset information for review
+		log.Warnf("Got a negative partition ID: cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
+			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
+		clusterOffsets.brokerLock.RUnlock()
+		return
+	}
+	if offset.Partition >= int32(len(topicPartitionList)) {
+		// We know about the topic, but partitions have been expanded and we haven't seen that from the broker yet
+		clusterOffsets.brokerLock.RUnlock()
+		return
+	}
+	if topicPartitionList[offset.Partition] == nil {
+		// We know about the topic and partition, but we haven't actually gotten the broker offset yet
+		clusterOffsets.brokerLock.RUnlock()
+		return
+	}
+	brokerOffset := topicPartitionList[offset.Partition].Offset
+	partitionCount := len(topicPartitionList)
+	clusterOffsets.brokerLock.RUnlock()
 
-	storage.offsets[offset.Cluster].consumerLock.Lock()
-	if _, ok := storage.offsets[offset.Cluster].consumer[offset.Group]; !ok {
-		storage.offsets[offset.Cluster].consumer[offset.Group] = make(map[string][]*ring.Ring)
+	clusterOffsets.consumerLock.Lock()
+	consumerMap, ok := clusterOffsets.consumer[offset.Group]
+	if !ok {
+		consumerMap = make(map[string][]*ring.Ring)
 	}
-	if _, ok := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic]; !ok {
-		storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic] = make([]*ring.Ring, partitionCount)
+	consumerTopicMap, ok := consumerMap[offset.Topic]
+	if !ok {
+		consumerTopicMap = make([]*ring.Ring, partitionCount)
 	}
-	if int(offset.Partition) >= len(storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic]) {
+	if int(offset.Partition) >= len(consumerTopicMap) {
 		// The partition count must have increased. Append enough extra partitions to our slice
-		for i := len(storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic]); i < partitionCount; i++ {
-			storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic] = append(storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic], nil)
+		for i := len(consumerTopicMap); i < partitionCount; i++ {
+			consumerTopicMap = append(consumerTopicMap, nil)
 		}
 	}
 
-	if storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] == nil {
-		storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
+	consumerPartitionRing := consumerTopicMap[offset.Partition]
+	if consumerPartitionRing == nil {
+		consumerPartitionRing = ring.New(storage.app.Config.Lagcheck.Intervals)
 	} else {
 		// Prevent old offset commits, and new commits that are too fast (less than the min-distance config)
-		previousTimestamp := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Prev().Value.(*ConsumerOffset).Timestamp
+		previousTimestamp := consumerPartitionRing.Prev().Value.(*ConsumerOffset).Timestamp
 		if offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
-			storage.offsets[offset.Cluster].consumerLock.Unlock()
+			clusterOffsets.consumerLock.Unlock()
 			return
 		}
 	}
@@ -289,22 +311,22 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	}
 
 	// Update or create the ring value at the current pointer
-	if storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Value == nil {
-		storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Value = &ConsumerOffset{
+	if consumerPartitionRing.Value == nil {
+		consumerPartitionRing.Value = &ConsumerOffset{
 			Offset:    offset.Offset,
 			Timestamp: offset.Timestamp,
 			Lag:       partitionLag,
 		}
 	} else {
-		ringval, _ := storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Value.(*ConsumerOffset)
+		ringval, _ := consumerPartitionRing.Value.(*ConsumerOffset)
 		ringval.Offset = offset.Offset
 		ringval.Timestamp = offset.Timestamp
 		ringval.Lag = partitionLag
 	}
 
 	// Advance the ring pointer
-	storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition] = storage.offsets[offset.Cluster].consumer[offset.Group][offset.Topic][offset.Partition].Next()
-	storage.offsets[offset.Cluster].consumerLock.Unlock()
+	consumerPartitionRing = consumerPartitionRing.Next()
+	clusterOffsets.consumerLock.Unlock()
 }
 
 func (storage *OffsetStorage) Stop() {
