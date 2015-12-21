@@ -356,13 +356,14 @@ func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChan
 }
 
 // Evaluate a consumer group based on specific rules about lag
-// Rule 1: If over the stored period, the lag is ever zero for the partition, the period is OK
-// Rule 2: If the consumer offset does not change, and the lag is non-zero, it's an error (partition is stalled)
-// Rule 3: If the consumer offsets are moving, but the lag is consistently increasing, it's a warning (consumer is slow)
-// Rule 4: If the difference between now and the last offset timestamp is greater than the difference between the last and first offset timestamps, the
-//         consumer has stopped committing offsets for that partition (error)
-// Rule 5: If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
-// Rule 6: If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
+// Rule 1:  If over the stored period, the lag is ever zero for the partition, the period is OK
+// Rule 2:  If the consumer offset does not change, and the lag is non-zero, it's an error (partition is stalled)
+// Rule 3:  If the consumer offsets are moving, but the lag is consistently increasing, it's a warning (consumer is slow)
+// Rule 4:  If the difference between now and the last offset timestamp is greater than the difference between the last and first offset timestamps, the
+//          consumer has stopped committing offsets for that partition (error), unless
+// Rule 4a: If the last consumer offset matches the broker offset, the consumer is OK whether it's stopped or not (ZK slow topic case)
+// Rule 5:  If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
+// Rule 6:  If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
 func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *ConsumerGroupStatus, showall bool) {
 	status := &ConsumerGroupStatus{
 		Cluster:    cluster,
@@ -466,10 +467,14 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 			// Rule 4 - Offsets haven't been committed in a while
 			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
-				status.Status = StatusError
-				thispart.Status = StatusStop
-				status.Partitions = append(status.Partitions, thispart)
-				continue
+				// Rule 4a - Is the consumer caught up anyways?
+				if lastOffset.Offset < clusterMap.broker[topic][partition].Offset {
+					// No, so the consumer is actually stopped
+					status.Status = StatusError
+					thispart.Status = StatusStop
+					status.Partitions = append(status.Partitions, thispart)
+					continue
+				}
 			}
 
 			// Rule 6 - Did the consumer offsets rewind at any point?
