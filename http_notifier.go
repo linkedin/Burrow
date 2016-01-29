@@ -149,7 +149,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 
 		resp, err := notifier.httpClient.Do(req)
 		if err != nil {
-			log.Errorf("Failed to send POST (Id %s): %v", notifier.groupIds[result.Cluster][result.Group].Id, err)
+			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", result.Group,
+				result.Cluster, result.Status, notifier.groupIds[result.Cluster][result.Group].Id, err)
 			return
 		}
 		io.Copy(ioutil.Discard, resp.Body)
@@ -180,7 +181,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 				Extras:  notifier.extras,
 			})
 			if err != nil {
-				log.Errorf("Failed to assemble DELETE: %v", err)
+				log.Errorf("Failed to assemble DELETE for group %s in cluster %s (Id %s): %v", result.Group,
+					result.Cluster, notifier.groupIds[result.Cluster][result.Group].Id, err)
 				return
 			}
 
@@ -189,7 +191,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 
 			resp, err := notifier.httpClient.Do(req)
 			if err != nil {
-				log.Errorf("Failed to send DELETE: %v", err)
+				log.Errorf("Failed to send DELETE for group %s in cluster %s (Id %s): %v", result.Group,
+					result.Cluster, notifier.groupIds[result.Cluster][result.Group].Id, err)
 				return
 			}
 			io.Copy(ioutil.Discard, resp.Body)
