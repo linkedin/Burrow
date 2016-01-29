@@ -13,6 +13,7 @@ package main
 import (
 	"container/ring"
 	"encoding/json"
+	"fmt"
 	log "github.com/cihub/seelog"
 	"regexp"
 	"sync"
@@ -35,9 +36,10 @@ type BrokerOffset struct {
 }
 
 type ConsumerOffset struct {
-	Offset    int64 `json:"offset"`
-	Timestamp int64 `json:"timestamp"`
-	Lag       int64 `json:"lag"`
+	Offset     int64 `json:"offset"`
+	Timestamp  int64 `json:"timestamp"`
+	Lag        int64 `json:"lag"`
+	artificial bool
 }
 
 type ClusterOffsets struct {
@@ -247,6 +249,8 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 
 	// Ignore groups that match our blacklist
 	if (storage.groupBlacklist != nil) && storage.groupBlacklist.MatchString(offset.Group) {
+		log.Debugf("Dropped offset (blacklist): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
+			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
 		return
 	}
 
@@ -256,6 +260,8 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	if !ok {
 		// We don't know about this topic from the brokers yet - skip consumer offsets for now
 		clusterOffsets.brokerLock.RUnlock()
+		log.Debugf("Dropped offset (no topic): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
+			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
 		return
 	}
 	if offset.Partition < 0 {
@@ -268,11 +274,15 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	if offset.Partition >= int32(len(topicPartitionList)) {
 		// We know about the topic, but partitions have been expanded and we haven't seen that from the broker yet
 		clusterOffsets.brokerLock.RUnlock()
+		log.Debugf("Dropped offset (expanded): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
+			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
 		return
 	}
 	if topicPartitionList[offset.Partition] == nil {
 		// We know about the topic and partition, but we haven't actually gotten the broker offset yet
 		clusterOffsets.brokerLock.RUnlock()
+		log.Debugf("Dropped offset (broker offset): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
+			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
 		return
 	}
 	brokerOffset := topicPartitionList[offset.Partition].Offset
@@ -302,10 +312,24 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 		consumerTopicMap[offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
 		consumerPartitionRing = consumerTopicMap[offset.Partition]
 	} else {
-		// Prevent old offset commits, and new commits that are too fast (less than the min-distance config)
-		previousTimestamp := consumerPartitionRing.Prev().Value.(*ConsumerOffset).Timestamp
-		if offset.Timestamp-previousTimestamp < (storage.app.Config.Lagcheck.MinDistance * 1000) {
+		lastOffset := consumerPartitionRing.Prev().Value.(*ConsumerOffset)
+		timestampDifference := offset.Timestamp - lastOffset.Timestamp
+
+		// Prevent old offset commits, but only if the offsets don't advance (because of artifical commits below)
+		if (timestampDifference <= 0) && (offset.Offset <= lastOffset.Offset) {
 			clusterOffsets.consumerLock.Unlock()
+			log.Debugf("Dropped offset (noadvance): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v tsdiff=%v lag=%v",
+				offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset,
+				timestampDifference, brokerOffset-offset.Offset)
+			return
+		}
+
+		// Prevent new commits that are too fast (less than the min-distance config) if the last offset was not artificial
+		if (!lastOffset.artificial) && (timestampDifference >= 0) && (timestampDifference < (storage.app.Config.Lagcheck.MinDistance * 1000)) {
+			clusterOffsets.consumerLock.Unlock()
+			log.Debugf("Dropped offset (mindistance): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v tsdiff=%v lag=%v",
+				offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset,
+				timestampDifference, brokerOffset-offset.Offset)
 			return
 		}
 	}
@@ -321,16 +345,22 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 	// Update or create the ring value at the current pointer
 	if consumerPartitionRing.Value == nil {
 		consumerPartitionRing.Value = &ConsumerOffset{
-			Offset:    offset.Offset,
-			Timestamp: offset.Timestamp,
-			Lag:       partitionLag,
+			Offset:     offset.Offset,
+			Timestamp:  offset.Timestamp,
+			Lag:        partitionLag,
+			artificial: false,
 		}
 	} else {
 		ringval, _ := consumerPartitionRing.Value.(*ConsumerOffset)
 		ringval.Offset = offset.Offset
 		ringval.Timestamp = offset.Timestamp
 		ringval.Lag = partitionLag
+		ringval.artificial = false
 	}
+
+	log.Tracef("Commit offset: cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v lag=%v",
+		offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset,
+		partitionLag)
 
 	// Advance the ring pointer
 	consumerTopicMap[offset.Partition] = consumerTopicMap[offset.Partition].Next()
@@ -361,7 +391,6 @@ func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChan
 // Rule 3:  If the consumer offsets are moving, but the lag is consistently increasing, it's a warning (consumer is slow)
 // Rule 4:  If the difference between now and the last offset timestamp is greater than the difference between the last and first offset timestamps, the
 //          consumer has stopped committing offsets for that partition (error), unless
-// Rule 4a: If the last consumer offset matches the broker offset, the consumer is OK whether it's stopped or not (ZK slow topic case)
 // Rule 5:  If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
 // Rule 6:  If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
 func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *ConsumerGroupStatus, showall bool) {
@@ -382,10 +411,10 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 
 	// Make sure the group even exists
-	clusterMap.consumerLock.RLock()
+	clusterMap.consumerLock.Lock()
 	consumerMap, ok := clusterMap.consumer[group]
 	if !ok {
-		clusterMap.consumerLock.RUnlock()
+		clusterMap.consumerLock.Unlock()
 		resultChannel <- status
 		return
 	}
@@ -403,11 +432,25 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				continue
 			}
 
+			// Add an artificial offset commit if the last consumer offset matches the current broker offset
+			lastOffset := offsetRing.Prev().Value.(*ConsumerOffset)
+			if lastOffset.Offset == clusterMap.broker[topic][partition].Offset {
+				ringval, _ := offsetRing.Value.(*ConsumerOffset)
+				ringval.Offset = lastOffset.Offset
+				ringval.Timestamp = time.Now().Unix() * 1000
+				ringval.Lag = 0
+				ringval.artificial = true
+				partitions[partition] = partitions[partition].Next()
+
+				log.Tracef("Artificial offset: cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v lag=0",
+					cluster, topic, partition, group, ringval.Timestamp, lastOffset.Offset)
+			}
+
 			// Pull out the offsets once so we can unlock the map
 			offsetList[topic][partition] = make([]ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
 			partitionMap := offsetList[topic][partition]
 			idx := -1
-			offsetRing.Do(func(val interface{}) {
+			partitions[partition].Do(func(val interface{}) {
 				idx += 1
 				ptr, _ := val.(*ConsumerOffset)
 				partitionMap[idx] = *ptr
@@ -419,11 +462,9 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			})
 		}
 	}
-	clusterMap.consumerLock.RUnlock()
 
 	// If the youngest offset is earlier than our expiration window, flush the group
 	if (youngestOffset > 0) && (youngestOffset < ((time.Now().Unix() - storage.app.Config.Lagcheck.ExpireGroup) * 1000)) {
-		clusterMap.consumerLock.Lock()
 		log.Infof("Removing expired group %s from cluster %s", group, cluster)
 		delete(clusterMap.consumer, group)
 		clusterMap.consumerLock.Unlock()
@@ -433,6 +474,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		resultChannel <- status
 		return
 	}
+	clusterMap.consumerLock.Unlock()
 
 	var maxlag int64
 	for topic, partitions := range offsetList {
@@ -467,14 +509,10 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 			// Rule 4 - Offsets haven't been committed in a while
 			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
-				// Rule 4a - Is the consumer caught up anyways?
-				if lastOffset.Offset < clusterMap.broker[topic][partition].Offset {
-					// No, so the consumer is actually stopped
-					status.Status = StatusError
-					thispart.Status = StatusStop
-					status.Partitions = append(status.Partitions, thispart)
-					continue
-				}
+				status.Status = StatusError
+				thispart.Status = StatusStop
+				status.Partitions = append(status.Partitions, thispart)
+				continue
 			}
 
 			// Rule 6 - Did the consumer offsets rewind at any point?
@@ -653,4 +691,45 @@ func (storage *OffsetStorage) requestOffsets(request *RequestOffsets) {
 		storage.offsets[request.Cluster].consumerLock.RUnlock()
 	}
 	request.Result <- response
+}
+
+func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
+	// Make sure the cluster exists
+	clusterMap, ok := storage.offsets[cluster]
+	if !ok {
+		log.Debugf("Detail cluster=%s,group=%s: No Cluster", cluster, group)
+		return
+	}
+
+	// Make sure the group even exists
+	clusterMap.consumerLock.RLock()
+	consumerMap, ok := clusterMap.consumer[group]
+	if !ok {
+		clusterMap.consumerLock.RUnlock()
+		log.Debugf("Detail cluster=%s,group=%s: No Group", cluster, group)
+		return
+	}
+
+	// Scan the offsets table and print all partitions (full ring) for the group
+	for topic, partitions := range consumerMap {
+		for partition, offsetRing := range partitions {
+			if (offsetRing == nil) || (offsetRing.Value == nil) {
+				log.Debugf("Detail cluster=%s,group=%s,topic=%s,partition=%v: No Ring", cluster, group, topic, partition)
+				continue
+			}
+
+			// Pull out the offsets once so we can unlock the map
+			ringStr := ""
+			offsetRing.Do(func(val interface{}) {
+				if val == nil {
+					ringStr += "(),"
+				} else {
+					ptr, _ := val.(*ConsumerOffset)
+					ringStr += fmt.Sprintf("(%v,%v,%v,%v)", ptr.Timestamp, ptr.Offset, ptr.Lag, ptr.artificial)
+				}
+			})
+			log.Debugf("Detail cluster=%s,group=%s,topic=%s,partition=%v: %s", cluster, group, topic, partition, ringStr)
+		}
+	}
+	clusterMap.consumerLock.RUnlock()
 }
