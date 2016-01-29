@@ -198,6 +198,7 @@ func (client *KafkaClient) getOffsets() error {
 		response, err := brokers[brokerID].GetAvailableOffsets(request)
 		if err != nil {
 			log.Errorf("Cannot fetch offsets from broker %v: %v", brokerID, err)
+			_ = brokers[brokerID].Close()
 			return
 		}
 		ts := time.Now().Unix() * 1000
