@@ -221,6 +221,7 @@ func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
 		for i := len(topicList); i < offset.TopicPartitionCount; i++ {
 			topicList = append(topicList, nil)
 		}
+		clusterMap.broker[offset.Topic] = topicList
 	}
 
 	partitionEntry := topicList[offset.Partition]
@@ -295,6 +296,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 		for i := len(consumerTopicMap); i < partitionCount; i++ {
 			consumerTopicMap = append(consumerTopicMap, nil)
 		}
+		consumerMap[offset.Topic] = consumerTopicMap
 	}
 
 	consumerPartitionRing := consumerTopicMap[offset.Partition]
