@@ -116,7 +116,7 @@ func (stormClient *StormClient) getConsumerGroupPath(consumerGroup string) strin
 }
 
 func (stormClient *StormClient) getOffsetsForConsumerGroup(consumerGroup string) {
-	consumerGroupPath := getConsumerGroupPath(consumerGroup)
+	consumerGroupPath := stormClient.getConsumerGroupPath(consumerGroup)
 	partition_ids, _, err := stormClient.conn.Children(consumerGroupPath)
 	switch {
 	case err == nil:
