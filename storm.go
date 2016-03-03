@@ -107,9 +107,16 @@ func parseStormSpoutStateJson(stateStr string) (int, string, error) {
 	}
 }
 
-func (stormClient *StormClient) getOffsetsForConsumerGroup(consumerGroup string) {
+func (stormClient *StormClient) getConsumerGroupPath(consumerGroup string) string {
+	if "/" == stormClient.app.Config.Storm[stormClient.cluster].ZookeeperPath {
+		return "/" + consumerGroup
+	} else {
+		return stormClient.app.Config.Storm[stormClient.cluster].ZookeeperPath + "/" + consumerGroup
+	}
+}
 
-	consumerGroupPath := stormClient.app.Config.Storm[stormClient.cluster].ZookeeperPath + "/" + consumerGroup
+func (stormClient *StormClient) getOffsetsForConsumerGroup(consumerGroup string) {
+	consumerGroupPath := getConsumerGroupPath(consumerGroup)
 	partition_ids, _, err := stormClient.conn.Children(consumerGroupPath)
 	switch {
 	case err == nil:
