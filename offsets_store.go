@@ -223,7 +223,6 @@ func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
 		for i := len(topicList); i < offset.TopicPartitionCount; i++ {
 			topicList = append(topicList, nil)
 		}
-		clusterMap.broker[offset.Topic] = topicList
 	}
 
 	partitionEntry := topicList[offset.Partition]
@@ -306,7 +305,6 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 		for i := len(consumerTopicMap); i < partitionCount; i++ {
 			consumerTopicMap = append(consumerTopicMap, nil)
 		}
-		consumerMap[offset.Topic] = consumerTopicMap
 	}
 
 	consumerPartitionRing := consumerTopicMap[offset.Partition]
@@ -434,9 +432,9 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				continue
 			}
 
-			// Add an artificial offset commit if the last consumer offset matches the current broker offset
+			// Add an artificial offset commit if the consumer has no lag against the current broker offset
 			lastOffset := offsetRing.Prev().Value.(*ConsumerOffset)
-			if lastOffset.Offset == clusterMap.broker[topic][partition].Offset {
+			if lastOffset.Offset >= clusterMap.broker[topic][partition].Offset {
 				ringval, _ := offsetRing.Value.(*ConsumerOffset)
 				ringval.Offset = lastOffset.Offset
 				ringval.Timestamp = time.Now().Unix() * 1000
