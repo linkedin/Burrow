@@ -84,7 +84,7 @@ type BurrowConfig struct {
 	}
 	Httpnotifier struct {
 		Url            string   `gcfg:"url"`
-		Interval       int      `gcfg:"interval"`
+		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
 		TemplatePost   string   `gcfg:"template-post"`
 		TemplateDelete string   `gcfg:"template-delete"`

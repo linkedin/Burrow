@@ -16,10 +16,12 @@ import (
 	"github.com/pborman/uuid"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 )
@@ -29,9 +31,11 @@ type HttpNotifier struct {
 	templatePost   *template.Template
 	templateDelete *template.Template
 	extras         map[string]string
-	ticker         *time.Ticker
+	refreshTicker  *time.Ticker
 	quitChan       chan struct{}
 	groupIds       map[string]map[string]Event
+	groupList      map[string]map[string]bool
+	groupLock      sync.RWMutex
 	resultsChannel chan *ConsumerGroupStatus
 	httpClient     *http.Client
 }
@@ -44,13 +48,13 @@ type Event struct {
 func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 	// Helper functions for templates
 	fmap := template.FuncMap{
-		"jsonencoder":     templateJsonEncoder,
-		"topicsbystatus":  classifyTopicsByStatus,
-		"partitioncounts": templateCountPartitions,
-		"add":             templateAdd,
-		"minus":           templateMinus,
-		"multiply":        templateMultiply,
-		"divide":          templateDivide,
+    "jsonencoder":     templateJsonEncoder,
+    "topicsbystatus":  classifyTopicsByStatus,
+    "partitioncounts": templateCountPartitions,
+    "add":             templateAdd,
+    "minus":           templateMinus,
+    "multiply":        templateMultiply,
+    "divide":          templateDivide,
 	}
 
 	// Compile the templates
@@ -82,6 +86,8 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 		extras:         extras,
 		quitChan:       make(chan struct{}),
 		groupIds:       make(map[string]map[string]Event),
+		groupList:      make(map[string]map[string]bool),
+		groupLock:      sync.RWMutex{},
 		resultsChannel: make(chan *ConsumerGroupStatus),
 		httpClient: &http.Client{
 			Timeout: time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
@@ -92,21 +98,6 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 			},
 		},
 	}, nil
-}
-
-func (notifier *HttpNotifier) sendEvaluationRequests() {
-	for cluster, _ := range notifier.app.Config.Kafka {
-		// Get a current list of consumer groups
-		storageRequest := &RequestConsumerList{Result: make(chan []string), Cluster: cluster}
-		notifier.app.Storage.requestChannel <- storageRequest
-		groups := <-storageRequest.Result
-
-		// Send requests for group status
-		for _, group := range groups {
-			storageRequest := &RequestConsumerStatus{Result: notifier.resultsChannel, Cluster: cluster, Group: group}
-			notifier.app.Storage.requestChannel <- storageRequest
-		}
-	}
 }
 
 func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStatus) {
@@ -170,7 +161,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 		resp.Body.Close()
 
 		if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-			log.Infof("Sent POST for group %s in cluster %s at severity %v (Id %s)", result.Group, result.Cluster, result.Status, idStr)
+			log.Debugf("Sent POST for group %s in cluster %s at severity %v (Id %s)", result.Group, result.Cluster, result.Status, idStr)
 		} else {
 			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %s", result.Group,
 				result.Cluster, result.Status, idStr, resp.Status)
@@ -213,7 +204,7 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 			resp.Body.Close()
 
 			if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-				log.Infof("Sent DELETE for group %s in cluster %s (Id %s)", result.Group, result.Cluster,
+				log.Debugf("Sent DELETE for group %s in cluster %s (Id %s)", result.Group, result.Cluster,
 					notifier.groupIds[result.Cluster][result.Group].Id)
 			} else {
 				log.Errorf("Failed to send DELETE for group %s in cluster %s (Id %s): %s", result.Group,
@@ -226,19 +217,91 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 	}
 }
 
-func (notifier *HttpNotifier) Start() {
-	// Start the ticker
-	notifier.ticker = time.NewTicker(time.Duration(notifier.app.Config.Httpnotifier.Interval) * time.Second)
+func (notifier *HttpNotifier) refreshConsumerGroups() {
+	notifier.groupLock.Lock()
+	defer notifier.groupLock.Unlock()
 
+	for cluster, _ := range notifier.app.Config.Kafka {
+		clusterGroups, ok := notifier.groupList[cluster]
+		if !ok {
+			notifier.groupList[cluster] = make(map[string]bool)
+			clusterGroups = notifier.groupList[cluster]
+		}
+
+		// Get a current list of consumer groups
+		storageRequest := &RequestConsumerList{Result: make(chan []string), Cluster: cluster}
+		notifier.app.Storage.requestChannel <- storageRequest
+		consumerGroups := <-storageRequest.Result
+
+		// Mark all existing groups false
+		for consumerGroup := range notifier.groupList {
+			clusterGroups[consumerGroup] = false
+		}
+
+		// Check for new groups, mark existing groups true
+		for _, consumerGroup := range consumerGroups {
+			// Don't bother adding groups in the blacklist
+			if (notifier.app.Storage.groupBlacklist != nil) && notifier.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+				continue
+			}
+
+			if _, ok := clusterGroups[consumerGroup]; !ok {
+				// Add new consumer group and start checking it
+				log.Debugf("Start evaluating consumer group %s in cluster %s", consumerGroup, cluster)
+				go notifier.startConsumerGroupEvaluator(consumerGroup, cluster)
+			}
+			clusterGroups[consumerGroup] = true
+		}
+
+		// Delete groups that are still false
+		for consumerGroup := range clusterGroups {
+			if !clusterGroups[consumerGroup] {
+				log.Debugf("Remove evaluator for consumer group %s in cluster %s", consumerGroup, cluster)
+				delete(clusterGroups, consumerGroup)
+			}
+		}
+	}
+}
+
+func (notifier *HttpNotifier) startConsumerGroupEvaluator(group string, cluster string) {
+	// Sleep for a random portion of the check interval
+	time.Sleep(time.Duration(rand.Int63n(notifier.app.Config.Httpnotifier.Interval*1000)) * time.Millisecond)
+
+	for {
+		// Make sure this group still exists
+		notifier.groupLock.RLock()
+		if _, ok := notifier.groupList[cluster][group]; !ok {
+			notifier.groupLock.RUnlock()
+			log.Debugf("Stopping evaluator for consumer group %s in cluster %s", group, cluster)
+			break
+		}
+		notifier.groupLock.RUnlock()
+
+		// Send requests for group status - responses are handled by the main loop (for now)
+		storageRequest := &RequestConsumerStatus{Result: notifier.resultsChannel, Cluster: cluster, Group: group}
+		notifier.app.Storage.requestChannel <- storageRequest
+
+		// Sleep for the check interval
+		time.Sleep(time.Duration(notifier.app.Config.Httpnotifier.Interval) * time.Second)
+	}
+}
+
+func (notifier *HttpNotifier) Start() {
+	// Get a group list to start with (this will start the notifiers)
+	notifier.refreshConsumerGroups()
+
+	// Set a ticker to refresh the group list periodically
+	notifier.refreshTicker = time.NewTicker(time.Duration(notifier.app.Config.Lagcheck.ZKGroupRefresh) * time.Second)
+
+	// Main loop to handle refreshes and evaluation responses
 	go func() {
 	OUTERLOOP:
 		for {
 			select {
 			case <-notifier.quitChan:
-				notifier.ticker.Stop()
 				break OUTERLOOP
-			case <-notifier.ticker.C:
-				go notifier.sendEvaluationRequests()
+			case <-notifier.refreshTicker.C:
+				notifier.refreshConsumerGroups()
 			case result := <-notifier.resultsChannel:
 				go notifier.handleEvaluationResponse(result)
 			}
@@ -247,5 +310,11 @@ func (notifier *HttpNotifier) Start() {
 }
 
 func (notifier *HttpNotifier) Stop() {
+	if notifier.refreshTicker != nil {
+		notifier.refreshTicker.Stop()
+		notifier.groupLock.Lock()
+		notifier.groupList = make(map[string]map[string]bool)
+		notifier.groupLock.Unlock()
+	}
 	close(notifier.quitChan)
 }
