@@ -88,6 +88,8 @@ type BurrowConfig struct {
 		Extras         []string `gcfg:"extra"`
 		TemplatePost   string   `gcfg:"template-post"`
 		TemplateDelete string   `gcfg:"template-delete"`
+		SendDelete     bool     `gcfg:"send-delete"`
+		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
 	}
@@ -95,6 +97,10 @@ type BurrowConfig struct {
 
 func ReadConfig(cfgFile string) *BurrowConfig {
 	var cfg BurrowConfig
+
+	// Set some non-standard defaults
+	cfg.Httpnotifier.SendDelete = true
+
 	err := gcfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
 		log.Fatalf("Failed to parse gcfg data: %s", err)
@@ -354,6 +360,12 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 		if _, err := os.Stat(app.Config.Httpnotifier.TemplateDelete); os.IsNotExist(err) {
 			errs = append(errs, "HTTP notifier DELETE template file does not exist")
+		}
+		if app.Config.Httpnotifier.PostThreshold == 0 {
+			app.Config.Httpnotifier.PostThreshold = 2
+		}
+		if (app.Config.Httpnotifier.PostThreshold < 1) || (app.Config.Httpnotifier.PostThreshold > 3) {
+			errs = append(errs, "HTTP notifier post-threshold must be between 1 and 3")
 		}
 		if app.Config.Httpnotifier.Interval == 0 {
 			app.Config.Httpnotifier.Interval = 60
