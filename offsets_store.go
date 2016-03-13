@@ -94,12 +94,13 @@ type PartitionStatus struct {
 }
 
 type ConsumerGroupStatus struct {
-	Cluster    string             `json:"cluster"`
-	Group      string             `json:"group"`
-	Status     StatusConstant     `json:"status"`
-	Complete   bool               `json:"complete"`
-	Partitions []*PartitionStatus `json:"partitions"`
-	Maxlag     *PartitionStatus   `json:"maxlag"`
+	Cluster         string             `json:"cluster"`
+	Group           string             `json:"group"`
+	Status          StatusConstant     `json:"status"`
+	Complete        bool               `json:"complete"`
+	Partitions      []*PartitionStatus `json:"partitions"`
+	TotalPartitions int                `json:"partition_count"`
+	Maxlag          *PartitionStatus   `json:"maxlag"`
 }
 
 type ResponseTopicList struct {
@@ -426,6 +427,8 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	for topic, partitions := range consumerMap {
 		offsetList[topic] = make([][]ConsumerOffset, len(partitions))
 		for partition, offsetRing := range partitions {
+			status.TotalPartitions += 1
+
 			// If we don't have our ring full yet, make sure we let the caller know
 			if (offsetRing == nil) || (offsetRing.Value == nil) {
 				status.Complete = false

@@ -44,8 +44,13 @@ type Event struct {
 func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 	// Helper functions for templates
 	fmap := template.FuncMap{
-		"jsonencoder":    templateJsonEncoder,
-		"topicsbystatus": classifyTopicsByStatus,
+		"jsonencoder":     templateJsonEncoder,
+		"topicsbystatus":  classifyTopicsByStatus,
+    "partitioncounts": templateCountPartitions,
+    "add":             templateAdd,
+    "minus":           templateMinus,
+    "multiply":        templateMultiply,
+    "divide":          templateDivide,
 	}
 
 	// Compile the templates
@@ -105,17 +110,26 @@ func (notifier *HttpNotifier) sendEvaluationRequests() {
 }
 
 func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStatus) {
-	if result.Status >= StatusWarning {
-		if _, ok := notifier.groupIds[result.Cluster]; !ok {
-			// Create the cluster map
-			notifier.groupIds[result.Cluster] = make(map[string]Event)
-		}
-		if _, ok := notifier.groupIds[result.Cluster][result.Group]; !ok {
-			// Create Event and Id
-			eventId := uuid.NewRandom()
-			notifier.groupIds[result.Cluster][result.Group] = Event{
-				Id:    eventId.String(),
-				Start: time.Now(),
+	if int(result.Status) >= notifier.app.Config.Httpnotifier.PostThreshold {
+		// We only use IDs if we are sending deletes
+		idStr := ""
+		startTime := time.Now()
+		if notifier.app.Config.Httpnotifier.SendDelete {
+			if _, ok := notifier.groupIds[result.Cluster]; !ok {
+				// Create the cluster map
+				notifier.groupIds[result.Cluster] = make(map[string]Event)
+			}
+			if _, ok := notifier.groupIds[result.Cluster][result.Group]; !ok {
+				// Create Event and Id
+				eventId := uuid.NewRandom()
+				idStr = eventId.String()
+				notifier.groupIds[result.Cluster][result.Group] = Event{
+					Id:    idStr,
+					Start: startTime,
+				}
+			} else {
+				idStr = notifier.groupIds[result.Cluster][result.Group].Id
+				startTime = notifier.groupIds[result.Cluster][result.Group].Start
 			}
 		}
 
@@ -132,8 +146,8 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 		}{
 			Cluster:    result.Cluster,
 			Group:      result.Group,
-			Id:         notifier.groupIds[result.Cluster][result.Group].Id,
-			Start:      notifier.groupIds[result.Cluster][result.Group].Start,
+			Id:         idStr,
+			Start:      startTime,
 			Extras:     notifier.extras,
 			Result:     result,
 			JsonEncode: templateJsonEncoder,
@@ -149,21 +163,21 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 
 		resp, err := notifier.httpClient.Do(req)
 		if err != nil {
-			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", result.Group,
-				result.Cluster, result.Status, notifier.groupIds[result.Cluster][result.Group].Id, err)
+			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", result.Group, result.Cluster, result.Status, idStr, err)
 			return
 		}
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 
 		if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-			log.Infof("Sent POST for group %s in cluster %s at severity %v (Id %s)", result.Group,
-				result.Cluster, result.Status, notifier.groupIds[result.Cluster][result.Group].Id)
+			log.Infof("Sent POST for group %s in cluster %s at severity %v (Id %s)", result.Group, result.Cluster, result.Status, idStr)
 		} else {
 			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %s", result.Group,
-				result.Cluster, result.Status, notifier.groupIds[result.Cluster][result.Group].Id, resp.Status)
+				result.Cluster, result.Status, idStr, resp.Status)
 		}
-	} else {
+	}
+
+	if notifier.app.Config.Httpnotifier.SendDelete && (result.Status == StatusOK) {
 		if _, ok := notifier.groupIds[result.Cluster][result.Group]; ok {
 			// Send DELETE to HTTP endpoint
 			bytesToSend := new(bytes.Buffer)

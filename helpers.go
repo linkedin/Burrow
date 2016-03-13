@@ -41,3 +41,48 @@ func classifyTopicsByStatus(partitions []*PartitionStatus) map[string][]string {
 
 	return rv
 }
+
+// Template Helper - Return a map of partition counts
+// keys are warn, stop, stall, rewind, unknown
+func templateCountPartitions(partitions []*PartitionStatus) map[string]int {
+  rv := map[string]int {
+    "warn":    0,
+    "stop":    0,
+    "stall":   0,
+    "rewind":  0,
+    "unknown": 0,
+  }
+
+  for _, partition := range partitions {
+    switch partition.Status {
+    case StatusOK:
+      break
+    case StatusWarning:
+      rv["warn"]++
+    case StatusStop:
+      rv["stop"]++
+    case StatusStall:
+      rv["stall"]++
+    case StatusRewind:
+      rv["rewind"]++
+    default:
+      rv["unknown"]++
+    }
+  }
+
+  return rv
+}
+
+// Template Helper - do maths
+func templateAdd(a, b int) int {
+  return a + b
+}
+func templateMinus(a, b int) int {
+  return a - b
+}
+func templateMultiply(a, b int) int {
+  return a * b
+}
+func templateDivide(a, b int) int {
+  return a / b
+}
