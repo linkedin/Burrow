@@ -46,11 +46,11 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 	fmap := template.FuncMap{
 		"jsonencoder":     templateJsonEncoder,
 		"topicsbystatus":  classifyTopicsByStatus,
-    "partitioncounts": templateCountPartitions,
-    "add":             templateAdd,
-    "minus":           templateMinus,
-    "multiply":        templateMultiply,
-    "divide":          templateDivide,
+		"partitioncounts": templateCountPartitions,
+		"add":             templateAdd,
+		"minus":           templateMinus,
+		"multiply":        templateMultiply,
+		"divide":          templateDivide,
 	}
 
 	// Compile the templates
