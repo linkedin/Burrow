@@ -43,6 +43,11 @@ func LoadNotifiers(app *ApplicationContext) error {
 			}
 		}
 	}
+	if app.Config.Slacknotifier.Enable {
+		if slackNotifier, err := NewSlackNotifier(app); err == nil {
+			notifiers = append(notifiers, slackNotifier)
+		}
+	}
 
 	nc := &NotifyCenter{
 		app:            app,

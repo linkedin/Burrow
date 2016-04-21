@@ -105,6 +105,19 @@ type BurrowConfig struct {
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
 	}
+	Slacknotifier struct {
+		Enable    bool     `gcfg:"enable"`
+		Groups    []string `gcfg:"group"`
+		Url       string   `gcfg:"url"`
+		Interval  int64    `gcfg:"interval"`
+		Channel   string   `gcfg:"channel"`
+		Username  string   `gcfg:"username"`
+		IconUrl   string   `gcfg:"icon-url"`
+		IconEmoji string   `gfcg:"icon-emoji"`
+		Threshold int      `gcfg:"threshold"`
+		Timeout   int      `gcfg:"timeout"`
+		Keepalive int      `gcfg:"keepalive"`
+	}
 	Clientprofile map[string]*ClientProfile
 }
 
@@ -409,6 +422,25 @@ func ValidateConfig(app *ApplicationContext) error {
 				errs = append(errs, "One or more HTTP notifier extra fields are invalid")
 				break
 			}
+		}
+	}
+
+	// Slack Notifier config
+	if app.Config.Slacknotifier.Url != "" {
+		if !validateUrl(app.Config.Slacknotifier.Url) {
+			errs = append(errs, "Slack notifier URL is invalid")
+		}
+		if app.Config.Slacknotifier.Channel == "" {
+			app.Config.Slacknotifier.Channel = "#general"
+		}
+		if app.Config.Slacknotifier.Username == "" {
+			app.Config.Slacknotifier.Username = "Burrower"
+		}
+		if app.Config.Slacknotifier.IconUrl == "" {
+			app.Config.Slacknotifier.IconUrl = "https://slack.com/img/icons/app-57.png"
+		}
+		if app.Config.Slacknotifier.IconEmoji == "" {
+			app.Config.Slacknotifier.IconEmoji = ":ghost:"
 		}
 	}
 
