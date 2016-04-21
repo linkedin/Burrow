@@ -356,6 +356,11 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 		// Username and password are not validated - they're optional
 
+		// Notify
+		if app.Config.Notify.Interval == 0 {
+			app.Config.Notify.Interval = 10
+		}
+
 		// Email configs
 		for email, cfg := range app.Config.Emailnotifier {
 			if !validateEmail(email) {
