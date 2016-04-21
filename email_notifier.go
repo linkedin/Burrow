@@ -19,17 +19,18 @@ import (
 )
 
 type EmailNotifier struct {
-	template  *template.Template
-	auth      smtp.Auth
-	server    string
-	port      int
-	interval  int64
-	threshold int
-	username  string
-	password  string
-	from      string
-	to        string
-	groups    []string
+	template     *template.Template
+	auth         smtp.Auth
+	server       string
+	port         int
+	interval     int64
+	threshold    int
+	username     string
+	password     string
+	from         string
+	to           string
+	groups       []string
+	groupResults map[string]Message
 }
 
 func (emailer *EmailNotifier) NotifierName() string {
@@ -40,7 +41,15 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 	switch msg.(type) {
 	case *ConsumerGroupStatus:
 		result, _ := msg.(*ConsumerGroupStatus)
-		return emailer.sendConsumerGroupStatusNotify(result)
+		for _, group := range emailer.groups {
+			clusterGroup := fmt.Sprintf("%s,%s", result.Cluster, result.Group)
+			if clusterGroup == group {
+				emailer.groupResults[clusterGroup] = msg
+			}
+		}
+		if len(emailer.groups) == len(emailer.groupResults) {
+			return emailer.sendConsumerGroupStatusNotify()
+		}
 	}
 	return nil
 }
@@ -74,17 +83,18 @@ func NewEmailNotifier(app *ApplicationContext) ([]*EmailNotifier, error) {
 	for to, cfg := range app.Config.Emailnotifier {
 		if cfg.Enable {
 			emailer := &EmailNotifier{
-				threshold: cfg.Threshold,
-				template:  template,
-				server:    app.Config.Smtp.Server,
-				port:      app.Config.Smtp.Port,
-				username:  app.Config.Smtp.Username,
-				password:  app.Config.Smtp.Password,
-				auth:      auth,
-				groups:    cfg.Groups,
-				interval:  cfg.Interval,
-				from:      app.Config.Smtp.From,
-				to:        to,
+				threshold:    cfg.Threshold,
+				template:     template,
+				server:       app.Config.Smtp.Server,
+				port:         app.Config.Smtp.Port,
+				username:     app.Config.Smtp.Username,
+				password:     app.Config.Smtp.Password,
+				auth:         auth,
+				interval:     cfg.Interval,
+				from:         app.Config.Smtp.From,
+				to:           to,
+				groups:       cfg.Groups,
+				groupResults: make(map[string]Message),
 			}
 			emailers = append(emailers, emailer)
 		}
@@ -93,8 +103,17 @@ func NewEmailNotifier(app *ApplicationContext) ([]*EmailNotifier, error) {
 	return emailers, nil
 }
 
-func (emailer *EmailNotifier) sendConsumerGroupStatusNotify(result *ConsumerGroupStatus) error {
+func (emailer *EmailNotifier) sendConsumerGroupStatusNotify() error {
 	var bytesToSend bytes.Buffer
+	log.Debug("send email")
+
+	results := make([]*ConsumerGroupStatus, len(emailer.groups))
+	i := 0
+	for group, result := range emailer.groupResults {
+		results[i] = result.(*ConsumerGroupStatus)
+		delete(emailer.groupResults, group)
+		i++
+	}
 
 	err := emailer.template.Execute(&bytesToSend, struct {
 		From    string
@@ -103,7 +122,7 @@ func (emailer *EmailNotifier) sendConsumerGroupStatusNotify(result *ConsumerGrou
 	}{
 		From:    emailer.from,
 		To:      emailer.to,
-		Results: []*ConsumerGroupStatus{result},
+		Results: results,
 	})
 	if err != nil {
 		log.Error("Failed to assemble email:", err)
