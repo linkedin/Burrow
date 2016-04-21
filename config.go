@@ -90,7 +90,7 @@ type BurrowConfig struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
 		Interval  int64    `gcfg:"interval"`
-		Threshold string   `gcfg:"threhsold"`
+		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
 		Enable         bool     `gcfg:"enable"`
@@ -369,15 +369,6 @@ func ValidateConfig(app *ApplicationContext) error {
 			}
 			if cfg.Interval == 0 {
 				errs = append(errs, "Email notification interval is not specified")
-			}
-			if cfg.Threshold == "" {
-				cfg.Threshold = "WARNING"
-			} else {
-				// Upcase the threshold
-				cfg.Threshold = strings.ToUpper(cfg.Threshold)
-				if (cfg.Threshold != "WARNING") && (cfg.Threshold != "ERROR") {
-					errs = append(errs, "Email notification threshold is invalid (must be WARNING or ERROR)")
-				}
 			}
 		}
 	} else {
