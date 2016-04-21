@@ -74,6 +74,9 @@ type BurrowConfig struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
 	}
+	Notify struct {
+		Interval int64 `gcfg:"interval"`
+	}
 	Smtp struct {
 		Server   string `gcfg:"server"`
 		Port     int    `gcfg:"port"`
@@ -83,12 +86,15 @@ type BurrowConfig struct {
 		From     string `gcfg:"from"`
 		Template string `gcfg:"template"`
 	}
-	Email map[string]*struct {
+	Emailnotifier map[string]*struct {
+		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
-		Interval  int      `gcfg:"interval"`
+		Interval  int64    `gcfg:"interval"`
 		Threshold string   `gcfg:"threhsold"`
 	}
 	Httpnotifier struct {
+		Enable         bool     `gcfg:"enable"`
+		Groups         []string `gcfg:"group"`
 		Url            string   `gcfg:"url"`
 		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
@@ -338,7 +344,7 @@ func ValidateConfig(app *ApplicationContext) error {
 		// Username and password are not validated - they're optional
 
 		// Email configs
-		for email, cfg := range app.Config.Email {
+		for email, cfg := range app.Config.Emailnotifier {
 			if !validateEmail(email) {
 				errs = append(errs, "Email address is invalid")
 			}
@@ -375,7 +381,7 @@ func ValidateConfig(app *ApplicationContext) error {
 			}
 		}
 	} else {
-		if len(app.Config.Email) > 0 {
+		if len(app.Config.Emailnotifier) > 0 {
 			errs = append(errs, "Email notifications are configured, but SMTP server is not configured")
 		}
 	}

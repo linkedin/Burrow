@@ -13,6 +13,7 @@ package main
 import (
 	log "github.com/cihub/seelog"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 )
@@ -20,32 +21,92 @@ import (
 type NotifyCenter struct {
 	app            *ApplicationContext
 	interval       int64
+	notifiers      []Notifier
 	refreshTicker  *time.Ticker
 	quitChan       chan struct{}
-	groupIds       map[string]map[string]event
 	groupList      map[string]map[string]bool
 	groupLock      sync.RWMutex
 	resultsChannel chan *ConsumerGroupStatus
 }
 
-type event struct {
-	Id    string
-	Start time.Time
-}
+func LoadNotifiers(app *ApplicationContext) error {
+	notifiers := []Notifier{}
+	if app.Config.Httpnotifier.Enable {
+		if httpNotifier, err := NewHttpNotifier(app); err == nil {
+			notifiers = append(notifiers, httpNotifier)
+		}
+	}
+	if len(app.Config.Emailnotifier) > 0 {
+		if emailNotifiers, err := NewEmailNotifier(app); err == nil {
+			for _, emailer := range emailNotifiers {
+				notifiers = append(notifiers, emailer)
+			}
+		}
+	}
 
-func NewNotifyCenter(app *ApplicationContext) (*NotifyCenter, error) {
-	return &NotifyCenter{
+	nc := &NotifyCenter{
 		app:            app,
+		notifiers:      notifiers,
+		interval:       app.Config.Notify.Interval,
 		quitChan:       make(chan struct{}),
-		groupIds:       make(map[string]map[string]event),
 		groupList:      make(map[string]map[string]bool),
 		groupLock:      sync.RWMutex{},
 		resultsChannel: make(chan *ConsumerGroupStatus),
-	}, nil
+	}
+
+	app.NotifyCenter = nc
+	return nil
 }
 
-func (notifier *NotifyCenter) handleEvaluationResponse(result *ConsumerGroupStatus) {
-	// TODO: notify all
+func StartNotifiers(app *ApplicationContext) {
+	nc := app.NotifyCenter
+	// Do not proceed until we get the Zookeeper lock
+	err := app.NotifierLock.Lock()
+	if err != nil {
+		log.Criticalf("Cannot get ZK nc lock: %v", err)
+		os.Exit(1)
+	}
+	log.Info("Acquired Zookeeper notify lock")
+	// Get a group list to start with (this will start the ncs)
+	nc.refreshConsumerGroups()
+
+	// Set a ticker to refresh the group list periodically
+	nc.refreshTicker = time.NewTicker(time.Duration(nc.app.Config.Lagcheck.ZKGroupRefresh) * time.Second)
+
+	// Main loop to handle refreshes and evaluation responses
+OUTERLOOP:
+	for {
+		select {
+		case <-nc.quitChan:
+			break OUTERLOOP
+		case <-nc.refreshTicker.C:
+			nc.refreshConsumerGroups()
+		case result := <-nc.resultsChannel:
+			go nc.handleEvaluationResponse(result)
+		}
+	}
+}
+
+func StopNotifiers(app *ApplicationContext) {
+	// Ignore errors on unlock - we're quitting anyways, and it might not be locked
+	app.NotifierLock.Unlock()
+	nc := app.NotifyCenter
+	if nc.refreshTicker != nil {
+		nc.refreshTicker.Stop()
+		nc.groupLock.Lock()
+		nc.groupList = make(map[string]map[string]bool)
+		nc.groupLock.Unlock()
+	}
+	close(nc.quitChan)
+	// TODO stop all ncs
+}
+
+func (nc *NotifyCenter) handleEvaluationResponse(result *ConsumerGroupStatus) {
+	for _, notifier := range nc.notifiers {
+		if !notifier.Ignore(result) {
+			notifier.Notify(result)
+		}
+	}
 }
 
 func (notifier *NotifyCenter) refreshConsumerGroups() {
@@ -73,7 +134,7 @@ func (notifier *NotifyCenter) refreshConsumerGroups() {
 
 			if _, ok := clusterGroups[consumerGroup]; !ok {
 				// Add new consumer group and start checking it
-				log.Debugf("Start evaluating consumer group %s in cluster %s", consumerGroup, cluster)
+				log.Infof("Start evaluating consumer group %s in cluster %s", consumerGroup, cluster)
 				go notifier.startConsumerGroupEvaluator(consumerGroup, cluster)
 			}
 			clusterGroups[consumerGroup] = true
@@ -110,37 +171,4 @@ func (notifier *NotifyCenter) startConsumerGroupEvaluator(group string, cluster 
 		// Sleep for the check interval
 		time.Sleep(time.Duration(notifier.interval) * time.Second)
 	}
-}
-
-func (notifier *NotifyCenter) Start() {
-	// Get a group list to start with (this will start the notifiers)
-	notifier.refreshConsumerGroups()
-
-	// Set a ticker to refresh the group list periodically
-	notifier.refreshTicker = time.NewTicker(time.Duration(notifier.app.Config.Lagcheck.ZKGroupRefresh) * time.Second)
-
-	// Main loop to handle refreshes and evaluation responses
-	go func() {
-	OUTERLOOP:
-		for {
-			select {
-			case <-notifier.quitChan:
-				break OUTERLOOP
-			case <-notifier.refreshTicker.C:
-				notifier.refreshConsumerGroups()
-			case result := <-notifier.resultsChannel:
-				go notifier.handleEvaluationResponse(result)
-			}
-		}
-	}()
-}
-
-func (notifier *NotifyCenter) Stop() {
-	if notifier.refreshTicker != nil {
-		notifier.refreshTicker.Stop()
-		notifier.groupLock.Lock()
-		notifier.groupList = make(map[string]map[string]bool)
-		notifier.groupLock.Unlock()
-	}
-	close(notifier.quitChan)
 }
