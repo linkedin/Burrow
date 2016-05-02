@@ -96,6 +96,7 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 				Dial: (&net.Dialer{
 					KeepAlive: time.Duration(app.Config.Httpnotifier.Keepalive) * time.Second,
 				}).Dial,
+				Proxy: http.ProxyFromEnvironment,
 			},
 		},
 	}, nil
