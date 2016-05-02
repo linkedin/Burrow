@@ -267,35 +267,41 @@ func readString(buf *bytes.Buffer) (string, error) {
 
 func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMessage) {
 	var keyver, valver uint16
+	var group, topic string
 	var partition uint32
 	var offset, timestamp uint64
 
 	buf := bytes.NewBuffer(msg.Key)
 	err := binary.Read(buf, binary.BigEndian, &keyver)
-	if (err != nil) || ((keyver != 0) && (keyver != 1)) {
-		log.Warnf("Failed to decode %s:%v offset %v: keyver", msg.Topic, msg.Partition, msg.Offset)
+	switch keyver {
+	case 0, 1:
+		group, err = readString(buf)
+		if err != nil {
+			log.Warnf("Failed to decode %s:%v offset %v: group", msg.Topic, msg.Partition, msg.Offset)
+			return
+		}
+		topic, err = readString(buf)
+		if err != nil {
+			log.Warnf("Failed to decode %s:%v offset %v: topic", msg.Topic, msg.Partition, msg.Offset)
+			return
+		}
+		err = binary.Read(buf, binary.BigEndian, &partition)
+		if err != nil {
+			log.Warnf("Failed to decode %s:%v offset %v: partition", msg.Topic, msg.Partition, msg.Offset)
+			return
+		}
+	case 2:
+		log.Debugf("Discarding group metadata message with key version 2")
 		return
-	}
-	group, err := readString(buf)
-	if err != nil {
-		log.Warnf("Failed to decode %s:%v offset %v: group", msg.Topic, msg.Partition, msg.Offset)
-		return
-	}
-	topic, err := readString(buf)
-	if err != nil {
-		log.Warnf("Failed to decode %s:%v offset %v: topic", msg.Topic, msg.Partition, msg.Offset)
-		return
-	}
-	err = binary.Read(buf, binary.BigEndian, &partition)
-	if err != nil {
-		log.Warnf("Failed to decode %s:%v offset %v: partition", msg.Topic, msg.Partition, msg.Offset)
+	default:
+		log.Warnf("Failed to decode %s:%v offset %v: keyver %v", msg.Topic, msg.Partition, msg.Offset, keyver)
 		return
 	}
 
 	buf = bytes.NewBuffer(msg.Value)
 	err = binary.Read(buf, binary.BigEndian, &valver)
 	if (err != nil) || ((valver != 0) && (valver != 1)) {
-		log.Warnf("Failed to decode %s:%v offset %v: valver", msg.Topic, msg.Partition, msg.Offset)
+		log.Warnf("Failed to decode %s:%v offset %v: valver %v", msg.Topic, msg.Partition, msg.Offset, valver)
 		return
 	}
 	err = binary.Read(buf, binary.BigEndian, &offset)
