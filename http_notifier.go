@@ -48,13 +48,14 @@ type Event struct {
 func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 	// Helper functions for templates
 	fmap := template.FuncMap{
-    "jsonencoder":     templateJsonEncoder,
-    "topicsbystatus":  classifyTopicsByStatus,
-    "partitioncounts": templateCountPartitions,
-    "add":             templateAdd,
-    "minus":           templateMinus,
-    "multiply":        templateMultiply,
-    "divide":          templateDivide,
+		"jsonencoder":     templateJsonEncoder,
+		"topicsbystatus":  classifyTopicsByStatus,
+		"partitioncounts": templateCountPartitions,
+		"add":             templateAdd,
+		"minus":           templateMinus,
+		"multiply":        templateMultiply,
+		"divide":          templateDivide,
+		"maxlag":          maxLagHelper,
 	}
 
 	// Compile the templates

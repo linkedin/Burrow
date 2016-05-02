@@ -86,3 +86,11 @@ func templateMultiply(a, b int) int {
 func templateDivide(a, b int) int {
 	return a / b
 }
+
+func maxLagHelper(a *PartitionStatus) int64 {
+	if a == nil {
+		return 0
+	} else {
+		return a.End.Lag
+	}
+}
