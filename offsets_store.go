@@ -510,6 +510,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			// Check if this partition is the one with the most lag currently
 			if lastOffset.Lag > maxlag {
 				status.Maxlag = thispart
+				maxlag = lastOffset.Lag
 			}
 			status.TotalLag += uint64(lastOffset.Lag)
 

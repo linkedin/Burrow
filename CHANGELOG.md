@@ -1,3 +1,8 @@
+## X.Y.Z (TBD)
+
+Bugfixes:
+  - Fix an issue where maxlag partition is selected badly
+
 ## 0.1.1 (2016-05-01)
 
 Features:
