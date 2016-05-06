@@ -3,3 +3,5 @@ Burrow
 .*.swp
 !config
 log
+.idea
+Burrow.iml
