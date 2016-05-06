@@ -18,6 +18,7 @@ import (
 	log "github.com/cihub/seelog"
 	"sync"
 	"time"
+	"crypto/tls"
 )
 
 type KafkaClient struct {
@@ -42,9 +43,14 @@ type BrokerTopicRequest struct {
 }
 
 func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, error) {
-	// Set up sarama client
+	// Set up sarama config from profile
 	clientConfig := sarama.NewConfig()
-	clientConfig.ClientID = app.Config.General.ClientID
+	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
+	clientConfig.ClientID = profile.ClientID
+	clientConfig.Net.TLS.Enable = profile.TLS
+	clientConfig.Net.TLS.Config = &tls.Config{}
+	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
+
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
 	if err != nil {
 		return nil, err
