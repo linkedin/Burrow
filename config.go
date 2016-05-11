@@ -176,6 +176,9 @@ func ValidateConfig(app *ApplicationContext) error {
 
 	// Kafka Client Profiles
 	// Set up a default profile, if needed
+	if app.Config.Clientprofile == nil {
+		app.Config.Clientprofile = make(map[string]*ClientProfile)
+	}
 	if _, ok := app.Config.Clientprofile["default"]; !ok {
 		app.Config.Clientprofile["default"] = &ClientProfile {
 			ClientID: app.Config.General.ClientID,
