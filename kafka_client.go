@@ -185,6 +185,7 @@ func (client *KafkaClient) getOffsets() error {
 			broker, err := client.client.Leader(topic, int32(i))
 			if err != nil {
 				client.topicMapLock.RUnlock()
+				log.Errorf("Topic leader error on %s:%v: %v", topic, int32(i), err)
 				return err
 			}
 			if _, ok := requests[broker.ID()]; !ok {
