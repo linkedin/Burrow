@@ -12,13 +12,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
 	"sync"
 	"time"
-	"crypto/tls"
 )
 
 type KafkaClient struct {

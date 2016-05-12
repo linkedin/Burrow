@@ -25,16 +25,16 @@ import (
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID       string   `gcfg:"client-id"`
-	TLS            bool     `gcfg:"tls"`
-	TLSNoVerify    bool     `gcfg:"tls-noverify"`
+	ClientID    string `gcfg:"client-id"`
+	TLS         bool   `gcfg:"tls"`
+	TLSNoVerify bool   `gcfg:"tls-noverify"`
 }
 type BurrowConfig struct {
 	General struct {
 		LogDir         string `gcfg:"logdir"`
 		LogConfig      string `gcfg:"logconfig"`
 		PIDFile        string `gcfg:"pidfile"`
-		ClientID      string   `gcfg:"client-id"`
+		ClientID       string `gcfg:"client-id"`
 		GroupBlacklist string `gcfg:"group-blacklist"`
 	}
 	Zookeeper struct {
@@ -180,7 +180,7 @@ func ValidateConfig(app *ApplicationContext) error {
 		app.Config.Clientprofile = make(map[string]*ClientProfile)
 	}
 	if _, ok := app.Config.Clientprofile["default"]; !ok {
-		app.Config.Clientprofile["default"] = &ClientProfile {
+		app.Config.Clientprofile["default"] = &ClientProfile{
 			ClientID: app.Config.General.ClientID,
 			TLS:      false,
 		}
