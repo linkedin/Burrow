@@ -1,5 +1,8 @@
 ## X.Y.Z (TBD)
 
+Features:
+  - Added request info to HTTP responses (#64 and #45)
+
 Bugfixes:
   - Fix an issue where maxlag partition is selected badly
 
