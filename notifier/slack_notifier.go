@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package notifier
 
 import (
 	"bytes"
@@ -17,22 +17,21 @@ import (
 	"fmt"
 	log "github.com/cihub/seelog"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"time"
 )
 
 type SlackNotifier struct {
-	refreshTicker *time.Ticker
-	url           string
-	channel       string
-	username      string
-	iconUrl       string
-	iconEmoji     string
-	threshold     int
-	httpClient    *http.Client
-	groups        []string
-	groupResults  map[string]Message
+	RefreshTicker *time.Ticker
+	Url           string
+	Channel       string
+	Username      string
+	IconUrl       string
+	IconEmoji     string
+	Threshold     int
+	HttpClient    *http.Client
+	Groups        []string
+	groupMsgs     map[string]Message
 }
 
 type SlackMessage struct {
@@ -58,68 +57,33 @@ func (slack *SlackNotifier) NotifierName() string {
 }
 
 func (slack *SlackNotifier) Ignore(msg Message) bool {
-	switch msg.(type) {
-	case *ConsumerGroupStatus:
-		result, _ := msg.(*ConsumerGroupStatus)
-
-		return int(result.Status) < slack.threshold
-	}
-	return true
+	return int(msg.Status) < slack.Threshold
 }
 
 func (slack *SlackNotifier) Notify(msg Message) error {
-	switch msg.(type) {
-	case *ConsumerGroupStatus:
-		result, _ := msg.(*ConsumerGroupStatus)
-		for _, group := range slack.groups {
-			clusterGroup := fmt.Sprintf("%s,%s", result.Cluster, result.Group)
-			if clusterGroup == group {
-				slack.groupResults[clusterGroup] = msg
-			}
-		}
-		if len(slack.groups) == len(slack.groupResults) {
-			return slack.sendConsumerGroupStatusNotify()
-		}
+	if slack.groupMsgs == nil {
+		slack.groupMsgs = make(map[string]Message)
+	}
 
-	default:
-		log.Infof("msg type is not ConsumerGroupStatus")
+	for _, group := range slack.Groups {
+		clusterGroup := fmt.Sprintf("%s,%s", msg.Cluster, msg.Group)
+		if clusterGroup == group {
+			slack.groupMsgs[clusterGroup] = msg
+		}
+	}
+	if len(slack.Groups) == len(slack.groupMsgs) {
+		return slack.sendConsumerGroupStatusNotify()
 	}
 	return nil
 }
 
-func NewSlackNotifier(app *ApplicationContext) (*SlackNotifier, error) {
-	log.Info("Start Slack Notify")
-
-	return &SlackNotifier{
-		url:          app.Config.Slacknotifier.Url,
-		groups:       app.Config.Slacknotifier.Groups,
-		groupResults: make(map[string]Message),
-		threshold:    app.Config.Slacknotifier.Threshold,
-		channel:      app.Config.Slacknotifier.Channel,
-		username:     app.Config.Slacknotifier.Username,
-		iconUrl:      app.Config.Slacknotifier.IconUrl,
-		iconEmoji:    app.Config.Slacknotifier.IconEmoji,
-		httpClient: &http.Client{
-			Timeout: time.Duration(app.Config.Slacknotifier.Timeout) * time.Second,
-			Transport: &http.Transport{
-				Dial: (&net.Dialer{
-					KeepAlive: time.Duration(app.Config.Slacknotifier.Keepalive) * time.Second,
-				}).Dial,
-				Proxy: http.ProxyFromEnvironment,
-			},
-		},
-	}, nil
-
-}
-
 func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
-	results := make([]attachment, len(slack.groups))
+	msgs := make([]attachment, len(slack.Groups))
 	i := 0
-	for _, groupResult := range slack.groupResults {
-		result, _ := groupResult.(*ConsumerGroupStatus)
+	for _, msg := range slack.groupMsgs {
 
 		var emoji, color string
-		switch result.Status {
+		switch msg.Status {
 		case StatusOK:
 			emoji = ":white_check_mark:"
 			color = "good"
@@ -132,18 +96,18 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 		}
 
 		title := "Burrow monitoring report"
-		fallback := fmt.Sprintf("%s is %s", result.Group, result.Status)
-		pretext := fmt.Sprintf("%s Group `%s` in Cluster `%s` is *%s*", emoji, result.Group, result.Cluster, result.Status)
+		fallback := fmt.Sprintf("%s is %s", msg.Group, msg.Status)
+		pretext := fmt.Sprintf("%s Group `%s` in Cluster `%s` is *%s*", emoji, msg.Group, msg.Cluster, msg.Status)
 
 		detailedBody := fmt.Sprintf("*Detail:* Total Partition = `%d` Fail Partition = `%d`\n",
-			result.TotalPartitions, len(result.Partitions))
+			msg.TotalPartitions, len(msg.Partitions))
 
-		for _, p := range result.Partitions {
+		for _, p := range msg.Partitions {
 			detailedBody += fmt.Sprintf("*%s* *[%s:%d]* (%d, %d) -> (%d, %d)\n",
 				p.Status.String(), p.Topic, p.Partition, p.Start.Offset, p.Start.Lag, p.End.Offset, p.End.Lag)
 		}
 
-		results[i] = attachment{
+		msgs[i] = attachment{
 			Color:    color,
 			Title:    title,
 			Fallback: fallback,
@@ -154,14 +118,14 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 
 		i++
 	}
-	slack.groupResults = make(map[string]Message)
+	slack.groupMsgs = make(map[string]Message)
 
 	slackMessage := &SlackMessage{
-		Channel:     slack.channel,
-		Username:    slack.username,
-		IconUrl:     slack.iconUrl,
-		IconEmoji:   slack.iconEmoji,
-		Attachments: results,
+		Channel:     slack.Channel,
+		Username:    slack.Username,
+		IconUrl:     slack.IconUrl,
+		IconEmoji:   slack.IconEmoji,
+		Attachments: msgs,
 	}
 
 	return slack.postToSlack(slackMessage)
@@ -176,10 +140,10 @@ func (slack *SlackNotifier) postToSlack(slackMessage *SlackMessage) error {
 	log.Debugf("struct = %+v, json = %s", slackMessage, string(data))
 
 	b := bytes.NewBuffer(data)
-	req, err := http.NewRequest("POST", slack.url, b)
+	req, err := http.NewRequest("POST", slack.Url, b)
 	req.Header.Set("Content-Type", "application/json")
 
-	if res, err := slack.httpClient.Do(req); err != nil {
+	if res, err := slack.HttpClient.Do(req); err != nil {
 		log.Errorf("Unable to send data to slack:%+v", err)
 		return err
 	} else {

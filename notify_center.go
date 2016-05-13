@@ -12,8 +12,12 @@ package main
 
 import (
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/notifier"
 	"math/rand"
+	"net"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -21,7 +25,7 @@ import (
 type NotifyCenter struct {
 	app            *ApplicationContext
 	interval       int64
-	notifiers      []Notifier
+	notifiers      []notifier.Notifier
 	refreshTicker  *time.Ticker
 	quitChan       chan struct{}
 	groupList      map[string]map[string]bool
@@ -30,7 +34,7 @@ type NotifyCenter struct {
 }
 
 func LoadNotifiers(app *ApplicationContext) error {
-	notifiers := []Notifier{}
+	notifiers := []notifier.Notifier{}
 	if app.Config.Httpnotifier.Enable {
 		if httpNotifier, err := NewHttpNotifier(app); err == nil {
 			notifiers = append(notifiers, httpNotifier)
@@ -107,9 +111,11 @@ func StopNotifiers(app *ApplicationContext) {
 }
 
 func (nc *NotifyCenter) handleEvaluationResponse(result *ConsumerGroupStatus) {
+	// TODO convert result to Message
+	msg := notifier.Message{}
 	for _, notifier := range nc.notifiers {
-		if !notifier.Ignore(result) {
-			notifier.Notify(result)
+		if !notifier.Ignore(msg) {
+			notifier.Notify(msg)
 		}
 	}
 }
@@ -176,4 +182,81 @@ func (nc *NotifyCenter) startConsumerGroupEvaluator(group string, cluster string
 		// Sleep for the check interval
 		time.Sleep(time.Duration(nc.interval) * time.Second)
 	}
+}
+
+func NewEmailNotifier(app *ApplicationContext) ([]*notifier.EmailNotifier, error) {
+	log.Info("Start email notify")
+	emailers := []*notifier.EmailNotifier{}
+	for to, cfg := range app.Config.Emailnotifier {
+		if cfg.Enable {
+			emailer := &notifier.EmailNotifier{
+				Threshold:    cfg.Threshold,
+				TemplateFile: app.Config.Smtp.Template,
+				Server:       app.Config.Smtp.Server,
+				Port:         app.Config.Smtp.Port,
+				Username:     app.Config.Smtp.Username,
+				Password:     app.Config.Smtp.Password,
+				AuthType:     app.Config.Smtp.AuthType,
+				Interval:     cfg.Interval,
+				From:         app.Config.Smtp.From,
+				To:           to,
+				Groups:       cfg.Groups,
+			}
+			emailers = append(emailers, emailer)
+		}
+	}
+
+	return emailers, nil
+}
+
+func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
+	httpConfig := app.Config.Httpnotifier
+
+	// Parse the extra parameters for the templates
+	extras := make(map[string]string)
+	for _, extra := range httpConfig.Extras {
+		parts := strings.Split(extra, "=")
+		extras[parts[0]] = parts[1]
+	}
+
+	return &notifier.HttpNotifier{
+		Url:                httpConfig.Url,
+		Threshold:          httpConfig.PostThreshold,
+		SendDelete:         httpConfig.SendDelete,
+		TemplatePostFile:   httpConfig.TemplatePost,
+		TemplateDeleteFile: httpConfig.TemplateDelete,
+		Extras:             extras,
+		HttpClient: &http.Client{
+			Timeout: time.Duration(httpConfig.Timeout) * time.Second,
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					KeepAlive: time.Duration(httpConfig.Keepalive) * time.Second,
+				}).Dial,
+				Proxy: http.ProxyFromEnvironment,
+			},
+		},
+	}, nil
+}
+
+func NewSlackNotifier(app *ApplicationContext) (*notifier.SlackNotifier, error) {
+	log.Info("Start Slack Notify")
+
+	return &notifier.SlackNotifier{
+		Url:       app.Config.Slacknotifier.Url,
+		Groups:    app.Config.Slacknotifier.Groups,
+		Threshold: app.Config.Slacknotifier.Threshold,
+		Channel:   app.Config.Slacknotifier.Channel,
+		Username:  app.Config.Slacknotifier.Username,
+		IconUrl:   app.Config.Slacknotifier.IconUrl,
+		IconEmoji: app.Config.Slacknotifier.IconEmoji,
+		HttpClient: &http.Client{
+			Timeout: time.Duration(app.Config.Slacknotifier.Timeout) * time.Second,
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					KeepAlive: time.Duration(app.Config.Slacknotifier.Keepalive) * time.Second,
+				}).Dial,
+				Proxy: http.ProxyFromEnvironment,
+			},
+		},
+	}, nil
 }
