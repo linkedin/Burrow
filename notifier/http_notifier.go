@@ -13,6 +13,7 @@ package notifier
 import (
 	"bytes"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/pborman/uuid"
 	"io"
 	"io/ioutil"
@@ -152,7 +153,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			msg.Cluster, msg.Status, idStr, resp.Status)
 	}
 
-	if notifier.SendDelete && (msg.Status == StatusOK) {
+	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
 		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; ok {
 			// Send DELETE to HTTP endpoint
 			bytesToSend := new(bytes.Buffer)

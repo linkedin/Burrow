@@ -12,6 +12,7 @@ package notifier
 
 import (
 	"encoding/json"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 // Helper function for the templates to encode an object into a JSON string
@@ -22,7 +23,7 @@ func templateJsonEncoder(encodeMe interface{}) string {
 
 // Helper - recategorize partitions as a map of lists
 // map[string][]string => status short name -> list of topics
-func classifyTopicsByStatus(partitions []*PartitionStatus) map[string][]string {
+func classifyTopicsByStatus(partitions []*protocol.PartitionStatus) map[string][]string {
 	tmp_map := make(map[string]map[string]bool)
 	for _, partition := range partitions {
 		if _, ok := tmp_map[partition.Status.String()]; !ok {
@@ -44,7 +45,7 @@ func classifyTopicsByStatus(partitions []*PartitionStatus) map[string][]string {
 
 // Template Helper - Return a map of partition counts
 // keys are warn, stop, stall, rewind, unknown
-func templateCountPartitions(partitions []*PartitionStatus) map[string]int {
+func templateCountPartitions(partitions []*protocol.PartitionStatus) map[string]int {
 	rv := map[string]int{
 		"warn":    0,
 		"stop":    0,
@@ -55,15 +56,15 @@ func templateCountPartitions(partitions []*PartitionStatus) map[string]int {
 
 	for _, partition := range partitions {
 		switch partition.Status {
-		case StatusOK:
+		case protocol.StatusOK:
 			break
-		case StatusWarning:
+		case protocol.StatusWarning:
 			rv["warn"]++
-		case StatusStop:
+		case protocol.StatusStop:
 			rv["stop"]++
-		case StatusStall:
+		case protocol.StatusStall:
 			rv["stall"]++
-		case StatusRewind:
+		case protocol.StatusRewind:
 			rv["rewind"]++
 		default:
 			rv["unknown"]++
@@ -87,7 +88,7 @@ func templateDivide(a, b int) int {
 	return a / b
 }
 
-func maxLagHelper(a *PartitionStatus) int64 {
+func maxLagHelper(a *protocol.PartitionStatus) int64 {
 	if a == nil {
 		return 0
 	} else {

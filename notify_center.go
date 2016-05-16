@@ -13,6 +13,7 @@ package main
 import (
 	log "github.com/cihub/seelog"
 	"github.com/linkedin/Burrow/notifier"
+	"github.com/linkedin/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"
@@ -30,7 +31,7 @@ type NotifyCenter struct {
 	quitChan       chan struct{}
 	groupList      map[string]map[string]bool
 	groupLock      sync.RWMutex
-	resultsChannel chan *ConsumerGroupStatus
+	resultsChannel chan *protocol.ConsumerGroupStatus
 }
 
 func LoadNotifiers(app *ApplicationContext) error {
@@ -60,7 +61,7 @@ func LoadNotifiers(app *ApplicationContext) error {
 		quitChan:       make(chan struct{}),
 		groupList:      make(map[string]map[string]bool),
 		groupLock:      sync.RWMutex{},
-		resultsChannel: make(chan *ConsumerGroupStatus),
+		resultsChannel: make(chan *protocol.ConsumerGroupStatus),
 	}
 
 	app.NotifyCenter = nc
@@ -110,9 +111,8 @@ func StopNotifiers(app *ApplicationContext) {
 	// TODO stop all ncs
 }
 
-func (nc *NotifyCenter) handleEvaluationResponse(result *ConsumerGroupStatus) {
-	// TODO convert result to Message
-	msg := notifier.Message{}
+func (nc *NotifyCenter) handleEvaluationResponse(result *protocol.ConsumerGroupStatus) {
+	msg := notifier.Message(*result)
 	for _, notifier := range nc.notifiers {
 		if !notifier.Ignore(msg) {
 			notifier.Notify(msg)

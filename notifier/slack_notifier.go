@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -84,10 +85,10 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 
 		var emoji, color string
 		switch msg.Status {
-		case StatusOK:
+		case protocol.StatusOK:
 			emoji = ":white_check_mark:"
 			color = "good"
-		case StatusNotFound, StatusWarning:
+		case protocol.StatusNotFound, protocol.StatusWarning:
 			emoji = ":question:"
 			color = "warning"
 		default:
