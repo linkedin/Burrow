@@ -45,6 +45,7 @@ type BrokerTopicRequest struct {
 func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, error) {
 	// Set up sarama config from profile
 	clientConfig := sarama.NewConfig()
+	clientConfig.Metadata.RefreshFrequency = time.Duration(app.Config.Kafka[cluster].RefreshFrequency) * time.Second
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
 	clientConfig.Net.TLS.Enable = profile.TLS
