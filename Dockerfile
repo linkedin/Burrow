@@ -2,7 +2,7 @@ FROM golang:alpine
 
 MAINTAINER LinkedIn Burrow "https://github.com/linkedin/Burrow"
 
-RUN apk add --update bash curl git && rm -rf /var/cache/apk/*
+RUN apk add --update bash curl git && apk add ca-certificates wget && update-ca-certificatesrm -rf /var/cache/apk/*
 
 RUN wget https://raw.githubusercontent.com/pote/gpm/v1.4.0/bin/gpm && chmod +x gpm && mv gpm /usr/local/bin
 
