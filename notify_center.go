@@ -36,7 +36,7 @@ type NotifyCenter struct {
 
 func LoadNotifiers(app *ApplicationContext) error {
 	notifiers := []notifier.Notifier{}
-	if app.Config.Httpnotifier.Enable {
+	if app.Config.Httpnotifier.Url != "" {
 		if httpNotifier, err := NewHttpNotifier(app); err == nil {
 			notifiers = append(notifiers, httpNotifier)
 		}
