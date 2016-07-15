@@ -514,8 +514,8 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 			status.TotalLag += uint64(lastOffset.Lag)
 
-			// Rule 4 - Offsets haven't been committed in a while
-			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
+			// Rule 4 - Offsets haven't been committed in a while and consumer is lagging
+			if (((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp)) && (lastOffset.Lag > 0) {
 				status.Status = StatusError
 				thispart.Status = StatusStop
 				status.Partitions = append(status.Partitions, thispart)
