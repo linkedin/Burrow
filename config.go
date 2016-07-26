@@ -13,7 +13,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -98,6 +97,10 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+		AuthType       string   `gcfg:"auth-type"`
+		Username       string   `gcfg:"username"`
+		Password       string   `gcfg:"password"`
+		IgnoreSSL      bool     `gcfg:"ignore-ssl"`
 	}
 	Clientprofile map[string]*ClientProfile
 }
@@ -406,6 +409,14 @@ func ValidateConfig(app *ApplicationContext) error {
 		if app.Config.Httpnotifier.Interval == 0 {
 			app.Config.Httpnotifier.Interval = 60
 		}
+		if app.Config.Smtp.AuthType != "" {
+			if app.Config.Smtp.AuthType != "basic" {
+				errs = append(errs, "Email auth-type must be basic or blank")
+			}
+		}
+
+		// Username and password are not validated - they're optional
+
 		for _, extra := range app.Config.Httpnotifier.Extras {
 			// Each extra should be formatted as "string=string"
 			if matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+=.*$`, extra); !matches {

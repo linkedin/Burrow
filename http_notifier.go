@@ -12,8 +12,7 @@ package main
 
 import (
 	"bytes"
-	log "github.com/cihub/seelog"
-	"github.com/pborman/uuid"
+	"crypto/tls"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -24,6 +23,9 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/pborman/uuid"
 )
 
 type HttpNotifier struct {
@@ -93,6 +95,7 @@ func NewHttpNotifier(app *ApplicationContext) (*HttpNotifier, error) {
 		httpClient: &http.Client{
 			Timeout: time.Duration(app.Config.Httpnotifier.Timeout) * time.Second,
 			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: app.Config.Httpnotifier.IgnoreSSL},
 				Dial: (&net.Dialer{
 					KeepAlive: time.Duration(app.Config.Httpnotifier.Keepalive) * time.Second,
 				}).Dial,
@@ -154,6 +157,12 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 		req, err := http.NewRequest("POST", notifier.app.Config.Httpnotifier.Url, bytesToSend)
 		req.Header.Set("Content-Type", "application/json")
 
+		// Check if BASIC Authentication is needed
+		switch notifier.app.Config.Httpnotifier.AuthType {
+		case "basic":
+			req.SetBasicAuth(notifier.app.Config.Httpnotifier.Username, notifier.app.Config.Httpnotifier.Password)
+		}
+
 		resp, err := notifier.httpClient.Do(req)
 		if err != nil {
 			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", result.Group, result.Cluster, result.Status, idStr, err)
@@ -195,6 +204,12 @@ func (notifier *HttpNotifier) handleEvaluationResponse(result *ConsumerGroupStat
 
 			req, err := http.NewRequest("DELETE", notifier.app.Config.Httpnotifier.Url, bytesToSend)
 			req.Header.Set("Content-Type", "application/json")
+
+			// Check if BASIC Authentication is needed
+			switch notifier.app.Config.Httpnotifier.AuthType {
+			case "basic":
+				req.SetBasicAuth(notifier.app.Config.Httpnotifier.Username, notifier.app.Config.Httpnotifier.Password)
+			}
 
 			resp, err := notifier.httpClient.Do(req)
 			if err != nil {
