@@ -36,6 +36,7 @@ type BurrowConfig struct {
 		PIDFile        string `gcfg:"pidfile"`
 		ClientID       string `gcfg:"client-id"`
 		GroupBlacklist string `gcfg:"group-blacklist"`
+		GroupWhitelist string `gcfg:"group-whitelist"`
 	}
 	Zookeeper struct {
 		Hosts    []string `gcfg:"hostname"`

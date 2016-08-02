@@ -242,9 +242,9 @@ func (notifier *HttpNotifier) refreshConsumerGroups() {
 
 		// Check for new groups, mark existing groups true
 		for _, consumerGroup := range consumerGroups {
-			// Don't bother adding groups in the blacklist
-			if (notifier.app.Storage.groupBlacklist != nil) && notifier.app.Storage.groupBlacklist.MatchString(consumerGroup) {
-				continue
+			// Ignore groups that are out of filter bounds
+			if !notifier.app.Storage.acceptConsumerGroup(consumerGroup) {
+				continue;
 			}
 
 			if _, ok := clusterGroups[consumerGroup]; !ok {
