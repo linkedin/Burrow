@@ -13,6 +13,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/linkedin/Burrow/protocol"
 	"io"
 	"net/http"
 	"os"
@@ -136,10 +137,10 @@ type HTTPResponseConsumerList struct {
 	Request   HTTPResponseRequestInfo `json:"request"`
 }
 type HTTPResponseConsumerStatus struct {
-	Error   bool                    `json:"error"`
-	Message string                  `json:"message"`
-	Status  ConsumerGroupStatus     `json:"status"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Error   bool                         `json:"error"`
+	Message string                       `json:"message"`
+	Status  protocol.ConsumerGroupStatus `json:"status"`
+	Request HTTPResponseRequestInfo      `json:"request"`
 }
 
 func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
@@ -360,10 +361,10 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 }
 
 func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, showall bool) (int, string) {
-	storageRequest := &RequestConsumerStatus{Result: make(chan *ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
+	storageRequest := &RequestConsumerStatus{Result: make(chan *protocol.ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
-	if result.Status == StatusNotFound {
+	if result.Status == protocol.StatusNotFound {
 		return makeErrorResponse(http.StatusNotFound, "consumer group not found", w, r)
 	}
 
@@ -384,10 +385,10 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *htt
 }
 
 func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
-	storageRequest := &RequestConsumerDrop{Result: make(chan StatusConstant), Cluster: cluster, Group: group}
+	storageRequest := &RequestConsumerDrop{Result: make(chan protocol.StatusConstant), Cluster: cluster, Group: group}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
-	if result == StatusNotFound {
+	if result == protocol.StatusNotFound {
 		return makeErrorResponse(http.StatusNotFound, "consumer group not found", w, r)
 	}
 

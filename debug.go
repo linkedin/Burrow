@@ -12,15 +12,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/linkedin/Burrow/protocol"
 )
 
-func printConsumerGroupStatus(status *ConsumerGroupStatus) {
+func printConsumerGroupStatus(status *protocol.ConsumerGroupStatus) {
 	fmt.Println("-------------------------------------------------")
 	fmt.Println("Group: ", status.Group)
-	if status.Status == StatusOK {
+	if status.Status == protocol.StatusOK {
 		fmt.Printf("Status: OK      (complete = %t)\n", status.Complete)
 	} else {
-		if status.Status == StatusWarning {
+		if status.Status == protocol.StatusWarning {
 			fmt.Printf("Status: WARNING (complete = %t)\n", status.Complete)
 		} else {
 			fmt.Printf("Status: ERROR   (complete = %t)\n", status.Complete)
@@ -29,13 +30,13 @@ func printConsumerGroupStatus(status *ConsumerGroupStatus) {
 		for _, partition := range status.Partitions {
 			prefix := "     OK"
 			switch {
-			case partition.Status == StatusWarning:
+			case partition.Status == protocol.StatusWarning:
 				prefix = "   WARN"
-			case partition.Status == StatusStop:
+			case partition.Status == protocol.StatusStop:
 				prefix = "   STOP"
-			case partition.Status == StatusError:
+			case partition.Status == protocol.StatusError:
 				prefix = "    ERR"
-			case partition.Status == StatusStall:
+			case partition.Status == protocol.StatusStall:
 				prefix = "  STALL"
 			default:
 				prefix = "   STOP"
