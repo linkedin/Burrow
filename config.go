@@ -492,7 +492,7 @@ func validateZookeeperPath(path string) bool {
 }
 
 func validateTopic(topic string) bool {
-	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+$`, topic)
+	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\.-]+$`, topic)
 	return matches
 }
 
