@@ -135,7 +135,7 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 func (slack *SlackNotifier) postToSlack(slackMessage *SlackMessage) error {
 	data, err := json.Marshal(slackMessage)
 	if err != nil {
-		log.Errorf("Unable to marshal slack payload:", err)
+		log.Errorf("Unable to marshal slack payload:%+v", err)
 		return err
 	}
 	log.Debugf("struct = %+v, json = %s", slackMessage, string(data))
@@ -152,7 +152,7 @@ func (slack *SlackNotifier) postToSlack(slackMessage *SlackMessage) error {
 		statusCode := res.StatusCode
 		if statusCode != 200 {
 			body, _ := ioutil.ReadAll(res.Body)
-			log.Errorf("Unable to notify slack:", string(body))
+			log.Errorf("Unable to notify slack:%s", string(body))
 			return errors.New("Send to Slack failed")
 		} else {
 			log.Debug("Slack notification sent")
