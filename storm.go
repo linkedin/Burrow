@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 	"math/rand"
 	"regexp"
@@ -147,7 +148,7 @@ func (stormClient *StormClient) getOffsetsForPartition(consumerGroup string, par
 		switch {
 		case errConversion == nil:
 			log.Debugf("About to sync Storm offset: [%s,%s,%v]::[%v,%v]\n", consumerGroup, topic, partition, offset, zkNodeStat.Mtime)
-			partitionOffset := &PartitionOffset{
+			partitionOffset := &protocol.PartitionOffset{
 				Cluster:   stormClient.cluster,
 				Topic:     topic,
 				Partition: int32(partition),

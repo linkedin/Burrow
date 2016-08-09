@@ -12,22 +12,21 @@ package main
 
 import (
 	"container/ring"
-	"encoding/json"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"regexp"
 	"sync"
 	"time"
 )
 
-type PartitionOffset struct {
-	Cluster             string
-	Topic               string
-	Partition           int32
-	Offset              int64
-	Timestamp           int64
-	Group               string
-	TopicPartitionCount int
+type OffsetStorage struct {
+	app            *ApplicationContext
+	quit           chan struct{}
+	offsetChannel  chan *protocol.PartitionOffset
+	requestChannel chan interface{}
+	offsets        map[string]*ClusterOffsets
+	groupBlacklist *regexp.Regexp
 }
 
 type BrokerOffset struct {
@@ -35,74 +34,11 @@ type BrokerOffset struct {
 	Timestamp int64
 }
 
-type ConsumerOffset struct {
-	Offset     int64 `json:"offset"`
-	Timestamp  int64 `json:"timestamp"`
-	Lag        int64 `json:"lag"`
-	artificial bool
-}
-
 type ClusterOffsets struct {
 	broker       map[string][]*BrokerOffset
 	consumer     map[string]map[string][]*ring.Ring
 	brokerLock   *sync.RWMutex
 	consumerLock *sync.RWMutex
-}
-type OffsetStorage struct {
-	app            *ApplicationContext
-	quit           chan struct{}
-	offsetChannel  chan *PartitionOffset
-	requestChannel chan interface{}
-	offsets        map[string]*ClusterOffsets
-	groupBlacklist *regexp.Regexp
-	groupWhitelist *regexp.Regexp
-}
-
-type StatusConstant int
-
-const (
-	StatusNotFound StatusConstant = 0
-	StatusOK       StatusConstant = 1
-	StatusWarning  StatusConstant = 2
-	StatusError    StatusConstant = 3
-	StatusStop     StatusConstant = 4
-	StatusStall    StatusConstant = 5
-	StatusRewind   StatusConstant = 6
-)
-
-var StatusStrings = [...]string{"NOTFOUND", "OK", "WARN", "ERR", "STOP", "STALL", "REWIND"}
-
-func (c StatusConstant) String() string {
-	if (c >= 0) && (c < StatusConstant(len(StatusStrings))) {
-		return StatusStrings[c]
-	} else {
-		return "UNKNOWN"
-	}
-}
-func (c StatusConstant) MarshalText() ([]byte, error) {
-	return []byte(c.String()), nil
-}
-func (c StatusConstant) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.String())
-}
-
-type PartitionStatus struct {
-	Topic     string         `json:"topic"`
-	Partition int32          `json:"partition"`
-	Status    StatusConstant `json:"status"`
-	Start     ConsumerOffset `json:"start"`
-	End       ConsumerOffset `json:"end"`
-}
-
-type ConsumerGroupStatus struct {
-	Cluster         string             `json:"cluster"`
-	Group           string             `json:"group"`
-	Status          StatusConstant     `json:"status"`
-	Complete        bool               `json:"complete"`
-	Partitions      []*PartitionStatus `json:"partitions"`
-	TotalPartitions int                `json:"partition_count"`
-	Maxlag          *PartitionStatus   `json:"maxlag"`
-	TotalLag        uint64             `json:"totallag"`
 }
 
 type ResponseTopicList struct {
@@ -133,13 +69,13 @@ type RequestOffsets struct {
 	Group   string
 }
 type RequestConsumerStatus struct {
-	Result  chan *ConsumerGroupStatus
+	Result  chan *protocol.ConsumerGroupStatus
 	Cluster string
 	Group   string
 	Showall bool
 }
 type RequestConsumerDrop struct {
-	Result  chan StatusConstant
+	Result  chan protocol.StatusConstant
 	Cluster string
 	Group   string
 }
@@ -148,7 +84,7 @@ func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 	storage := &OffsetStorage{
 		app:            app,
 		quit:           make(chan struct{}),
-		offsetChannel:  make(chan *PartitionOffset, 10000),
+		offsetChannel:  make(chan *protocol.PartitionOffset, 10000),
 		requestChannel: make(chan interface{}),
 		offsets:        make(map[string]*ClusterOffsets),
 	}
@@ -216,7 +152,7 @@ func NewOffsetStorage(app *ApplicationContext) (*OffsetStorage, error) {
 	return storage, nil
 }
 
-func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
+func (storage *OffsetStorage) addBrokerOffset(offset *protocol.PartitionOffset) {
 	clusterMap, ok := storage.offsets[offset.Cluster]
 	if !ok {
 		// Ignore offsets for clusters that we don't know about - should never happen anyways
@@ -251,7 +187,7 @@ func (storage *OffsetStorage) addBrokerOffset(offset *PartitionOffset) {
 	clusterMap.brokerLock.Unlock()
 }
 
-func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
+func (storage *OffsetStorage) addConsumerOffset(offset *protocol.PartitionOffset) {
 	// Ignore offsets for clusters that we don't know about - should never happen anyways
 	clusterOffsets, ok := storage.offsets[offset.Cluster]
 	if !ok {
@@ -323,7 +259,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 		consumerTopicMap[offset.Partition] = ring.New(storage.app.Config.Lagcheck.Intervals)
 		consumerPartitionRing = consumerTopicMap[offset.Partition]
 	} else {
-		lastOffset := consumerPartitionRing.Prev().Value.(*ConsumerOffset)
+		lastOffset := consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset)
 		timestampDifference := offset.Timestamp - lastOffset.Timestamp
 
 		// Prevent old offset commits, but only if the offsets don't advance (because of artifical commits below)
@@ -336,7 +272,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 		}
 
 		// Prevent new commits that are too fast (less than the min-distance config) if the last offset was not artificial
-		if (!lastOffset.artificial) && (timestampDifference >= 0) && (timestampDifference < (storage.app.Config.Lagcheck.MinDistance * 1000)) {
+		if (!lastOffset.Artificial) && (timestampDifference >= 0) && (timestampDifference < (storage.app.Config.Lagcheck.MinDistance * 1000)) {
 			clusterOffsets.consumerLock.Unlock()
 			log.Debugf("Dropped offset (mindistance): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v tsdiff=%v lag=%v",
 				offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset,
@@ -355,18 +291,18 @@ func (storage *OffsetStorage) addConsumerOffset(offset *PartitionOffset) {
 
 	// Update or create the ring value at the current pointer
 	if consumerPartitionRing.Value == nil {
-		consumerPartitionRing.Value = &ConsumerOffset{
+		consumerPartitionRing.Value = &protocol.ConsumerOffset{
 			Offset:     offset.Offset,
 			Timestamp:  offset.Timestamp,
 			Lag:        partitionLag,
-			artificial: false,
+			Artificial: false,
 		}
 	} else {
-		ringval, _ := consumerPartitionRing.Value.(*ConsumerOffset)
+		ringval, _ := consumerPartitionRing.Value.(*protocol.ConsumerOffset)
 		ringval.Offset = offset.Offset
 		ringval.Timestamp = offset.Timestamp
 		ringval.Lag = partitionLag
-		ringval.artificial = false
+		ringval.Artificial = false
 	}
 
 	log.Tracef("Commit offset: cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v lag=%v",
@@ -382,15 +318,15 @@ func (storage *OffsetStorage) Stop() {
 	close(storage.quit)
 }
 
-func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChannel chan StatusConstant) {
+func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChannel chan protocol.StatusConstant) {
 	storage.offsets[cluster].consumerLock.Lock()
 
 	if _, ok := storage.offsets[cluster].consumer[group]; ok {
 		log.Infof("Removing group %s from cluster %s by request", group, cluster)
 		delete(storage.offsets[cluster].consumer, group)
-		resultChannel <- StatusOK
+		resultChannel <- protocol.StatusOK
 	} else {
-		resultChannel <- StatusNotFound
+		resultChannel <- protocol.StatusNotFound
 	}
 
 	storage.offsets[cluster].consumerLock.Unlock()
@@ -404,13 +340,13 @@ func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChan
 //          consumer has stopped committing offsets for that partition (error), unless
 // Rule 5:  If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
 // Rule 6:  If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
-func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *ConsumerGroupStatus, showall bool) {
-	status := &ConsumerGroupStatus{
+func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *protocol.ConsumerGroupStatus, showall bool) {
+	status := &protocol.ConsumerGroupStatus{
 		Cluster:    cluster,
 		Group:      group,
-		Status:     StatusNotFound,
+		Status:     protocol.StatusNotFound,
 		Complete:   true,
-		Partitions: make([]*PartitionStatus, 0),
+		Partitions: make([]*protocol.PartitionStatus, 0),
 		Maxlag:     nil,
 		TotalLag:   0,
 	}
@@ -432,11 +368,11 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 
 	// Scan the offsets table once and store all the offsets for the group locally
-	status.Status = StatusOK
-	offsetList := make(map[string][][]ConsumerOffset, len(consumerMap))
+	status.Status = protocol.StatusOK
+	offsetList := make(map[string][][]protocol.ConsumerOffset, len(consumerMap))
 	var youngestOffset int64
 	for topic, partitions := range consumerMap {
-		offsetList[topic] = make([][]ConsumerOffset, len(partitions))
+		offsetList[topic] = make([][]protocol.ConsumerOffset, len(partitions))
 		for partition, offsetRing := range partitions {
 			status.TotalPartitions += 1
 
@@ -447,13 +383,13 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 
 			// Add an artificial offset commit if the consumer has no lag against the current broker offset
-			lastOffset := offsetRing.Prev().Value.(*ConsumerOffset)
+			lastOffset := offsetRing.Prev().Value.(*protocol.ConsumerOffset)
 			if lastOffset.Offset >= clusterMap.broker[topic][partition].Offset {
-				ringval, _ := offsetRing.Value.(*ConsumerOffset)
+				ringval, _ := offsetRing.Value.(*protocol.ConsumerOffset)
 				ringval.Offset = lastOffset.Offset
 				ringval.Timestamp = time.Now().Unix() * 1000
 				ringval.Lag = 0
-				ringval.artificial = true
+				ringval.Artificial = true
 				partitions[partition] = partitions[partition].Next()
 
 				log.Tracef("Artificial offset: cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v lag=0",
@@ -461,12 +397,12 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 
 			// Pull out the offsets once so we can unlock the map
-			offsetList[topic][partition] = make([]ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
+			offsetList[topic][partition] = make([]protocol.ConsumerOffset, storage.app.Config.Lagcheck.Intervals)
 			partitionMap := offsetList[topic][partition]
 			idx := -1
 			partitions[partition].Do(func(val interface{}) {
 				idx += 1
-				ptr, _ := val.(*ConsumerOffset)
+				ptr, _ := val.(*protocol.ConsumerOffset)
 				partitionMap[idx] = *ptr
 
 				// Track the youngest offset we have found to check expiration
@@ -484,7 +420,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		clusterMap.consumerLock.Unlock()
 
 		// Return the group as a 404
-		status.Status = StatusNotFound
+		status.Status = protocol.StatusNotFound
 		resultChannel <- status
 		return
 	}
@@ -508,10 +444,10 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			}
 
 			// We may always add this partition, so create it once
-			thispart := &PartitionStatus{
+			thispart := &protocol.PartitionStatus{
 				Topic:     topic,
 				Partition: int32(partition),
-				Status:    StatusOK,
+				Status:    protocol.StatusOK,
 				Start:     firstOffset,
 				End:       lastOffset,
 			}
@@ -525,8 +461,8 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 			// Rule 4 - Offsets haven't been committed in a while
 			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
-				status.Status = StatusError
-				thispart.Status = StatusStop
+				status.Status = protocol.StatusError
+				thispart.Status = protocol.StatusStop
 				status.Partitions = append(status.Partitions, thispart)
 				continue
 			}
@@ -535,8 +471,8 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			// We check this first because we always want to know about a rewind - it's bad behavior
 			for i := 1; i <= maxidx; i++ {
 				if offsets[i].Offset < offsets[i-1].Offset {
-					status.Status = StatusError
-					thispart.Status = StatusRewind
+					status.Status = protocol.StatusError
+					thispart.Status = protocol.StatusRewind
 					status.Partitions = append(status.Partitions, thispart)
 					continue
 				}
@@ -559,8 +495,8 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				}
 
 				// Rule 2
-				status.Status = StatusError
-				thispart.Status = StatusStall
+				status.Status = protocol.StatusError
+				thispart.Status = protocol.StatusStall
 			} else {
 				// Rule 1 passes, or shortcut a full check on Rule 3 if we can
 				if (firstOffset.Lag == 0) || (lastOffset.Lag <= firstOffset.Lag) {
@@ -581,15 +517,15 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 				if !lagDropped {
 					// Rule 3
-					if status.Status == StatusOK {
-						status.Status = StatusWarning
+					if status.Status == protocol.StatusOK {
+						status.Status = protocol.StatusWarning
 					}
-					thispart.Status = StatusWarning
+					thispart.Status = protocol.StatusWarning
 				}
 			}
 
 			// Always add the partition if it's not OK
-			if (thispart.Status != StatusOK) || showall {
+			if (thispart.Status != protocol.StatusOK) || showall {
 				status.Partitions = append(status.Partitions, thispart)
 			}
 		}
@@ -690,7 +626,7 @@ func (storage *OffsetStorage) requestOffsets(request *RequestOffsets) {
 					if oring == nil {
 						response.OffsetList[partition] = -1
 					} else {
-						offset, _ := oring.Prev().Value.(*ConsumerOffset)
+						offset, _ := oring.Prev().Value.(*protocol.ConsumerOffset)
 						if offset == nil {
 							response.OffsetList[partition] = -1
 						} else {
@@ -740,8 +676,8 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 				if val == nil {
 					ringStr += "(),"
 				} else {
-					ptr, _ := val.(*ConsumerOffset)
-					ringStr += fmt.Sprintf("(%v,%v,%v,%v)", ptr.Timestamp, ptr.Offset, ptr.Lag, ptr.artificial)
+					ptr, _ := val.(*protocol.ConsumerOffset)
+					ringStr += fmt.Sprintf("(%v,%v,%v,%v)", ptr.Timestamp, ptr.Offset, ptr.Lag, ptr.Artificial)
 				}
 			})
 			log.Debugf("Detail cluster=%s,group=%s,topic=%s,partition=%v: %s", cluster, group, topic, partition, ringStr)
