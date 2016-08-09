@@ -139,7 +139,7 @@ func (nc *NotifyCenter) refreshConsumerGroups() {
 		// Check for new groups, mark existing groups true
 		for _, consumerGroup := range consumerGroups {
 			// Don't bother adding groups in the blacklist
-			if (nc.app.Storage.groupBlacklist != nil) && nc.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+			if nc.app.Storage.AcceptConsumerGroup(consumerGroup) {
 				continue
 			}
 

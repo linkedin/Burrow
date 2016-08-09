@@ -27,6 +27,7 @@ type OffsetStorage struct {
 	requestChannel chan interface{}
 	offsets        map[string]*ClusterOffsets
 	groupBlacklist *regexp.Regexp
+	groupWhitelist *regexp.Regexp
 }
 
 type BrokerOffset struct {
@@ -195,7 +196,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *protocol.PartitionOffset
 	}
 
 	// Ignore groups that are out of filter bounds
-	if !storage.acceptConsumerGroup(offset.Group) {
+	if !storage.AcceptConsumerGroup(offset.Group) {
 		log.Debugf("Dropped offset (black/white list): cluster=%s topic=%s partition=%v group=%s timestamp=%v offset=%v",
 			offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset)
 		return
@@ -686,7 +687,7 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 	clusterMap.consumerLock.RUnlock()
 }
 
-func (storage *OffsetStorage) acceptConsumerGroup(group string) bool {
+func (storage *OffsetStorage) AcceptConsumerGroup(group string) bool {
 	// First check to make sure group is in the whitelist
 	if (storage.groupWhitelist != nil) && !storage.groupWhitelist.MatchString(group) {
 		return false;
