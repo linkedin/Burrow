@@ -14,7 +14,7 @@ import (
 	"fmt"
 	log "github.com/cihub/seelog"
 	"os"
-	"syscall"
+	//"syscall"
 	"time"
 )
 
@@ -51,8 +51,8 @@ func openOutLog(filename string) *os.File {
 
 	// Redirect stdout and stderr to out file
 	logFile, _ := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
-	syscall.Dup2(int(logFile.Fd()), 1)
-	syscall.Dup2(int(logFile.Fd()), 2)
+	//syscall.Dup2(int(logFile.Fd()), 1)
+	//syscall.Dup2(int(logFile.Fd()), 2)
 	return logFile
 }
 

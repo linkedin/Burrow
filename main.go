@@ -16,9 +16,9 @@ import (
 	log "github.com/cihub/seelog"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
-	"os/signal"
+	//"os/signal"
 	"runtime"
-	"syscall"
+	//"syscall"
 	"time"
 )
 
@@ -148,7 +148,7 @@ func burrowMain() int {
 
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)
-	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
+	//signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
 
 	// Wait until we're told to exit
 	<-exitChannel
