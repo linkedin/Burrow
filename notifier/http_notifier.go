@@ -37,7 +37,6 @@ type HttpNotifier struct {
 	Username           string
 	Password           string
 	AuthType           string
-	auth               http.Auth
 }
 
 type Event struct {
