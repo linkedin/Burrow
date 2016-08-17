@@ -143,11 +143,9 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Adding Authentication
-	if notifier.AuthType == nil {
-		switch notifier.AuthType {
-		case basic:
-			req.SetBasicAuth(notifier.Username, notifier.Password)
-		}
+	switch notifier.AuthType {
+	case "basic":
+		req.SetBasicAuth(notifier.Username, notifier.Password)
 	}
 
 	resp, err := notifier.HttpClient.Do(req)
@@ -192,11 +190,9 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			req.Header.Set("Content-Type", "application/json")
 
 			// Adding Authentication
-			if notifier.AuthType == nil {
-				switch notifier.AuthType {
-				case basic:
-					req.SetBasicAuth(notifier.Username, notifier.Password)
-				}
+			switch notifier.AuthType {
+			case "basic":
+				req.SetBasicAuth(notifier.Username, notifier.Password)
 			}
 
 			resp, err := notifier.HttpClient.Do(req)
