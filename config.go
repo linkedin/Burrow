@@ -13,7 +13,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -104,6 +103,9 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+		AuthType       string   `gcfg:"auth-type"`
+		Username       string   `gcfg:"username"`
+		Password       string   `gcfg:"password"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`
@@ -418,6 +420,14 @@ func ValidateConfig(app *ApplicationContext) error {
 		if (app.Config.Httpnotifier.PostThreshold < 1) || (app.Config.Httpnotifier.PostThreshold > 3) {
 			errs = append(errs, "HTTP notifier post-threshold must be between 1 and 3")
 		}
+
+		if app.Config.Httpnotifier.AuthType != "" {
+			if app.Config.Httpnotifier.AuthType != "basic" {
+				errs = append(errs, "HTTP auth-type must be basic, or blank")
+			}
+		}
+		// Username and password are not validated - they're optional
+
 		if app.Config.Httpnotifier.Interval == 0 {
 			app.Config.Httpnotifier.Interval = 60
 		}
