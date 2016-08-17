@@ -11,6 +11,9 @@
 package main
 
 import (
+	log "github.com/cihub/seelog"
+	"github.com/cgosiak/Burrow/notifier"
+	"github.com/cgosiak/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"
@@ -18,10 +21,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/cgosiak/Burrow/notifier"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
 )
 
 type NotifyCenter struct {

@@ -11,16 +11,15 @@
 package notifier
 
 import (
+	log "github.com/cihub/seelog"
+	"github.com/cgosiak/Burrow/protocol"
+	"github.com/pborman/uuid"
 	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"text/template"
 	"time"
-
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
-	"github.com/pborman/uuid"
 )
 
 type HttpNotifier struct {
