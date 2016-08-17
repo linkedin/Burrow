@@ -13,6 +13,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -73,6 +74,9 @@ type BurrowConfig struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
 	}
+	Notify struct {
+		Interval int64 `gcfg:"interval"`
+	}
 	Smtp struct {
 		Server   string `gcfg:"server"`
 		Port     int    `gcfg:"port"`
@@ -82,12 +86,15 @@ type BurrowConfig struct {
 		From     string `gcfg:"from"`
 		Template string `gcfg:"template"`
 	}
-	Email map[string]*struct {
+	Emailnotifier map[string]*struct {
+		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
-		Interval  int      `gcfg:"interval"`
-		Threshold string   `gcfg:"threhsold"`
+		Interval  int64    `gcfg:"interval"`
+		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
+		Enable         bool     `gcfg:"enable"`
+		Groups         []string `gcfg:"group"`
 		Url            string   `gcfg:"url"`
 		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
@@ -97,10 +104,19 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
-		AuthType       string   `gcfg:"auth-type"`
-		Username       string   `gcfg:"username"`
-		Password       string   `gcfg:"password"`
-		IgnoreSSL      bool     `gcfg:"ignore-ssl"`
+	}
+	Slacknotifier struct {
+		Enable    bool     `gcfg:"enable"`
+		Groups    []string `gcfg:"group"`
+		Url       string   `gcfg:"url"`
+		Interval  int64    `gcfg:"interval"`
+		Channel   string   `gcfg:"channel"`
+		Username  string   `gcfg:"username"`
+		IconUrl   string   `gcfg:"icon-url"`
+		IconEmoji string   `gfcg:"icon-emoji"`
+		Threshold int      `gcfg:"threshold"`
+		Timeout   int      `gcfg:"timeout"`
+		Keepalive int      `gcfg:"keepalive"`
 	}
 	Clientprofile map[string]*ClientProfile
 }
@@ -340,8 +356,13 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 		// Username and password are not validated - they're optional
 
+		// Notify
+		if app.Config.Notify.Interval == 0 {
+			app.Config.Notify.Interval = 10
+		}
+
 		// Email configs
-		for email, cfg := range app.Config.Email {
+		for email, cfg := range app.Config.Emailnotifier {
 			if !validateEmail(email) {
 				errs = append(errs, "Email address is invalid")
 			}
@@ -367,18 +388,9 @@ func ValidateConfig(app *ApplicationContext) error {
 			if cfg.Interval == 0 {
 				errs = append(errs, "Email notification interval is not specified")
 			}
-			if cfg.Threshold == "" {
-				cfg.Threshold = "WARNING"
-			} else {
-				// Upcase the threshold
-				cfg.Threshold = strings.ToUpper(cfg.Threshold)
-				if (cfg.Threshold != "WARNING") && (cfg.Threshold != "ERROR") {
-					errs = append(errs, "Email notification threshold is invalid (must be WARNING or ERROR)")
-				}
-			}
 		}
 	} else {
-		if len(app.Config.Email) > 0 {
+		if len(app.Config.Emailnotifier) > 0 {
 			errs = append(errs, "Email notifications are configured, but SMTP server is not configured")
 		}
 	}
@@ -409,20 +421,31 @@ func ValidateConfig(app *ApplicationContext) error {
 		if app.Config.Httpnotifier.Interval == 0 {
 			app.Config.Httpnotifier.Interval = 60
 		}
-		if app.Config.Smtp.AuthType != "" {
-			if app.Config.Smtp.AuthType != "basic" {
-				errs = append(errs, "Email auth-type must be basic or blank")
-			}
-		}
-
-		// Username and password are not validated - they're optional
-
 		for _, extra := range app.Config.Httpnotifier.Extras {
 			// Each extra should be formatted as "string=string"
 			if matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+=.*$`, extra); !matches {
 				errs = append(errs, "One or more HTTP notifier extra fields are invalid")
 				break
 			}
+		}
+	}
+
+	// Slack Notifier config
+	if app.Config.Slacknotifier.Url != "" {
+		if !validateUrl(app.Config.Slacknotifier.Url) {
+			errs = append(errs, "Slack notifier URL is invalid")
+		}
+		if app.Config.Slacknotifier.Channel == "" {
+			app.Config.Slacknotifier.Channel = "#general"
+		}
+		if app.Config.Slacknotifier.Username == "" {
+			app.Config.Slacknotifier.Username = "Burrower"
+		}
+		if app.Config.Slacknotifier.IconUrl == "" {
+			app.Config.Slacknotifier.IconUrl = "https://slack.com/img/icons/app-57.png"
+		}
+		if app.Config.Slacknotifier.IconEmoji == "" {
+			app.Config.Slacknotifier.IconEmoji = ":ghost:"
 		}
 	}
 
@@ -469,7 +492,7 @@ func validateZookeeperPath(path string) bool {
 }
 
 func validateTopic(topic string) bool {
-	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+$`, topic)
+	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\.-]+$`, topic)
 	return matches
 }
 
