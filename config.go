@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition
@@ -129,7 +130,7 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	// Set some non-standard defaults
 	cfg.Httpnotifier.SendDelete = true
 
-	err := cfg.ReadFileInto(&cfg, cfgFile)
+	err := gcfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
 		log.Fatalf("Failed to parse gcfg data: %s", err)
 		os.Exit(1)
