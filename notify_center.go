@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cgosiak/Burrow/notifier"
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/notifier"
 	"github.com/linkedin/Burrow/protocol"
 )
 
