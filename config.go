@@ -129,7 +129,7 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	// Set some non-standard defaults
 	cfg.Httpnotifier.SendDelete = true
 
-	err := gcfg.ReadFileInto(&cfg, cfgFile)
+	err := cfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
 		log.Fatalf("Failed to parse gcfg data: %s", err)
 		os.Exit(1)
