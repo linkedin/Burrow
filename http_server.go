@@ -13,7 +13,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/cgosiak/Burrow/protocol"
 	"io"
 	"net/http"
 	"os"

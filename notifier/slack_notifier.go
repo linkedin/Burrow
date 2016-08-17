@@ -16,7 +16,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/cgosiak/Burrow/protocol"
 	"io/ioutil"
 	"net/http"
 	"time"
