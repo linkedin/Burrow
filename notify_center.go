@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"crypto/tls"
 )
 
 type NotifyCenter struct {
@@ -236,6 +237,7 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 					KeepAlive: time.Duration(httpConfig.Keepalive) * time.Second,
 				}).Dial,
 				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
 		},
 	}, nil

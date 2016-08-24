@@ -144,6 +144,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// Adding Authentication
 	switch notifier.AuthType {
 	case "basic":
+		log.Errorf("Basic Authentication Added Username: %s Password: %s", notifier.Username, notifier.Password)
 		req.SetBasicAuth(notifier.Username, notifier.Password)
 	}
 
@@ -152,6 +153,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 		log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", msg.Group, msg.Cluster, msg.Status, idStr, err)
 		return err
 	}
+	log.Errorf("Response Body: %s Response Status: %s", resp.Body, resp.StatusCode)
 	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 
