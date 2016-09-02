@@ -94,41 +94,45 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			// Create the cluster map
 			notifier.groupIds[msg.Cluster] = make(map[string]Event)
 		}
-		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; !ok {
-			// Create Event and Id
-			eventId := uuid.NewRandom()
-			idStr = eventId.String()
-			notifier.groupIds[msg.Cluster][msg.Group] = Event{
-				Id:    idStr,
-				Start: startTime,
+		if !notifier.Ignore(msg) {
+			if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; !ok {
+				// Create Event and Id
+				eventId := uuid.NewRandom()
+				idStr = eventId.String()
+				notifier.groupIds[msg.Cluster][msg.Group] = Event{
+					Id:    idStr,
+					Start: startTime,
+				}
+			} else {
+				idStr = notifier.groupIds[msg.Cluster][msg.Group].Id
+				startTime = notifier.groupIds[msg.Cluster][msg.Group].Start
 			}
-		} else {
-			idStr = notifier.groupIds[msg.Cluster][msg.Group].Id
-			startTime = notifier.groupIds[msg.Cluster][msg.Group].Start
 		}
 	}
 
-	// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
-	err := notifier.RequestOpen.send(struct {
-		Cluster    string
-		Group      string
-		Id         string
-		Start      time.Time
-		Extras     map[string]string
-		Result     Message
-		JsonEncode func(interface{}) string
-	}{
-		Cluster:    msg.Cluster,
-		Group:      msg.Group,
-		Id:         idStr,
-		Start:      startTime,
-		Extras:     notifier.Extras,
-		Result:     msg,
-		JsonEncode: templateJsonEncoder,
-	}, notifier.HttpClient, fmt.Sprintf("open for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr))
+	if !notifier.Ignore(msg) {
+		// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
+		err := notifier.RequestOpen.send(struct {
+			Cluster    string
+			Group      string
+			Id         string
+			Start      time.Time
+			Extras     map[string]string
+			Result     Message
+			JsonEncode func(interface{}) string
+		}{
+			Cluster:    msg.Cluster,
+			Group:      msg.Group,
+			Id:         idStr,
+			Start:      startTime,
+			Extras:     notifier.Extras,
+			Result:     msg,
+			JsonEncode: templateJsonEncoder,
+		}, notifier.HttpClient, fmt.Sprintf("open for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr))
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	if notifier.SendClose && (msg.Status == protocol.StatusOK) {

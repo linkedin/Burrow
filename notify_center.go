@@ -114,9 +114,7 @@ func StopNotifiers(app *ApplicationContext) {
 func (nc *NotifyCenter) handleEvaluationResponse(result *protocol.ConsumerGroupStatus) {
 	msg := notifier.Message(*result)
 	for _, notifier := range nc.notifiers {
-		if !notifier.Ignore(msg) {
-			notifier.Notify(msg)
-		}
+		notifier.Notify(msg)
 	}
 }
 
