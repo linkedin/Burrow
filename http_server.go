@@ -12,12 +12,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/linkedin/Burrow/protocol"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"net"
+	"time"
+	log "github.com/cihub/seelog"
 )
 
 type HttpServer struct {
@@ -28,6 +30,25 @@ type HttpServer struct {
 type appHandler struct {
 	app     *ApplicationContext
 	handler func(*ApplicationContext, http.ResponseWriter, *http.Request) (int, string)
+}
+
+
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
 
 func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
@@ -48,7 +69,27 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
-	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
+	listeners := make([]net.Listener, 0, len(server.app.Config.Httpserver.Listen))
+
+	for _, listenAddress := range server.app.Config.Httpserver.Listen {
+		ln, err := net.Listen("tcp", listenAddress)
+		if err != nil {
+			for _, listenerToClose := range listeners {
+				closeErr := listenerToClose.Close()
+				if closeErr != nil {
+					log.Errorf("Could not close listener: %v", closeErr)
+				}
+			}
+			return nil, err
+		}
+		listeners = append(listeners, tcpKeepAliveListener{ln.(*net.TCPListener)})
+	}
+
+	httpServer := &http.Server{Handler: server.mux}
+	for _, listener := range listeners {
+		go httpServer.Serve(listener)
+	}
+
 	return server, nil
 }
 
