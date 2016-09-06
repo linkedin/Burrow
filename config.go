@@ -127,6 +127,13 @@ type BurrowConfig struct {
 		Timeout   int      `gcfg:"timeout"`
 		Keepalive int      `gcfg:"keepalive"`
 	}
+	Graphitenotifier struct {
+		Enable bool    `gcfg:"enable"`
+		Addr string    `gcfg:"addr"`
+		Prefix string  `gcfg:"prefix"`
+		Threshold int  `gcfg:"threshold"`
+		Interval int64 `gcfg:"interval"`
+	}
 	Clientprofile map[string]*ClientProfile
 }
 

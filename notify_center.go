@@ -53,6 +53,11 @@ func LoadNotifiers(app *ApplicationContext) error {
 			notifiers = append(notifiers, slackNotifier)
 		}
 	}
+	if app.Config.Graphitenotifier.Enable {
+		if graphiteNotifier, err := NewGraphiteNotifier(app); err == nil {
+			notifiers = append(notifiers, graphiteNotifier)
+		}
+	}
 
 	nc := &NotifyCenter{
 		app:            app,
@@ -174,7 +179,7 @@ func (nc *NotifyCenter) startConsumerGroupEvaluator(group string, cluster string
 		nc.groupLock.RUnlock()
 
 		// Send requests for group status - responses are handled by the main loop (for now)
-		storageRequest := &RequestConsumerStatus{Result: nc.resultsChannel, Cluster: cluster, Group: group}
+		storageRequest := &RequestConsumerStatus{Result: nc.resultsChannel, Cluster: cluster, Group: group, Showall: true}
 		nc.app.Storage.requestChannel <- storageRequest
 
 		// Sleep for the check interval
@@ -264,4 +269,15 @@ func NewSlackNotifier(app *ApplicationContext) (*notifier.SlackNotifier, error) 
 			},
 		},
 	}, nil
+}
+
+func NewGraphiteNotifier(app *ApplicationContext) (*notifier.GraphiteNotifier, error) {
+	log.Info("Start Graphite Notify")
+
+	return notifier.NewGraphiteNotifier(
+		app.Config.Graphitenotifier.Addr,
+		app.Config.Graphitenotifier.Prefix,
+		app.Config.Graphitenotifier.Interval,
+		app.Config.Graphitenotifier.Threshold,
+	)
 }
