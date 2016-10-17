@@ -36,6 +36,7 @@ type BurrowConfig struct {
 		PIDFile        string `gcfg:"pidfile"`
 		ClientID       string `gcfg:"client-id"`
 		GroupBlacklist string `gcfg:"group-blacklist"`
+		GroupWhitelist string `gcfg:"group-whitelist"`
 	}
 	Zookeeper struct {
 		Hosts    []string `gcfg:"hostname"`
@@ -107,6 +108,19 @@ type BurrowConfig struct {
 		AuthType       string   `gcfg:"auth-type"`
 		Username       string   `gcfg:"username"`
 		Password       string   `gcfg:"password"`
+	}
+	Slacknotifier struct {
+		Enable    bool     `gcfg:"enable"`
+		Groups    []string `gcfg:"group"`
+		Url       string   `gcfg:"url"`
+		Interval  int64    `gcfg:"interval"`
+		Channel   string   `gcfg:"channel"`
+		Username  string   `gcfg:"username"`
+		IconUrl   string   `gcfg:"icon-url"`
+		IconEmoji string   `gfcg:"icon-emoji"`
+		Threshold int      `gcfg:"threshold"`
+		Timeout   int      `gcfg:"timeout"`
+		Keepalive int      `gcfg:"keepalive"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`
@@ -329,6 +343,11 @@ func ValidateConfig(app *ApplicationContext) error {
 		if app.Config.Httpserver.Port == 0 {
 			errs = append(errs, "HTTP server port is not specified")
 		}
+	}
+
+	// Notify
+	if app.Config.Notify.Interval == 0 {
+		app.Config.Notify.Interval = 10
 	}
 
 	// SMTP server config

@@ -90,7 +90,7 @@ func (zkClient *ZookeeperClient) refreshConsumerGroups() {
 	// Check for new groups, mark existing groups true
 	for _, consumerGroup := range consumerGroups {
 		// Don't bother adding groups in the blacklist
-		if (zkClient.app.Storage.groupBlacklist != nil) && zkClient.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+		if !zkClient.app.Storage.AcceptConsumerGroup(consumerGroup) {
 			continue
 		}
 

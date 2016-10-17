@@ -184,8 +184,8 @@ func (stormClient *StormClient) refreshConsumerGroups() {
 
 	// Check for new groups, mark existing groups true
 	for _, consumerGroup := range consumerGroups {
-		// Don't bother adding groups in the blacklist
-		if (stormClient.app.Storage.groupBlacklist != nil) && stormClient.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+		// Ignore groups that are out of filter bounds
+		if !stormClient.app.Storage.AcceptConsumerGroup(consumerGroup) {
 			continue
 		}
 
