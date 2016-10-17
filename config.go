@@ -122,19 +122,6 @@ type BurrowConfig struct {
 		Timeout   int      `gcfg:"timeout"`
 		Keepalive int      `gcfg:"keepalive"`
 	}
-	Slacknotifier struct {
-		Enable    bool     `gcfg:"enable"`
-		Groups    []string `gcfg:"group"`
-		Url       string   `gcfg:"url"`
-		Interval  int64    `gcfg:"interval"`
-		Channel   string   `gcfg:"channel"`
-		Username  string   `gcfg:"username"`
-		IconUrl   string   `gcfg:"icon-url"`
-		IconEmoji string   `gfcg:"icon-emoji"`
-		Threshold int      `gcfg:"threshold"`
-		Timeout   int      `gcfg:"timeout"`
-		Keepalive int      `gcfg:"keepalive"`
-	}
 	Clientprofile map[string]*ClientProfile
 }
 
