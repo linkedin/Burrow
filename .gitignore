@@ -6,3 +6,4 @@ log
 .idea
 Burrow.iml
 tmp
+config/basic.cfg
