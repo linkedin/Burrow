@@ -144,7 +144,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// Adding Authentication
 	switch notifier.AuthType {
 	case "basic":
-		log.Infof("Basic Authentication Added: Setting up HTTP Request)
+		log.Infof("Basic Authentication Added: Setting up HTTP Request")
 		req.SetBasicAuth(notifier.Username, notifier.Password)
 	}
 
@@ -166,7 +166,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			msg.Cluster, msg.Status, idStr, resp.Status)
 	}
 
-	log.Infof("Delete Bool Set to %s in Configs.")
+	log.Infof("Delete Bool Set to %s in Configs.", notifier.SendDelete)
 
 	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
 		log.Infof("Sending Delete Alert Request for Consumer: %s", msg.Group)
