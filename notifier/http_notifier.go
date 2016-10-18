@@ -94,6 +94,14 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// We only use IDs if we are sending deletes
 	idStr := ""
 	startTime := time.Now()
+
+	if notifier.SendDelete {
+		log.Infof("###### CONFIG: Send Delete is True")
+	}
+	else {
+		log.Infof("###### CONFIG: Send Delete is False")
+	}
+
 	if notifier.SendDelete {
 		if _, ok := notifier.groupIds[msg.Cluster]; !ok {
 			// Create the cluster map
