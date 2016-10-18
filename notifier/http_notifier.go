@@ -144,7 +144,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// Adding Authentication
 	switch notifier.AuthType {
 	case "basic":
-		log.Errorf("Basic Authentication Added Username: %s Password: %s", notifier.Username, notifier.Password)
+		log.Infof("Basic Authentication Added: Setting up HTTP Request)
 		req.SetBasicAuth(notifier.Username, notifier.Password)
 	}
 
@@ -154,7 +154,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 		return err
 	}
 
-	log.Errorf("Response Body: %s Response Status: %s", resp.Body, resp.StatusCode)
+	log.Infof("Response Body: %s Response Status: %s", resp.Body, resp.StatusCode)
 
 	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
@@ -166,7 +166,10 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			msg.Cluster, msg.Status, idStr, resp.Status)
 	}
 
+	log.Infof("Delete Bool Set to %s in Configs.")
+
 	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
+		log.Infof("Sending Delete Alert Request for Consumer: %s", msg.Group)
 		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; ok {
 			// Send DELETE to HTTP endpoint
 			bytesToSend := new(bytes.Buffer)
@@ -208,7 +211,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			resp.Body.Close()
 
 			if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-				log.Debugf("Sent DELETE for group %s in cluster %s (Id %s)", msg.Group, msg.Cluster,
+				log.Infof("Sent DELETE for group %s in cluster %s (Id %s)", msg.Group, msg.Cluster,
 					notifier.groupIds[msg.Cluster][msg.Group].Id)
 			} else {
 				log.Errorf("Failed to send DELETE for group %s in cluster %s (Id %s): %s", msg.Group,
