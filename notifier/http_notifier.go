@@ -87,7 +87,6 @@ func (notifier *HttpNotifier) Notify(msg Message) error {
 }
 
 func (notifier *HttpNotifier) Ignore(msg Message) bool {
-	log.Infof("Consumer: %s Message Status: %s Notifier Threshold: %s", msg.Group, msg.Status, notifier.Threshold)
 	return int(msg.Status) < notifier.Threshold
 }
 
@@ -170,7 +169,6 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	}
 
 	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
-		log.Infof("Sending Delete Alert Request for Consumer: %s", msg.Group)
 		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; ok {
 			// Send DELETE to HTTP endpoint
 			bytesToSend := new(bytes.Buffer)
