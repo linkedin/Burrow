@@ -97,8 +97,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 
 	if notifier.SendDelete {
 		log.Infof("###### CONFIG: Send Delete is True")
-	}
-	else {
+	} else {
 		log.Infof("###### CONFIG: Send Delete is False")
 	}
 
@@ -175,6 +174,14 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	}
 
 	log.Infof("Delete Bool Set to %s in Configs.", notifier.SendDelete)
+	
+	log.Infof("Message Status: %s Protocol Status OK: %s")
+
+	if (msg.Status == protocol.StatusOK) {
+		log.Infof("Message Status/Protocol Status OK are the Same")
+	} else {
+		log.Infof("Message Status/Protocol Status OK NOT the Same")
+	}
 
 	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
 		log.Infof("Sending Delete Alert Request for Consumer: %s", msg.Group)
