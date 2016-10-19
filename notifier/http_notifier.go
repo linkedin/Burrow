@@ -97,12 +97,6 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	startTime := time.Now()
 
 	if notifier.SendDelete {
-		log.Infof("###### CONFIG: Send Delete is True")
-	} else {
-		log.Infof("###### CONFIG: Send Delete is False")
-	}
-
-	if notifier.SendDelete {
 		if _, ok := notifier.groupIds[msg.Cluster]; !ok {
 			// Create the cluster map
 			notifier.groupIds[msg.Cluster] = make(map[string]Event)
@@ -121,66 +115,58 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 		}
 	}
 
-	// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
-	bytesToSend := new(bytes.Buffer)
-	err := notifier.templatePost.Execute(bytesToSend, struct {
-		Cluster    string
-		Group      string
-		Id         string
-		Start      time.Time
-		Extras     map[string]string
-		Result     Message
-		JsonEncode func(interface{}) string
-	}{
-		Cluster:    msg.Cluster,
-		Group:      msg.Group,
-		Id:         idStr,
-		Start:      startTime,
-		Extras:     notifier.Extras,
-		Result:     msg,
-		JsonEncode: templateJsonEncoder,
-	})
-	if err != nil {
-		log.Errorf("Failed to assemble POST: %v", err)
-		return err
-	}
+	// Should a Post Request be Sent
+	if (msg.Status != protocol.StatusOK) {
 
-	// Send POST to HTTP endpoint
-	req, err := http.NewRequest("POST", notifier.Url, bytesToSend)
-	req.Header.Set("Content-Type", "application/json")
+		// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
+		bytesToSend := new(bytes.Buffer)
+		err := notifier.templatePost.Execute(bytesToSend, struct {
+			Cluster    string
+			Group      string
+			Id         string
+			Start      time.Time
+			Extras     map[string]string
+			Result     Message
+			JsonEncode func(interface{}) string
+		}{
+			Cluster:    msg.Cluster,
+			Group:      msg.Group,
+			Id:         idStr,
+			Start:      startTime,
+			Extras:     notifier.Extras,
+			Result:     msg,
+			JsonEncode: templateJsonEncoder,
+		})
+		if err != nil {
+			log.Errorf("Failed to assemble POST: %v", err)
+			return err
+		}
 
-	// Adding Authentication
-	switch notifier.AuthType {
-	case "basic":
-		req.SetBasicAuth(notifier.Username, notifier.Password)
-	}
+		// Send POST to HTTP endpoint
+		req, err := http.NewRequest("POST", notifier.Url, bytesToSend)
+		req.Header.Set("Content-Type", "application/json")
 
-	resp, err := notifier.HttpClient.Do(req)
-	if err != nil {
-		log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", msg.Group, msg.Cluster, msg.Status, idStr, err)
-		return err
-	}
+		// Adding Authentication
+		switch notifier.AuthType {
+		case "basic":
+			req.SetBasicAuth(notifier.Username, notifier.Password)
+		}
 
-	log.Infof("Response Body: %s Response Status: %s", resp.Body, resp.StatusCode)
+		resp, err := notifier.HttpClient.Do(req)
+		if err != nil {
+			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", msg.Group, msg.Cluster, msg.Status, idStr, err)
+			return err
+		}
 
-	io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 
-	if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-		log.Debugf("Sent POST for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr)
-	} else {
-		log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %s", msg.Group,
-			msg.Cluster, msg.Status, idStr, resp.Status)
-	}
-
-	log.Infof("Delete Bool Set to %s in Configs.", notifier.SendDelete)
-	
-	log.Infof("Message Status: %s Protocol Status OK: %s", msg.Status, protocol.StatusOK)
-
-	if (msg.Status == protocol.StatusOK) {
-		log.Infof("Message Status/Protocol Status OK are the Same")
-	} else {
-		log.Infof("Message Status/Protocol Status OK NOT the Same")
+		if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
+			log.Debugf("Sent POST for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr)
+		} else {
+			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %s", msg.Group,
+				msg.Cluster, msg.Status, idStr, resp.Status)
+		}
 	}
 
 	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
