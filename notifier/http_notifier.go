@@ -87,6 +87,7 @@ func (notifier *HttpNotifier) Notify(msg Message) error {
 }
 
 func (notifier *HttpNotifier) Ignore(msg Message) bool {
+	log.Infof("Consumer: %s Message Status: %s Notifier Threshold: %s", msg.Group, msg.Status, notifier.Threshold)
 	return int(msg.Status) < notifier.Threshold
 }
 
@@ -151,7 +152,6 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// Adding Authentication
 	switch notifier.AuthType {
 	case "basic":
-		log.Infof("Basic Authentication Added: Setting up HTTP Request")
 		req.SetBasicAuth(notifier.Username, notifier.Password)
 	}
 
@@ -175,7 +175,7 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 
 	log.Infof("Delete Bool Set to %s in Configs.", notifier.SendDelete)
 	
-	log.Infof("Message Status: %s Protocol Status OK: %s")
+	log.Infof("Message Status: %s Protocol Status OK: %s", msg.Status, protocol.StatusOK)
 
 	if (msg.Status == protocol.StatusOK) {
 		log.Infof("Message Status/Protocol Status OK are the Same")
