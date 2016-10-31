@@ -53,6 +53,11 @@ func LoadNotifiers(app *ApplicationContext) error {
 			notifiers = append(notifiers, slackNotifier)
 		}
 	}
+	if app.Config.NewRelicInsightsNotifier.Enable {
+		if insightsNotifier, err := NewInsightsNotifier(app); err == nil {
+			notifiers = append(notifiers, insightsNotifier)
+		}
+	}
 
 	nc := &NotifyCenter{
 		app:            app,
@@ -176,7 +181,7 @@ func (nc *NotifyCenter) startConsumerGroupEvaluator(group string, cluster string
 		nc.groupLock.RUnlock()
 
 		// Send requests for group status - responses are handled by the main loop (for now)
-		storageRequest := &RequestConsumerStatus{Result: nc.resultsChannel, Cluster: cluster, Group: group}
+		storageRequest := &RequestConsumerStatus{Result: nc.resultsChannel, Cluster: cluster, Group: group, Showall: true}
 		nc.app.Storage.requestChannel <- storageRequest
 
 		// Sleep for the check interval
@@ -254,6 +259,28 @@ func NewSlackNotifier(app *ApplicationContext) (*notifier.SlackNotifier, error) 
 			Transport: &http.Transport{
 				Dial: (&net.Dialer{
 					KeepAlive: time.Duration(app.Config.Slacknotifier.Keepalive) * time.Second,
+				}).Dial,
+				Proxy: http.ProxyFromEnvironment,
+			},
+		},
+	}, nil
+}
+
+func NewInsightsNotifier(app *ApplicationContext) (*notifier.NewRelicInsightsNotifier, error) {
+	insightsConfig := app.Config.NewRelicInsightsNotifier
+
+	return &notifier.NewRelicInsightsNotifier {
+		Url:              insightsConfig.Url,
+		InsertKey:        insightsConfig.InsertKey,
+		EventType:        insightsConfig.EventType,
+		SendPerPartition: insightsConfig.SendPerPartition,
+		Threshold:        insightsConfig.Threshold,
+		Groups:	          insightsConfig.Groups,
+		HttpClient: &http.Client {
+			Timeout: time.Duration(insightsConfig.Timeout) * time.Second,
+			Transport: &http.Transport {
+				Dial: (&net.Dialer {
+					KeepAlive: time.Duration(insightsConfig.Keepalive) * time.Second,
 				}).Dial,
 				Proxy: http.ProxyFromEnvironment,
 			},

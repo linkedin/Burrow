@@ -119,6 +119,17 @@ type BurrowConfig struct {
 		Timeout   int      `gcfg:"timeout"`
 		Keepalive int      `gcfg:"keepalive"`
 	}
+	NewRelicInsightsNotifier struct {
+		Enable           bool     `gcfg:"enable"`
+		Url              string   `gcfg:"url"`
+		InsertKey        string   `gcfg:"insert-key"`
+		EventType        string   `gcfg:"event-type"`
+		SendPerPartition bool     `gcfg:"send-per-partition"`
+		Threshold        int      `gcfg:"threshold"`
+		Groups           []string `gcfg:"group"`
+		Timeout          int      `gcfg:"timeout"`
+		Keepalive        int      `gcfg:"keepalive"`
+	}
 	Clientprofile map[string]*ClientProfile
 }
 
@@ -447,6 +458,25 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 		if app.Config.Slacknotifier.IconEmoji == "" {
 			app.Config.Slacknotifier.IconEmoji = ":ghost:"
+		}
+	}
+
+	// New Relic Insights Notifier config
+	if app.Config.NewRelicInsightsNotifier.Url != "" {
+		if !validateUrl(app.Config.NewRelicInsightsNotifier.Url) {
+			errs = append(errs, "New Relic Insights notifier URL is invalid")
+		}
+		if app.Config.NewRelicInsightsNotifier.InsertKey == "" {
+			errs = append(errs, "insert-key is required to POST to New Relic Insights")
+		}
+		if app.Config.NewRelicInsightsNotifier.EventType == "" {
+			app.Config.NewRelicInsightsNotifier.EventType = "BurrowStatusReport"
+		}
+		if app.Config.NewRelicInsightsNotifier.Threshold == 0 {
+			app.Config.NewRelicInsightsNotifier.Threshold = 1
+		}
+		if (app.Config.NewRelicInsightsNotifier.Threshold < 1) || (app.Config.NewRelicInsightsNotifier.Threshold > 3) {
+			errs = append(errs, "New Relic Insights notifier threshold must be between 1 and 3")
 		}
 	}
 
