@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type HttpServer struct {
@@ -49,6 +50,8 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
 	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8081", nil)
 	return server, nil
 }
 
