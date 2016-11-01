@@ -47,11 +47,10 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	server.mux.Handle("/v2/kafka", appHandler{server.app, handleClusterList})
 	server.mux.Handle("/v2/kafka/", appHandler{server.app, handleKafka})
 	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
+	server.mux.Handle("/v2/metrics", promhttp.Handler())
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
 	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
-	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":8081", nil)
 	return server, nil
 }
 
