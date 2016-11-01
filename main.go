@@ -189,6 +189,7 @@ func (ctx *ApplicationContext) GetOrCreateLagGauge(cgName string) prometheus.Gau
 	}
 	gauge := prometheus.NewGauge(gaugeOpts)
 	prometheus.MustRegister(gauge)
+	ctx.Metrics[cgName] = gauge
 	return gauge
 }
 
