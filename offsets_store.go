@@ -690,14 +690,14 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 func (storage *OffsetStorage) AcceptConsumerGroup(group string) bool {
 	// First check to make sure group is in the whitelist
 	if (storage.groupWhitelist != nil) && !storage.groupWhitelist.MatchString(group) {
-		return false;
+		return false
 	}
 
 	// The group is in the whitelist (or there is not whitelist).  Now check the blacklist
 	if (storage.groupBlacklist != nil) && storage.groupBlacklist.MatchString(group) {
-		return false;
+		return false
 	}
 
 	// good to go
-	return true;
+	return true
 }

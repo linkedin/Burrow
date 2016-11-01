@@ -14,14 +14,14 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/linkedin/Burrow/protocol"
 )
 
 type KafkaCluster struct {
@@ -41,7 +41,7 @@ type ApplicationContext struct {
 	Server       *HttpServer
 	NotifyCenter *NotifyCenter
 	NotifierLock *zk.Lock
-	Metrics map[string]prometheus.Gauge
+	Metrics      map[string]prometheus.Gauge
 }
 
 // Why two mains? Golang doesn't let main() return, which means defers will not run.
@@ -210,9 +210,9 @@ func getConsumerList(app *ApplicationContext, cluster string) []string {
 
 func getConsumerStatus(app *ApplicationContext, cluster string, group string) *protocol.ConsumerGroupStatus {
 	storageRequest := &RequestConsumerStatus{
-		Result: make(chan *protocol.ConsumerGroupStatus),
+		Result:  make(chan *protocol.ConsumerGroupStatus),
 		Cluster: cluster,
-		Group: group,
+		Group:   group,
 		Showall: true,
 	}
 	app.Storage.requestChannel <- storageRequest

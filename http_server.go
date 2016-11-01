@@ -14,11 +14,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/linkedin/Burrow/protocol"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type HttpServer struct {
