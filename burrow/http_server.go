@@ -8,16 +8,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/linkedin/Burrow/protocol"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/prasincs/Burrow/protocol"
 )
 
 type HttpServer struct {

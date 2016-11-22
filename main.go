@@ -13,32 +13,49 @@ package main
 import (
 	"flag"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/prasincs/Burrow/burrow"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
-type KafkaCluster struct {
-	Client    *KafkaClient
-	Zookeeper *ZookeeperClient
+func createPidFile(filename string) {
+	// Create a PID file, making sure it doesn't already exist
+	pidfile, err := os.OpenFile(filename, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Criticalf("Cannot write PID file: %v", err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(pidfile, "%v", os.Getpid())
+	pidfile.Close()
 }
 
-type StormCluster struct {
-	Storm *StormClient
+func removePidFile(filename string) {
+	err := os.Remove(filename)
+	if err != nil {
+		fmt.Printf("Failed to remove PID file: %v\n", err)
+	}
 }
 
-type ApplicationContext struct {
-	Config       *BurrowConfig
-	Storage      *OffsetStorage
-	Clusters     map[string]*KafkaCluster
-	Storms       map[string]*StormCluster
-	Server       *HttpServer
-	NotifyCenter *NotifyCenter
-	NotifierLock *zk.Lock
+func openOutLog(filename string) *os.File {
+	// Move existing out file to a dated file if it exists
+	if _, err := os.Stat(filename); err == nil {
+		if err = os.Rename(filename, filename+"."+time.Now().Format("2006-01-02_15:04:05")); err != nil {
+			log.Criticalf("Cannot move old out file: %v", err)
+			os.Exit(1)
+		}
+	}
+
+	// Redirect stdout and stderr to out file
+	logFile, _ := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	syscall.Dup2(int(logFile.Fd()), 1)
+	syscall.Dup2(int(logFile.Fd()), 2)
+	return logFile
 }
 
 // Why two mains? Golang doesn't let main() return, which means defers will not run.
@@ -50,8 +67,8 @@ func burrowMain() int {
 
 	// Load and validate the configuration
 	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
-	appContext := &ApplicationContext{Config: ReadConfig(*cfgfile)}
-	if err := ValidateConfig(appContext); err != nil {
+	appContext := &burrow.ApplicationContext{Config: burrow.ReadConfig(*cfgfile)}
+	if err := burrow.ValidateConfig(appContext); err != nil {
 		log.Criticalf("Cannot validate configuration: %v", err)
 		return 1
 	}
@@ -66,7 +83,7 @@ func burrowMain() int {
 
 	// If a logging config is specified, replace the existing loggers
 	if appContext.Config.General.LogConfig != "" {
-		NewLogger(appContext.Config.General.LogConfig)
+		burrow.NewLogger(appContext.Config.General.LogConfig)
 	}
 
 	// Start a local Zookeeper client (used for application locks)
@@ -80,7 +97,7 @@ func burrowMain() int {
 
 	// Start an offsets storage module
 	log.Info("Starting Offsets Storage module")
-	appContext.Storage, err = NewOffsetStorage(appContext)
+	appContext.Storage, err = burrow.NewOffsetStorage(appContext)
 	if err != nil {
 		log.Criticalf("Cannot configure offsets storage module: %v", err)
 		return 1
@@ -89,7 +106,7 @@ func burrowMain() int {
 
 	// Start an HTTP server
 	log.Info("Starting HTTP server")
-	appContext.Server, err = NewHttpServer(appContext)
+	appContext.Server, err = burrow.NewHttpServer(appContext)
 	if err != nil {
 		log.Criticalf("Cannot start HTTP server: %v", err)
 		return 1
@@ -97,10 +114,10 @@ func burrowMain() int {
 	defer appContext.Server.Stop()
 
 	// Start Kafka clients and Zookeepers for each cluster
-	appContext.Clusters = make(map[string]*KafkaCluster, len(appContext.Config.Kafka))
+	appContext.Clusters = make(map[string]*burrow.KafkaCluster, len(appContext.Config.Kafka))
 	for cluster, _ := range appContext.Config.Kafka {
 		log.Infof("Starting Zookeeper client for cluster %s", cluster)
-		zkconn, err := NewZookeeperClient(appContext, cluster)
+		zkconn, err := burrow.NewZookeeperClient(appContext, cluster)
 		if err != nil {
 			log.Criticalf("Cannot start Zookeeper client for cluster %s: %v", cluster, err)
 			return 1
@@ -108,43 +125,43 @@ func burrowMain() int {
 		defer zkconn.Stop()
 
 		log.Infof("Starting Kafka client for cluster %s", cluster)
-		client, err := NewKafkaClient(appContext, cluster)
+		client, err := burrow.NewKafkaClient(appContext, cluster)
 		if err != nil {
 			log.Criticalf("Cannot start Kafka client for cluster %s: %v", cluster, err)
 			return 1
 		}
 		defer client.Stop()
 
-		appContext.Clusters[cluster] = &KafkaCluster{Client: client, Zookeeper: zkconn}
+		appContext.Clusters[cluster] = &burrow.KafkaCluster{Client: client, Zookeeper: zkconn}
 	}
 
 	// Start Storm Clients for each storm cluster
-	appContext.Storms = make(map[string]*StormCluster, len(appContext.Config.Storm))
+	appContext.Storms = make(map[string]*burrow.StormCluster, len(appContext.Config.Storm))
 	for cluster, _ := range appContext.Config.Storm {
 		log.Infof("Starting Storm client for cluster %s", cluster)
-		stormClient, err := NewStormClient(appContext, cluster)
+		stormClient, err := burrow.NewStormClient(appContext, cluster)
 		if err != nil {
 			log.Criticalf("Cannot start Storm client for cluster %s: %v", cluster, err)
 			return 1
 		}
 		defer stormClient.Stop()
 
-		appContext.Storms[cluster] = &StormCluster{Storm: stormClient}
+		appContext.Storms[cluster] = &burrow.StormCluster{Storm: stormClient}
 	}
 
 	// Set up the Zookeeper lock for notification
 	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, zk.WorldACL(zk.PermAll))
 
 	// Load the notifiers, but do not start them
-	err = LoadNotifiers(appContext)
+	err = burrow.LoadNotifiers(appContext)
 	if err != nil {
 		// Error was already logged
 		return 1
 	}
 
 	// Notifiers are started in a goroutine if we get the ZK lock
-	go StartNotifiers(appContext)
-	defer StopNotifiers(appContext)
+	go burrow.StartNotifiers(appContext)
+	defer burrow.StopNotifiers(appContext)
 
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)

@@ -8,11 +8,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
 	"fmt"
-	"github.com/linkedin/Burrow/protocol"
+
+	"github.com/prasincs/Burrow/protocol"
 )
 
 func printConsumerGroupStatus(status *protocol.ConsumerGroupStatus) {
