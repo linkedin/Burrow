@@ -12,7 +12,8 @@ package notifier
 
 import (
 	"encoding/json"
-	"github.com/linkedin/Burrow/protocol"
+
+	"github.com/prasincs/Burrow/protocol"
 )
 
 // Helper function for the templates to encode an object into a JSON string

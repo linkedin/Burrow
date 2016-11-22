@@ -8,12 +8,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -21,6 +20,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition

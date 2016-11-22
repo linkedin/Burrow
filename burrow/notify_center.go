@@ -8,12 +8,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/notifier"
-	"github.com/linkedin/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"
@@ -21,6 +18,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/prasincs/Burrow/notifier"
+	"github.com/prasincs/Burrow/protocol"
 )
 
 type NotifyCenter struct {

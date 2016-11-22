@@ -8,16 +8,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
-	"github.com/samuel/go-zookeeper/zk"
 	"math/rand"
 	"strconv"
 	"sync"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/prasincs/Burrow/protocol"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type ZookeeperClient struct {

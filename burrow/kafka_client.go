@@ -8,18 +8,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package burrow
 
 import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
-	"github.com/Shopify/sarama"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
 	"sync"
 	"time"
+
+	"github.com/Shopify/sarama"
+	log "github.com/cihub/seelog"
+	"github.com/prasincs/Burrow/protocol"
 )
 
 type KafkaClient struct {
