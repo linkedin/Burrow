@@ -48,7 +48,7 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
-	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
+	go http.ListenAndServe(fmt.Sprintf("%v:%v", server.app.Config.Httpserver.Address,server.app.Config.Httpserver.Port), server.mux)
 	return server, nil
 }
 
