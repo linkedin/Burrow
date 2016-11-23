@@ -74,6 +74,7 @@ type BurrowConfig struct {
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
+        Address string  `gcfg:"address"`
 	}
 	Notify struct {
 		Interval int64 `gcfg:"interval"`
