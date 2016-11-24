@@ -14,6 +14,8 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
@@ -39,6 +41,7 @@ type ApplicationContext struct {
 	Server       *HttpServer
 	NotifyCenter *NotifyCenter
 	NotifierLock *zk.Lock
+	Metrics      map[string]prometheus.Gauge
 }
 
 // Why two mains? Golang doesn't let main() return, which means defers will not run.
@@ -145,7 +148,7 @@ func burrowMain() int {
 	// Notifiers are started in a goroutine if we get the ZK lock
 	go StartNotifiers(appContext)
 	defer StopNotifiers(appContext)
-
+	go appContext.prometheusUpdater()
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)
 	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
@@ -166,4 +169,52 @@ func main() {
 		fmt.Println("Stopped Burrow at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
 	}
 	os.Exit(rv)
+}
+
+func (app *ApplicationContext) prometheusUpdater() {
+	for {
+		<-time.After(5 * time.Second)
+		app.UpdatePrometheusMetrics()
+	}
+}
+
+func (ctx *ApplicationContext) GetOrCreateLagGauge(cgName string) prometheus.Gauge {
+	metric := ctx.Metrics[cgName]
+	if metric != nil {
+		return metric
+	}
+	gaugeOpts := prometheus.GaugeOpts{
+		Name: cgName + "_lag",
+		Help: "Gauge of lag (messages produces - messages consumed) for a Kafka consumer group",
+	}
+	gauge := prometheus.NewGauge(gaugeOpts)
+	prometheus.MustRegister(gauge)
+	ctx.Metrics[cgName] = gauge
+	return gauge
+}
+
+func (app *ApplicationContext) UpdatePrometheusMetrics() {
+	consumers := getConsumerList(app, "prod-kafka")
+	for _, consumer := range consumers {
+		consumerStat := getConsumerStatus(app, "prod-kafka", consumer)
+		gauge := app.GetOrCreateLagGauge(consumer)
+		gauge.Set(float64(consumerStat.TotalLag))
+	}
+}
+
+func getConsumerList(app *ApplicationContext, cluster string) []string {
+	storageRequest := &RequestConsumerList{Result: make(chan []string), Cluster: cluster}
+	app.Storage.requestChannel <- storageRequest
+	return <-storageRequest.Result
+}
+
+func getConsumerStatus(app *ApplicationContext, cluster string, group string) *protocol.ConsumerGroupStatus {
+	storageRequest := &RequestConsumerStatus{
+		Result:  make(chan *protocol.ConsumerGroupStatus),
+		Cluster: cluster,
+		Group:   group,
+		Showall: true,
+	}
+	app.Storage.requestChannel <- storageRequest
+	return <-storageRequest.Result
 }

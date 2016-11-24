@@ -1,0 +1,27 @@
+machine:
+  services:
+    - docker
+
+  environment:
+    CIRCLE_ENV: "test"
+    UW_TEST_USER: "uw_test"
+    GOOS: "linux"
+    GOARCH: "amd64"
+
+general:
+  branches:
+    only:
+      - master
+
+dependencies:
+  pre:
+    - docker login -e ${DOCKER_EMAIL} -u ${DOCKER_USER} -p ${DOCKER_PASS}
+
+test:
+  override:
+    - go test .
+  post:
+    - CGO_ENABLED=0 go build -a -ldflags '-s -extldflags "-static"'
+    - docker build --rm=true -t utilitywarehouse/burrow:latest .
+    - docker tag utilitywarehouse/burrow:latest utilitywarehouse/sftp2s3:$CIRCLE_SHA1
+    - docker push utilitywarehouse/burrow

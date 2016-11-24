@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/linkedin/Burrow/protocol"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io"
 	"net/http"
 	"os"
@@ -46,6 +47,7 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	server.mux.Handle("/v2/kafka", appHandler{server.app, handleClusterList})
 	server.mux.Handle("/v2/kafka/", appHandler{server.app, handleKafka})
 	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
+	server.mux.Handle("/v2/metrics", promhttp.Handler())
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
 	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
