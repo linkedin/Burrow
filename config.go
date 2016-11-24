@@ -74,6 +74,7 @@ type BurrowConfig struct {
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
+		Listen []string `gcfg:"listen"`
 	}
 	Notify struct {
 		Interval int64 `gcfg:"interval"`
@@ -329,8 +330,16 @@ func ValidateConfig(app *ApplicationContext) error {
 
 	// HTTP Server
 	if app.Config.Httpserver.Enable {
-		if app.Config.Httpserver.Port == 0 {
-			errs = append(errs, "HTTP server port is not specified")
+		if len(app.Config.Httpserver.Listen) == 0 {
+			if app.Config.Httpserver.Port == 0 {
+				errs = append(errs, "HTTP server port is not specified")
+			}
+			listenPort := fmt.Sprintf(":%v", app.Config.Httpserver.Port)
+			app.Config.Httpserver.Listen = append(app.Config.Httpserver.Listen, listenPort)
+		} else {
+			if app.Config.Httpserver.Port != 0 {
+				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
+			}
 		}
 	}
 
