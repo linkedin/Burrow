@@ -285,7 +285,7 @@ func ValidateConfig(app *ApplicationContext) error {
 				}
 			}
 			if len(cfg.ZookeeperPath) == 0 {
-                                errs = append(errs, fmt.Sprintf("No Zookeeper paths specified for cluster %s", cluster))
+				errs = append(errs, fmt.Sprintf("No Zookeeper paths specified for cluster %s", cluster))
 			} else {
 				for _, zkpath := range cfg.ZookeeperPath {
 					if zkpath == "" {
