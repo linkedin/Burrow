@@ -40,6 +40,10 @@ func (emailer *EmailNotifier) NotifierName() string {
 }
 
 func (emailer *EmailNotifier) Notify(msg Message) error {
+	if emailer.Ignore(msg) {
+		return nil
+	}
+
 	if emailer.auth == nil {
 		switch emailer.AuthType {
 		case "plain":

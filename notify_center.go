@@ -36,7 +36,7 @@ type NotifyCenter struct {
 
 func LoadNotifiers(app *ApplicationContext) error {
 	notifiers := []notifier.Notifier{}
-	if app.Config.Httpnotifier.Url != "" {
+	if app.Config.Httpnotifier.UrlOpen != "" {
 		if httpNotifier, err := NewHttpNotifier(app); err == nil {
 			notifiers = append(notifiers, httpNotifier)
 		}
@@ -114,9 +114,7 @@ func StopNotifiers(app *ApplicationContext) {
 func (nc *NotifyCenter) handleEvaluationResponse(result *protocol.ConsumerGroupStatus) {
 	msg := notifier.Message(*result)
 	for _, notifier := range nc.notifiers {
-		if !notifier.Ignore(msg) {
-			notifier.Notify(msg)
-		}
+		notifier.Notify(msg)
 	}
 }
 
@@ -220,11 +218,18 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 	}
 
 	return &notifier.HttpNotifier{
-		Url:                httpConfig.Url,
+		RequestOpen: notifier.HttpNotifierRequest{
+			Url:          httpConfig.UrlOpen,
+			Method:       httpConfig.MethodOpen,
+			TemplateFile: httpConfig.TemplateOpen,
+		},
+		RequestClose: notifier.HttpNotifierRequest{
+			Url:          httpConfig.UrlClose,
+			Method:       httpConfig.MethodClose,
+			TemplateFile: httpConfig.TemplateClose,
+		},
 		Threshold:          httpConfig.PostThreshold,
-		SendDelete:         httpConfig.SendDelete,
-		TemplatePostFile:   httpConfig.TemplatePost,
-		TemplateDeleteFile: httpConfig.TemplateDelete,
+		SendClose:          httpConfig.SendClose,
 		Extras:             extras,
 		HttpClient: &http.Client{
 			Timeout: time.Duration(httpConfig.Timeout) * time.Second,

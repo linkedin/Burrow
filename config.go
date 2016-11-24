@@ -96,12 +96,15 @@ type BurrowConfig struct {
 	Httpnotifier struct {
 		Enable         bool     `gcfg:"enable"`
 		Groups         []string `gcfg:"group"`
-		Url            string   `gcfg:"url"`
+		UrlOpen        string   `gcfg:"url"`
+		UrlClose       string   `gcfg:"url-delete"`
+		MethodOpen     string   `gcfg:"method"`
+		MethodClose    string   `gcfg:"method-delete"`
 		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
-		TemplatePost   string   `gcfg:"template-post"`
-		TemplateDelete string   `gcfg:"template-delete"`
-		SendDelete     bool     `gcfg:"send-delete"`
+		TemplateOpen   string   `gcfg:"template-post"`
+		TemplateClose  string   `gcfg:"template-delete"`
+		SendClose      bool     `gcfg:"send-delete"`
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
@@ -126,7 +129,9 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	var cfg BurrowConfig
 
 	// Set some non-standard defaults
-	cfg.Httpnotifier.SendDelete = true
+	cfg.Httpnotifier.MethodOpen = "POST"
+	cfg.Httpnotifier.SendClose = true
+	cfg.Httpnotifier.MethodClose = "DELETE"
 
 	err := gcfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
@@ -397,21 +402,28 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 
 	// HTTP Notifier config
-	if app.Config.Httpnotifier.Url != "" {
-		if !validateUrl(app.Config.Httpnotifier.Url) {
+	if app.Config.Httpnotifier.UrlOpen != "" {
+		if !validateUrl(app.Config.Httpnotifier.UrlOpen) {
 			errs = append(errs, "HTTP notifier URL is invalid")
 		}
-		if app.Config.Httpnotifier.TemplatePost == "" {
-			app.Config.Httpnotifier.TemplatePost = "config/default-http-post.tmpl"
+		if app.Config.Httpnotifier.TemplateOpen == "" {
+			app.Config.Httpnotifier.TemplateOpen = "config/default-http-post.tmpl"
 		}
-		if _, err := os.Stat(app.Config.Httpnotifier.TemplatePost); os.IsNotExist(err) {
-			errs = append(errs, "HTTP notifier POST template file does not exist")
+		if _, err := os.Stat(app.Config.Httpnotifier.TemplateOpen); os.IsNotExist(err) {
+			errs = append(errs, "HTTP notifier template file does not exist")
 		}
-		if app.Config.Httpnotifier.TemplateDelete == "" {
-			app.Config.Httpnotifier.TemplateDelete = "config/default-http-delete.tmpl"
+		if app.Config.Httpnotifier.TemplateClose == "" {
+			app.Config.Httpnotifier.TemplateClose = "config/default-http-delete.tmpl"
 		}
-		if _, err := os.Stat(app.Config.Httpnotifier.TemplateDelete); os.IsNotExist(err) {
-			errs = append(errs, "HTTP notifier DELETE template file does not exist")
+		if app.Config.Httpnotifier.UrlClose == "" {
+			app.Config.Httpnotifier.UrlClose = app.Config.Httpnotifier.UrlOpen
+		} else {
+			if !validateUrl(app.Config.Httpnotifier.UrlClose) {
+				errs = append(errs, "HTTP notifier close URL is invalid")
+			}
+		}
+		if _, err := os.Stat(app.Config.Httpnotifier.TemplateClose); os.IsNotExist(err) {
+			errs = append(errs, "HTTP notifier close template file does not exist")
 		}
 		if app.Config.Httpnotifier.PostThreshold == 0 {
 			app.Config.Httpnotifier.PostThreshold = 2

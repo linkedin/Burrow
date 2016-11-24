@@ -62,6 +62,10 @@ func (slack *SlackNotifier) Ignore(msg Message) bool {
 }
 
 func (slack *SlackNotifier) Notify(msg Message) error {
+	if slack.Ignore(msg) {
+		return nil
+	}
+
 	if slack.groupMsgs == nil {
 		slack.groupMsgs = make(map[string]Message)
 	}
