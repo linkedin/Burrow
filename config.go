@@ -57,7 +57,7 @@ type BurrowConfig struct {
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
 		ZookeeperPort int      `gcfg:"zookeeper-port"`
-		ZookeeperPath string   `gcfg:"zookeeper-path"`
+		ZookeeperPath []string `gcfg:"zookeeper-path"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
@@ -290,11 +290,15 @@ func ValidateConfig(app *ApplicationContext) error {
 					errs = append(errs, hostlistError)
 				}
 			}
-			if cfg.ZookeeperPath == "" {
-				errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
+			if len(cfg.ZookeeperPath) == 0 {
+				errs = append(errs, fmt.Sprintf("No Zookeeper paths specified for cluster %s", cluster))
 			} else {
-				if !validateZookeeperPath(cfg.ZookeeperPath) {
-					errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
+				for _, zkpath := range cfg.ZookeeperPath {
+					if zkpath == "" {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
+					} else if !validateZookeeperPath(zkpath) {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
+					}
 				}
 			}
 		}
