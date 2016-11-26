@@ -20,8 +20,8 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/prasincs/Burrow/notifier"
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/notifier"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type NotifyCenter struct {

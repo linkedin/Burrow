@@ -18,7 +18,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type HttpServer struct {

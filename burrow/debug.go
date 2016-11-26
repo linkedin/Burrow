@@ -13,7 +13,7 @@ package burrow
 import (
 	"fmt"
 
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 func printConsumerGroupStatus(status *protocol.ConsumerGroupStatus) {

@@ -19,8 +19,8 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/pborman/uuid"
-	"github.com/prasincs/Burrow/protocol"
 )
 
 type HttpNotifier struct {

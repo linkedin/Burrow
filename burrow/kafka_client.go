@@ -20,7 +20,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type KafkaClient struct {

@@ -20,8 +20,8 @@ If you have not yet installed the [Go Package Manager](https://github.com/pote/g
 
 ### Build and Install
 ```
-$ go get github.com/prasincs/Burrow
-$ cd $GOPATH/src/github.com/prasincs/Burrow
+$ go get github.com/linkedin/Burrow
+$ cd $GOPATH/src/github.com/linkedin/Burrow
 $ gpm install
 $ go install
 ```
@@ -52,7 +52,7 @@ Install Docker Compose and then:
 3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v2/kafka`
 
 ### Configuration
-For information on how to write your configuration file, check out the [detailed wiki](https://github.com/prasincs/Burrow/wiki)
+For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)
 
 ## License
 Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.

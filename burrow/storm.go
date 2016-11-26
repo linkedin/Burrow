@@ -20,7 +20,7 @@ import (
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 )
 

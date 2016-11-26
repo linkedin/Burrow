@@ -11,7 +11,7 @@
 package notifier
 
 import (
-	"github.com/prasincs/Burrow/protocol"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type Message protocol.ConsumerGroupStatus
