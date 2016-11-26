@@ -132,7 +132,6 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	err := gcfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
 		log.Fatalf("Failed to parse gcfg data: %s", err)
-		os.Exit(1)
 	}
 	return &cfg
 }
