@@ -43,6 +43,11 @@ type ClusterOffsets struct {
 	consumerLock *sync.RWMutex
 }
 
+type ClusterOffsetResponse struct {
+	Brokers   map[string][]BrokerOffset
+	Consumers map[string]map[string][]protocol.ConsumerOffset
+}
+
 type ResponseTopicList struct {
 	TopicList []string
 	Error     bool
@@ -320,13 +325,56 @@ func (storage *OffsetStorage) Stop() {
 	close(storage.quit)
 }
 
-func (storage *OffsetStorage) Offsets(cluster string) (*ClusterOffsets, error) {
+// Offsets returns a snapshot of the offsets stored at the time of query
+// this is a relatively expensive query because we don't want to expose the internal
+// pointers to outside world
+func (storage *OffsetStorage) Offsets(cluster string) (*ClusterOffsetResponse, error) {
 	// Make sure the cluster exists
-	clusterMap, ok := storage.offsets[cluster]
+	clusterOffsets, ok := storage.offsets[cluster]
 	if !ok {
 		return nil, fmt.Errorf("No cluster named %s", cluster)
 	}
-	return clusterMap, nil
+	clusterOffsetResponse := &ClusterOffsetResponse{
+		Brokers:   make(map[string][]BrokerOffset, len(clusterOffsets.broker)),
+		Consumers: make(map[string]map[string][]protocol.ConsumerOffset, len(clusterOffsets.consumer)),
+	}
+	storage.offsets[cluster].brokerLock.RLock()
+	for topic, topicPartitionList := range clusterOffsets.broker {
+		brokerPartitions := []BrokerOffset{}
+		for _, brokerOffset := range topicPartitionList {
+			brokerPartitions = append(brokerPartitions, *brokerOffset)
+		}
+		clusterOffsetResponse.Brokers[topic] = brokerPartitions
+	}
+	storage.offsets[cluster].brokerLock.RUnlock()
+	storage.offsets[cluster].consumerLock.RLock()
+	log.Tracef("consumerOffsets: %#v", clusterOffsets.consumer)
+	for consumerGroup, consumerOffsetArr := range clusterOffsets.consumer {
+		if consumerOffsetArr != nil {
+			topicPartitionMap := make(map[string][]protocol.ConsumerOffset)
+
+			for topic, partition := range consumerOffsetArr {
+				log.Infof("partition: %#v", partition)
+				consumers := []protocol.ConsumerOffset{}
+				for _, cons := range partition {
+					if cons == nil {
+						continue
+					}
+					if cons.Value != nil {
+						consOffset := *(cons.Value.(*protocol.ConsumerOffset))
+						log.Tracef("Offsets: %#v", consOffset)
+						consumers = append(consumers, consOffset)
+
+					}
+				}
+
+				topicPartitionMap[topic] = consumers
+			}
+			clusterOffsetResponse.Consumers[consumerGroup] = topicPartitionMap
+		}
+	}
+	storage.offsets[cluster].consumerLock.RUnlock()
+	return clusterOffsetResponse, nil
 }
 
 func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChannel chan protocol.StatusConstant) {
