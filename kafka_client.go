@@ -51,7 +51,9 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
 	clientConfig.Net.TLS.Enable = profile.TLS
-	if profile.TLSCertFilePath != "" {
+	if profile.TLSCertFilePath == "" || profile.TLSKeyFilePath == "" || profile.TLSCAFilePath == "" {
+		clientConfig.Net.TLS.Config = &tls.Config{}
+	} else {
 		caCert, err := ioutil.ReadFile(profile.TLSCAFilePath)
 		if err != nil {
 			return nil, err
@@ -67,8 +69,6 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 			RootCAs: caCertPool,
 		}
 		clientConfig.Net.TLS.Config.BuildNameToCertificate()
-	} else {
-		clientConfig.Net.TLS.Config = &tls.Config{}
 	}
 	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
 
