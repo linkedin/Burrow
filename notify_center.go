@@ -273,5 +273,5 @@ func NewSlackNotifier(app *ApplicationContext) ([]*notifier.SlackNotifier, error
 		}
 	}
 
-	return slackNotifiers
+	return slackNotifiers, nil
 }
