@@ -249,7 +249,7 @@ func NewSlackNotifier(app *ApplicationContext) ([]*notifier.SlackNotifier, error
 	log.Info("Start Slack Notify")
 	slackNotifiers := []*notifier.SlackNotifier{}
 
-	for slackNotifierId, cfg := range app.Config.Slacknotifier {
+	for _, cfg := range app.Config.Slacknotifier {
 		if cfg.Enable {
 			slackNotifier := &notifier.SlackNotifier{
 				Url:       cfg.Url,

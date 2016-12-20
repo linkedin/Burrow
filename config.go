@@ -457,7 +457,7 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 
 	// Slack Notifier config
-	for slackNotifierId, cfg := range app.Config.Slacknotifier {
+	for _, cfg := range app.Config.Slacknotifier {
 		if cfg.Url != "" {
 			if !validateUrl(cfg.Url) {
 				errs = append(errs, "Slack notifier URL is invalid")
