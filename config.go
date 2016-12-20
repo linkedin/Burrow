@@ -110,7 +110,7 @@ type BurrowConfig struct {
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
 	}
-	Slacknotifier struct {
+	Slacknotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
 		Url       string   `gcfg:"url"`
@@ -457,21 +457,23 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 
 	// Slack Notifier config
-	if app.Config.Slacknotifier.Url != "" {
-		if !validateUrl(app.Config.Slacknotifier.Url) {
-			errs = append(errs, "Slack notifier URL is invalid")
-		}
-		if app.Config.Slacknotifier.Channel == "" {
-			app.Config.Slacknotifier.Channel = "#general"
-		}
-		if app.Config.Slacknotifier.Username == "" {
-			app.Config.Slacknotifier.Username = "Burrower"
-		}
-		if app.Config.Slacknotifier.IconUrl == "" {
-			app.Config.Slacknotifier.IconUrl = "https://slack.com/img/icons/app-57.png"
-		}
-		if app.Config.Slacknotifier.IconEmoji == "" {
-			app.Config.Slacknotifier.IconEmoji = ":ghost:"
+	for slackNotifierId, cfg := range app.Config.Slacknotifier {
+		if cfg.Url != "" {
+			if !validateUrl(cfg.Url) {
+				errs = append(errs, "Slack notifier URL is invalid")
+			}
+			if cfg.Channel == "" {
+				cfg.Channel = "#general"
+			}
+			if cfg.Username == "" {
+				cfg.Username = "Burrower"
+			}
+			if cfg.IconUrl == "" {
+				cfg.IconUrl = "https://slack.com/img/icons/app-57.png"
+			}
+			if cfg.IconEmoji == "" {
+				cfg.IconEmoji = ":ghost:"
+			}
 		}
 	}
 

@@ -48,9 +48,11 @@ func LoadNotifiers(app *ApplicationContext) error {
 			}
 		}
 	}
-	if app.Config.Slacknotifier.Enable {
-		if slackNotifier, err := NewSlackNotifier(app); err == nil {
-			notifiers = append(notifiers, slackNotifier)
+	if len(app.Config.Slacknotifier) > 0 {
+		if slackNotifiers, err := NewSlackNotifier(app); err == nil {
+			for _, slackNotifier := range slackNotifiers {
+				notifiers = append(notifiers, slackNotifier)
+			}
 		}
 	}
 
@@ -243,25 +245,33 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 	}, nil
 }
 
-func NewSlackNotifier(app *ApplicationContext) (*notifier.SlackNotifier, error) {
+func NewSlackNotifier(app *ApplicationContext) ([]*notifier.SlackNotifier, error) {
 	log.Info("Start Slack Notify")
+	slackNotifiers := []*notifier.SlackNotifier{}
 
-	return &notifier.SlackNotifier{
-		Url:       app.Config.Slacknotifier.Url,
-		Groups:    app.Config.Slacknotifier.Groups,
-		Threshold: app.Config.Slacknotifier.Threshold,
-		Channel:   app.Config.Slacknotifier.Channel,
-		Username:  app.Config.Slacknotifier.Username,
-		IconUrl:   app.Config.Slacknotifier.IconUrl,
-		IconEmoji: app.Config.Slacknotifier.IconEmoji,
-		HttpClient: &http.Client{
-			Timeout: time.Duration(app.Config.Slacknotifier.Timeout) * time.Second,
-			Transport: &http.Transport{
-				Dial: (&net.Dialer{
-					KeepAlive: time.Duration(app.Config.Slacknotifier.Keepalive) * time.Second,
-				}).Dial,
-				Proxy: http.ProxyFromEnvironment,
-			},
-		},
-	}, nil
+	for slackNotifierId, cfg := range app.Config.Slacknotifier {
+		if cfg.Enable {
+			slackNotifier := &notifier.SlackNotifier{
+				Url:       cfg.Url,
+				Groups:    cfg.Groups,
+				Threshold: cfg.Threshold,
+				Channel:   cfg.Channel,
+				Username:  cfg.Username,
+				IconUrl:   cfg.IconUrl,
+				IconEmoji: cfg.IconEmoji,
+				HttpClient: &http.Client{
+					Timeout: time.Duration(cfg.Timeout) * time.Second,
+					Transport: &http.Transport{
+						Dial: (&net.Dialer{
+							KeepAlive: time.Duration(cfg.Keepalive) * time.Second,
+						}).Dial,
+						Proxy: http.ProxyFromEnvironment,
+					},
+				},
+			}
+			slackNotifiers = append(slackNotifiers, slackNotifier)
+		}
+	}
+
+	return slackNotifiers
 }
