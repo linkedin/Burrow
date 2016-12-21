@@ -197,7 +197,6 @@ func NewEmailNotifier(app *ApplicationContext) ([]*notifier.EmailNotifier, error
 				Username:     app.Config.Smtp.Username,
 				Password:     app.Config.Smtp.Password,
 				AuthType:     app.Config.Smtp.AuthType,
-				Interval:     cfg.Interval,
 				From:         app.Config.Smtp.From,
 				To:           to,
 				Groups:       cfg.Groups,

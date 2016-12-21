@@ -91,7 +91,6 @@ type BurrowConfig struct {
 	Emailnotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
-		Interval  int64    `gcfg:"interval"`
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
@@ -101,7 +100,6 @@ type BurrowConfig struct {
 		UrlClose       string   `gcfg:"url-delete"`
 		MethodOpen     string   `gcfg:"method"`
 		MethodClose    string   `gcfg:"method-delete"`
-		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
 		TemplateOpen   string   `gcfg:"template-post"`
 		TemplateClose  string   `gcfg:"template-delete"`
@@ -114,7 +112,6 @@ type BurrowConfig struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
 		Url       string   `gcfg:"url"`
-		Interval  int64    `gcfg:"interval"`
 		Channel   string   `gcfg:"channel"`
 		Username  string   `gcfg:"username"`
 		IconUrl   string   `gcfg:"icon-url"`
@@ -404,9 +401,6 @@ func ValidateConfig(app *ApplicationContext) error {
 					}
 				}
 			}
-			if cfg.Interval == 0 {
-				errs = append(errs, "Email notification interval is not specified")
-			}
 		}
 	} else {
 		if len(app.Config.Emailnotifier) > 0 {
@@ -443,9 +437,6 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 		if (app.Config.Httpnotifier.PostThreshold < 1) || (app.Config.Httpnotifier.PostThreshold > 3) {
 			errs = append(errs, "HTTP notifier post-threshold must be between 1 and 3")
-		}
-		if app.Config.Httpnotifier.Interval == 0 {
-			app.Config.Httpnotifier.Interval = 60
 		}
 		for _, extra := range app.Config.Httpnotifier.Extras {
 			// Each extra should be formatted as "string=string"
