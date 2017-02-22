@@ -385,10 +385,14 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		for member, data := range groupsResponse.Groups[0].Members {
 			assignment, _ := data.GetMemberAssignment()
 			for topic, partitions := range assignment.Topics {
-				groupTopicPartitionOwners[topic] = make(map[int32]string)
-				for _, partition := range partitions {
-					groupTopicPartitionOwners[topic][partition] = member + ":" + data.ClientHost
+				partitionOwners, ok := groupTopicPartitionOwners[topic]
+				if !ok {
+					partitionOwners = make(map[int32]string)
 				}
+				for _, partition := range partitions {
+					partitionOwners[partition] = member + ":" + data.ClientHost
+				}
+				groupTopicPartitionOwners[topic] = partitionOwners
 			}
 		}
 	}
