@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"sync"
 	"time"
+	"github.com/Shopify/sarama"
 )
 
 type OffsetStorage struct {
@@ -359,6 +360,39 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 		return
 	}
 
+	groupTopicPartitionOwners := make(map[string]map[int32]string)
+	// Annotating owners only works for v 0.9.0.0 and above
+	if storage.app.Config.ToSaramaKafkaVersion(cluster).IsAtLeast(sarama.V0_9_0_0) {
+		kCluster, ok := storage.app.Clusters[cluster]
+		if !ok {
+			resultChannel <- status
+			return
+		}
+
+		broker, err := kCluster.Client.client.Coordinator(group)
+		if err != nil {
+			log.Errorf("Problem locating coordinator for group %s [%v]", group, err)
+			resultChannel <- status
+			return
+		}
+		groupsResponse, err := broker.DescribeGroups(&sarama.DescribeGroupsRequest{[]string{group}})
+		if err != nil {
+			log.Errorf("Problem describing group for group %s [%v]", group, err)
+			resultChannel <- status
+			return
+		}
+
+		for member, data := range groupsResponse.Groups[0].Members {
+			assignment, _ := data.GetMemberAssignment()
+			for topic, partitions := range assignment.Topics {
+				groupTopicPartitionOwners[topic] = make(map[int32]string)
+				for _, partition := range partitions {
+					groupTopicPartitionOwners[topic][partition] = member + ":" + data.ClientHost
+				}
+			}
+		}
+	}
+
 	// Make sure the group even exists
 	clusterMap.consumerLock.Lock()
 	consumerMap, ok := clusterMap.consumer[group]
@@ -453,6 +487,12 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 				End:       lastOffset,
 			}
 
+			if p, topicExists := groupTopicPartitionOwners[topic]; topicExists {
+				if owner, partExists := p[int32(partition)]; partExists {
+					thispart.Owner = owner
+				}
+			}
+
 			// Check if this partition is the one with the most lag currently
 			if lastOffset.Lag > maxlag {
 				status.Maxlag = thispart
@@ -537,7 +577,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 func (storage *OffsetStorage) requestClusterList(request *RequestClusterList) {
 	clusterList := make([]string, len(storage.offsets))
 	i := 0
-	for group, _ := range storage.offsets {
+	for group := range storage.offsets {
 		clusterList[i] = group
 		i += 1
 	}
