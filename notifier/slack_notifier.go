@@ -32,7 +32,6 @@ type SlackNotifier struct {
 	Threshold     int
 	HttpClient    *http.Client
 	Groups        []string
-	groupMsgs     map[string]Message
 }
 
 type SlackMessage struct {
@@ -66,26 +65,24 @@ func (slack *SlackNotifier) Notify(msg Message) error {
 		return nil
 	}
 
-	if slack.groupMsgs == nil {
-		slack.groupMsgs = make(map[string]Message)
-	}
+	groupMsgs := make(map[string]Message)
 
+	clusterGroup := fmt.Sprintf("%s,%s", msg.Cluster, msg.Group)
 	for _, group := range slack.Groups {
-		clusterGroup := fmt.Sprintf("%s,%s", msg.Cluster, msg.Group)
 		if clusterGroup == group {
-			slack.groupMsgs[clusterGroup] = msg
+			groupMsgs[clusterGroup] = msg
 		}
 	}
-	if len(slack.Groups) == len(slack.groupMsgs) {
-		return slack.sendConsumerGroupStatusNotify()
+	if len(slack.Groups) == len(groupMsgs) {
+		return slack.sendConsumerGroupStatusNotify(groupMsgs)
 	}
 	return nil
 }
 
-func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
+func (slack *SlackNotifier) sendConsumerGroupStatusNotify(groupMsgs map[string]Message) error {
 	msgs := make([]attachment, len(slack.Groups))
 	i := 0
-	for _, msg := range slack.groupMsgs {
+	for _, msg := range groupMsgs {
 
 		var emoji, color string
 		switch msg.Status {
@@ -123,7 +120,6 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 
 		i++
 	}
-	slack.groupMsgs = make(map[string]Message)
 
 	slackMessage := &SlackMessage{
 		Channel:     slack.Channel,
