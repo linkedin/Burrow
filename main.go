@@ -70,12 +70,14 @@ func loadNotifiers(app *ApplicationContext) error {
 
 func startNotifiers(app *ApplicationContext) {
 	// Do not proceed until we get the Zookeeper lock
-	err := app.NotifierLock.Lock()
-	if err != nil {
-		log.Criticalf("Cannot get ZK notifier lock: %v", err)
-		os.Exit(1)
+	for {
+		err := app.NotifierLock.Lock()
+		if err != nil {
+			log.Errorf("Failed to get ZK notifier lock. Retrying: %v", err)
+			continue
+		}
+		log.Info("Acquired Zookeeper notifier lock")
 	}
-	log.Info("Acquired Zookeeper notifier lock")
 
 	if app.Emailer != nil {
 		log.Info("Starting Email notifier")
