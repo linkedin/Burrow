@@ -12,7 +12,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"github.com/Shopify/sarama"
@@ -49,8 +48,14 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
 	clientConfig.Net.TLS.Enable = profile.TLS
-	clientConfig.Net.TLS.Config = &tls.Config{}
-	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
+  if clientConfig.Net.TLS.Enable {
+	  tlsConfig, err := NewTLSConfig(app.Config)
+    if err != nil {
+      return nil, err
+    }
+    clientConfig.Net.TLS.Config = tlsConfig
+	  clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
+  }
 
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
 	if err != nil {
