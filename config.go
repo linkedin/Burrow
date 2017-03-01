@@ -149,20 +149,20 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 
 // Split http://myhost:1234 into http myhost and 1234
 func SplitHttpListen(httpListen string) (string, string, uint16) {
-  listenRegex := regexp.MustCompile("^((https?)://)?([^:]+):([0-9]+)")
-  listenMatch := listenRegex.FindStringSubmatch(httpListen)
-  if listenMatch == nil {
-    return "", "", 0
-  }
-  scheme := listenMatch[2]
-  if scheme == "" {
-    scheme = "http"
-  }
-  port, err :=  strconv.ParseUint(listenMatch[4], 10, 16)
-  if err != nil {
-    return "", "", 0
-  }
-  return scheme, listenMatch[3], uint16(port)
+	listenRegex := regexp.MustCompile("^((https?)://)?([^:]+):([0-9]+)")
+	listenMatch := listenRegex.FindStringSubmatch(httpListen)
+	if listenMatch == nil {
+	  return "", "", 0
+	}
+	scheme := listenMatch[2]
+	if scheme == "" {
+	  scheme = "http"
+	}
+	port, err :=  strconv.ParseUint(listenMatch[4], 10, 16)
+	if err != nil {
+	  return "", "", 0
+	}
+	return scheme, listenMatch[3], uint16(port)
 }
 
 
@@ -356,23 +356,23 @@ func ValidateConfig(app *ApplicationContext) error {
 		app.Config.Lagcheck.StormGroupRefresh = 300
 	}
   // TLS
-  tlsAvailable := false
-  if app.Config.Tls.KeyFile != "" {
-    if !validateFile(app.Config.Tls.KeyFile) {
-      errs = append(errs, "TLS Key file invalid")
-    }
-    if app.Config.Tls.CertFile == "" {
-      errs = append(errs, "TLS Cert file not configured")
-    } else {
-      tlsAvailable = true
-    }
-  }
-  if app.Config.Tls.CertFile != "" && !validateFile(app.Config.Tls.CertFile) {
-    errs = append(errs, "TLS Cert file invalid")
-  }
-  if app.Config.Tls.CAFile != "" && !validateFile(app.Config.Tls.CAFile) {
-    errs = append(errs, "TLS CA file invalid")
-  }
+	tlsAvailable := false
+	if app.Config.Tls.KeyFile != "" {
+	  if !validateFile(app.Config.Tls.KeyFile) {
+	    errs = append(errs, "TLS Key file invalid")
+	  }
+	  if app.Config.Tls.CertFile == "" {
+	    errs = append(errs, "TLS Cert file not configured")
+	  } else {
+	    tlsAvailable = true
+	  }
+	}
+	if app.Config.Tls.CertFile != "" && !validateFile(app.Config.Tls.CertFile) {
+	  errs = append(errs, "TLS Cert file invalid")
+	}
+	if app.Config.Tls.CAFile != "" && !validateFile(app.Config.Tls.CAFile) {
+	  errs = append(errs, "TLS CA file invalid")
+	}
 
 	// HTTP Server
 	if app.Config.Httpserver.Enable {
@@ -386,13 +386,13 @@ func ValidateConfig(app *ApplicationContext) error {
 			if app.Config.Httpserver.Port != 0 {
 				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
 			}
-      for _, httpListen := range app.Config.Httpserver.Listen {
-        s, _, _ := SplitHttpListen(httpListen)
-        if s == "https" && tlsAvailable == false {
-          errs = append(errs, "HTTPS listener specified, but not TLS configuration")
-          break
-        }
-      }
+			for _, httpListen := range app.Config.Httpserver.Listen {
+				s, _, _ := SplitHttpListen(httpListen)
+				if s == "https" && tlsAvailable == false {
+					errs = append(errs, "HTTPS listener specified, but not TLS configuration")
+					break
+				}
+			}
 		}
 	}
 
@@ -579,8 +579,8 @@ func validateFilename(filename string) bool {
 
 // Verify file exists and is file
 func validateFile(filePath string) bool {
-  fileInfo, err := os.Stat(filePath)
-  return err == nil && fileInfo != nil && fileInfo.Mode().IsRegular()
+	fileInfo, err := os.Stat(filePath)
+	return err == nil && fileInfo != nil && fileInfo.Mode().IsRegular()
 }
 
 // Very simplistic email address validator - just looks for an @ and a .

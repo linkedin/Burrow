@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 	log "github.com/cihub/seelog"
-  "crypto/tls"
+	"crypto/tls"
 	"fmt"
 )
 
@@ -54,17 +54,17 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 }
 
 func newHttpListener(listenAddress string, config *BurrowConfig) (net.Listener, error) {
-  scheme, host, port := SplitHttpListen(listenAddress)
-  listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
-  listen = tcpKeepAliveListener{listen.(*net.TCPListener)}
-  if scheme == "https" {
-    tlsConfig, err := NewTLSConfig(config)
-    if err != nil {
-      return nil, err
-    }
-    listen = tls.NewListener(listen, tlsConfig)
-  }
-  return listen, err
+	scheme, host, port := SplitHttpListen(listenAddress)
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+	listen = tcpKeepAliveListener{listen.(*net.TCPListener)}
+	if scheme == "https" {
+		tlsConfig, err := NewTLSConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		listen = tls.NewListener(listen, tlsConfig)
+	}
+	return listen, err
 }
 
 func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
@@ -87,7 +87,7 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 
 	listeners := make([]net.Listener, 0, len(server.app.Config.Httpserver.Listen))
 	for _, listenAddress := range server.app.Config.Httpserver.Listen {
-    ln, err := newHttpListener(listenAddress, server.app.Config)
+		ln, err := newHttpListener(listenAddress, server.app.Config)
 		if err != nil {
 			for _, listenerToClose := range listeners {
 				closeErr := listenerToClose.Close()
