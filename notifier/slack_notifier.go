@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	log "github.com/cihub/seelog"
 	"github.com/linkedin/Burrow/protocol"
 	"io/ioutil"
@@ -74,7 +75,9 @@ func (slack *SlackNotifier) Notify(msg Message) error {
 		clusterGroup := fmt.Sprintf("%s,%s", msg.Cluster, msg.Group)
 		if clusterGroup == group {
 			slack.groupMsgs[clusterGroup] = msg
-		}
+		} else if (group[len(group) - 1 :] == "*") && (strings.HasPrefix(clusterGroup, group[: len(group)-1])) {
+			slack.groupMsgs[clusterGroup] = msg
+                }
 	}
 	if len(slack.Groups) == len(slack.groupMsgs) {
 		return slack.sendConsumerGroupStatusNotify()

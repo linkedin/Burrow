@@ -25,10 +25,14 @@ import (
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID    string `gcfg:"client-id"`
-	TLS         bool   `gcfg:"tls"`
-	TLSNoVerify bool   `gcfg:"tls-noverify"`
+	ClientID        string  `gcfg:"client-id"`
+	TLS             bool    `gcfg:"tls"`
+	TLSNoVerify     bool    `gcfg:"tls-noverify"`
+	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
 }
+
 type BurrowConfig struct {
 	General struct {
 		LogDir         string `gcfg:"logdir"`
@@ -91,7 +95,6 @@ type BurrowConfig struct {
 	Emailnotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
-		Interval  int64    `gcfg:"interval"`
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
@@ -101,7 +104,6 @@ type BurrowConfig struct {
 		UrlClose       string   `gcfg:"url-delete"`
 		MethodOpen     string   `gcfg:"method"`
 		MethodClose    string   `gcfg:"method-delete"`
-		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
 		TemplateOpen   string   `gcfg:"template-post"`
 		TemplateClose  string   `gcfg:"template-delete"`
@@ -110,11 +112,10 @@ type BurrowConfig struct {
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
 	}
-	Slacknotifier struct {
+	Slacknotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
 		Url       string   `gcfg:"url"`
-		Interval  int64    `gcfg:"interval"`
 		Channel   string   `gcfg:"channel"`
 		Username  string   `gcfg:"username"`
 		IconUrl   string   `gcfg:"icon-url"`
@@ -404,9 +405,6 @@ func ValidateConfig(app *ApplicationContext) error {
 					}
 				}
 			}
-			if cfg.Interval == 0 {
-				errs = append(errs, "Email notification interval is not specified")
-			}
 		}
 	} else {
 		if len(app.Config.Emailnotifier) > 0 {
@@ -444,9 +442,6 @@ func ValidateConfig(app *ApplicationContext) error {
 		if (app.Config.Httpnotifier.PostThreshold < 1) || (app.Config.Httpnotifier.PostThreshold > 3) {
 			errs = append(errs, "HTTP notifier post-threshold must be between 1 and 3")
 		}
-		if app.Config.Httpnotifier.Interval == 0 {
-			app.Config.Httpnotifier.Interval = 60
-		}
 		for _, extra := range app.Config.Httpnotifier.Extras {
 			// Each extra should be formatted as "string=string"
 			if matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+=.*$`, extra); !matches {
@@ -457,21 +452,23 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 
 	// Slack Notifier config
-	if app.Config.Slacknotifier.Url != "" {
-		if !validateUrl(app.Config.Slacknotifier.Url) {
-			errs = append(errs, "Slack notifier URL is invalid")
-		}
-		if app.Config.Slacknotifier.Channel == "" {
-			app.Config.Slacknotifier.Channel = "#general"
-		}
-		if app.Config.Slacknotifier.Username == "" {
-			app.Config.Slacknotifier.Username = "Burrower"
-		}
-		if app.Config.Slacknotifier.IconUrl == "" {
-			app.Config.Slacknotifier.IconUrl = "https://slack.com/img/icons/app-57.png"
-		}
-		if app.Config.Slacknotifier.IconEmoji == "" {
-			app.Config.Slacknotifier.IconEmoji = ":ghost:"
+	for _, cfg := range app.Config.Slacknotifier {
+		if cfg.Url != "" {
+			if !validateUrl(cfg.Url) {
+				errs = append(errs, "Slack notifier URL is invalid")
+			}
+			if cfg.Channel == "" {
+				cfg.Channel = "#general"
+			}
+			if cfg.Username == "" {
+				cfg.Username = "Burrower"
+			}
+			if cfg.IconUrl == "" {
+				cfg.IconUrl = "https://slack.com/img/icons/app-57.png"
+			}
+			if cfg.IconEmoji == "" {
+				cfg.IconEmoji = ":ghost:"
+			}
 		}
 	}
 

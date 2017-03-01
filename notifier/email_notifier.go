@@ -22,7 +22,6 @@ type EmailNotifier struct {
 	TemplateFile string
 	Server       string
 	Port         int
-	Interval     int64
 	Threshold    int
 	Username     string
 	Password     string
