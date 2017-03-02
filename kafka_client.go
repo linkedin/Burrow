@@ -47,14 +47,13 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	clientConfig := sarama.NewConfig()
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
-	clientConfig.Net.TLS.Enable = profile.TLS
+	clientConfig.Net.TLS.Enable = (profile.TLS != "")
 	if clientConfig.Net.TLS.Enable {
-		tlsConfig, err := NewTLSConfig(app.Config)
+		tlsConfig, err := NewTLSConfig(app.Config, profile.TLS)
 		if err != nil {
 			return nil, err
 		}
 		clientConfig.Net.TLS.Config = tlsConfig
-		clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
 	}
 
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)

@@ -58,7 +58,7 @@ func newHttpListener(listenAddress string, config *BurrowConfig) (net.Listener, 
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	listen = tcpKeepAliveListener{listen.(*net.TCPListener)}
 	if scheme == "https" {
-		tlsConfig, err := NewTLSConfig(config)
+		tlsConfig, err := NewTLSConfig(config, config.Httpserver.TLS)
 		if err != nil {
 			return nil, err
 		}
