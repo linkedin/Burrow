@@ -28,7 +28,7 @@ $ go install
 
 ### Running Burrow
 ```
-$ $GOPATH/bin/burrow --config path/to/burrow.cfg
+$ $GOPATH/bin/Burrow --config path/to/burrow.cfg
 ```
 
 ### Using Docker
