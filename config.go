@@ -28,6 +28,15 @@ type ClientProfile struct {
 	ClientID    string `gcfg:"client-id"`
 	TLS         string   `gcfg:"tls"`
 }
+// TLS Configuration
+type TLSConfig struct {
+	CertFile		string `gcfg:"cert-file"`
+	KeyFile			string `gcfg:"key-file"`
+	CAFile			string `gcfg:"ca-file"`
+	NoVerify		bool	 `gcfg:"no-verify"`
+	Ciphers			string `gcfg:"ciphers"`
+	Versions		string `gcfg:"versions"`
+}
 type BurrowConfig struct {
 	General struct {
 		LogDir         string `gcfg:"logdir"`
@@ -71,12 +80,7 @@ type BurrowConfig struct {
 		StormCheck        int64 `gcfg:"storm-interval"`
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
 	}
-	Tls map[string]*struct {
-		CertFile		string `gcfg:"cert-file"`
-		KeyFile			string `gcfg:"key-file"`
-		CAFile			string `gcfg:"ca-file"`
-		NoVerify		bool	 `gcfg:"no-verify"`
-	}
+	Tls map[string]*TLSConfig
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
