@@ -79,6 +79,9 @@ type BurrowConfig struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
+		BasicAuthEnabled bool 					`gcfg:"basic-auth-enabled"`
+		BasicAuthAnonymousRole string		`gcfg:"basic-auth-anonymous-role"`
+		BasicAuthUserConfigFile string  `gcfg:"basic-auth-user-config-file"`
 	}
 	Notify struct {
 		Interval int64 `gcfg:"interval"`

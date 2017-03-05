@@ -13,12 +13,14 @@ package main
 import (
 	"encoding/json"
 	"github.com/linkedin/Burrow/protocol"
+	"github.com/linkedin/Burrow/security"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"net"
 	"time"
+	"fmt"
 	log "github.com/cihub/seelog"
 )
 
@@ -29,6 +31,7 @@ type HttpServer struct {
 
 type appHandler struct {
 	app     *ApplicationContext
+	userChecker *security.UserChecker
 	handler func(*ApplicationContext, http.ResponseWriter, *http.Request) (int, string)
 }
 
@@ -63,11 +66,19 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	// This is a healthcheck URL. Please don't change it
 	server.mux.HandleFunc("/burrow/admin", handleAdmin)
 
+	// User checker
+	userChecker, err := security.NewUserChecker(app.Config.Httpserver.BasicAuthEnabled,
+		app.Config.Httpserver.BasicAuthUserConfigFile,
+		app.Config.Httpserver.BasicAuthAnonymousRole)
+	if err != nil {
+		return nil, err
+	}
+
 	// All valid paths go here. Make sure they use the right handler
-	server.mux.Handle("/v2/kafka", appHandler{server.app, handleClusterList})
-	server.mux.Handle("/v2/kafka/", appHandler{server.app, handleKafka})
-	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
-	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
+	server.mux.Handle("/v2/kafka", appHandler{server.app, userChecker, handleClusterList})
+	server.mux.Handle("/v2/kafka/", appHandler{server.app, userChecker, handleKafka})
+	server.mux.Handle("/v2/zookeeper", appHandler{server.app, userChecker, handleClusterList})
+	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, userChecker, handleZookeeper})
 
 	listeners := make([]net.Listener, 0, len(server.app.Config.Httpserver.Listen))
 
@@ -95,6 +106,21 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 
 func (ah appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if ah.userChecker != nil && ah.userChecker.Enabled {
+		username, password, ok := r.BasicAuth()
+		var authorized bool
+		if ok {
+			authorized = ah.userChecker.Check(username, password, r.Method, r.URL.Path)
+		} else {
+			// Anonymous
+			authorized = ah.userChecker.Check("", "", r.Method, r.URL.Path)
+		}
+		if !authorized {
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Basic realm=\"%s\"", ah.userChecker.RealmName))
+			http.Error(w, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}", http.StatusUnauthorized)
+			return
+		}
+	}
 	switch {
 	case r.Method == "GET":
 		if status, err := ah.handler(ah.app, w, r); status != 200 {
