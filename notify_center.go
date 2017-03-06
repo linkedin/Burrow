@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cgosiak/Burrow/notifier"
+	"github.com/cgosiak/Burrow/protocol"
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/notifier"
-	"github.com/linkedin/Burrow/protocol"
 )
 
 type NotifyCenter struct {

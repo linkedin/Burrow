@@ -15,11 +15,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/cgosiak/Burrow/protocol"
+	log "github.com/cihub/seelog"
 )
 
 type SlackNotifier struct {

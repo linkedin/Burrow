@@ -14,14 +14,15 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"encoding/binary"
 	"errors"
-	"github.com/Shopify/sarama"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
+	"io/ioutil"
 	"sync"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/cgosiak/Burrow/protocol"
+	log "github.com/cihub/seelog"
 )
 
 type KafkaClient struct {
@@ -66,7 +67,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 		caCertPool.AppendCertsFromPEM(caCert)
 		clientConfig.Net.TLS.Config = &tls.Config{
 			Certificates: []tls.Certificate{cert},
-			RootCAs: caCertPool,
+			RootCAs:      caCertPool,
 		}
 		clientConfig.Net.TLS.Config.BuildNameToCertificate()
 	}
