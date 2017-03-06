@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition
