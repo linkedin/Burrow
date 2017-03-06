@@ -11,31 +11,37 @@
 package notifier
 
 import (
-	log "github.com/cihub/seelog"
-	"github.com/cgosiak/Burrow/protocol"
-	"github.com/pborman/uuid"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"text/template"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
+	"github.com/pborman/uuid"
 )
 
 type HttpNotifier struct {
-	Url                string
-	TemplatePostFile   string
-	TemplateDeleteFile string
-	Threshold          int
-	SendDelete         bool
-	Extras             map[string]string
-	HttpClient         *http.Client
-	templatePost       *template.Template
-	templateDelete     *template.Template
-	groupIds           map[string]map[string]Event
-	Username           string
-	Password           string
-	AuthType           string
+	RequestOpen  HttpNotifierRequest
+	RequestClose HttpNotifierRequest
+	Threshold    int
+	SendClose    bool
+	Extras       map[string]string
+	HttpClient   *http.Client
+	groupIds     map[string]map[string]Event
+}
+
+type HttpNotifierRequest struct {
+	Username     string
+	Password     string
+	AuthType     string
+	Url          string
+	TemplateFile string
+	Method       string
+	template     *template.Template
 }
 
 type Event struct {
@@ -60,23 +66,16 @@ func (notifier *HttpNotifier) Notify(msg Message) error {
 		"maxlag":          maxLagHelper,
 	}
 
-	if notifier.templatePost == nil {
-		// Compile the templates
-		templatePost, err := template.New("post").Funcs(fmap).ParseFiles(notifier.TemplatePostFile)
-		if err != nil {
-			log.Criticalf("Cannot parse HTTP notifier POST template: %v", err)
-			return err
-		}
-		notifier.templatePost = templatePost.Templates()[0]
+	err := notifier.RequestOpen.ensureTemplateCompiled("post", fmap)
+	if err != nil {
+		log.Criticalf("Cannot parse HTTP notifier open template: %v", err)
+		return err
 	}
 
-	if notifier.templateDelete == nil {
-		templateDelete, err := template.New("delete").Funcs(fmap).ParseFiles(notifier.TemplateDeleteFile)
-		if err != nil {
-			log.Criticalf("Cannot parse HTTP notifier DELETE template: %v", err)
-			return err
-		}
-		notifier.templateDelete = templateDelete.Templates()[0]
+	err = notifier.RequestClose.ensureTemplateCompiled("delete", fmap)
+	if err != nil {
+		log.Criticalf("Cannot parse HTTP notifier close template: %v", err)
+		return err
 	}
 
 	if notifier.groupIds == nil {
@@ -94,32 +93,30 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 	// We only use IDs if we are sending deletes
 	idStr := ""
 	startTime := time.Now()
-
-	if notifier.SendDelete {
+	if notifier.SendClose {
 		if _, ok := notifier.groupIds[msg.Cluster]; !ok {
 			// Create the cluster map
 			notifier.groupIds[msg.Cluster] = make(map[string]Event)
 		}
-		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; !ok {
-			// Create Event and Id
-			eventId := uuid.NewRandom()
-			idStr = eventId.String()
-			notifier.groupIds[msg.Cluster][msg.Group] = Event{
-				Id:    idStr,
-				Start: startTime,
+		if !notifier.Ignore(msg) {
+			if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; !ok {
+				// Create Event and Id
+				eventId := uuid.NewRandom()
+				idStr = eventId.String()
+				notifier.groupIds[msg.Cluster][msg.Group] = Event{
+					Id:    idStr,
+					Start: startTime,
+				}
+			} else {
+				idStr = notifier.groupIds[msg.Cluster][msg.Group].Id
+				startTime = notifier.groupIds[msg.Cluster][msg.Group].Start
 			}
-		} else {
-			idStr = notifier.groupIds[msg.Cluster][msg.Group].Id
-			startTime = notifier.groupIds[msg.Cluster][msg.Group].Start
 		}
 	}
 
-	// Should a Post Request be Sent
-	if (msg.Status != protocol.StatusOK) {
-
+	if !notifier.Ignore(msg) {
 		// NOTE - I'm leaving the JsonEncode item in here so as not to break compatibility. New helpers go in the FuncMap above
-		bytesToSend := new(bytes.Buffer)
-		err := notifier.templatePost.Execute(bytesToSend, struct {
+		err := notifier.RequestOpen.send(struct {
 			Cluster    string
 			Group      string
 			Id         string
@@ -135,44 +132,16 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 			Extras:     notifier.Extras,
 			Result:     msg,
 			JsonEncode: templateJsonEncoder,
-		})
+		}, notifier.HttpClient, fmt.Sprintf("open for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr))
+
 		if err != nil {
-			log.Errorf("Failed to assemble POST: %v", err)
 			return err
-		}
-
-		// Send POST to HTTP endpoint
-		req, err := http.NewRequest("POST", notifier.Url, bytesToSend)
-		req.Header.Set("Content-Type", "application/json")
-
-		// Adding Authentication
-		switch notifier.AuthType {
-		case "basic":
-			req.SetBasicAuth(notifier.Username, notifier.Password)
-		}
-
-		resp, err := notifier.HttpClient.Do(req)
-		if err != nil {
-			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %v", msg.Group, msg.Cluster, msg.Status, idStr, err)
-			return err
-		}
-
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
-
-		if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-			log.Debugf("Sent POST for group %s in cluster %s at severity %v (Id %s)", msg.Group, msg.Cluster, msg.Status, idStr)
-		} else {
-			log.Errorf("Failed to send POST for group %s in cluster %s at severity %v (Id %s): %s", msg.Group,
-				msg.Cluster, msg.Status, idStr, resp.Status)
 		}
 	}
 
-	if notifier.SendDelete && (msg.Status == protocol.StatusOK) {
+	if notifier.SendClose && (msg.Status == protocol.StatusOK) {
 		if _, ok := notifier.groupIds[msg.Cluster][msg.Group]; ok {
-			// Send DELETE to HTTP endpoint
-			bytesToSend := new(bytes.Buffer)
-			err := notifier.templateDelete.Execute(bytesToSend, struct {
+			err := notifier.RequestClose.send(struct {
 				Cluster string
 				Group   string
 				Id      string
@@ -184,42 +153,65 @@ func (notifier *HttpNotifier) sendConsumerGroupStatusNotify(msg Message) error {
 				Id:      notifier.groupIds[msg.Cluster][msg.Group].Id,
 				Start:   notifier.groupIds[msg.Cluster][msg.Group].Start,
 				Extras:  notifier.Extras,
-			})
+			}, notifier.HttpClient, fmt.Sprintf("close for group %s in cluster %s (Id %s)", msg.Group,
+				msg.Cluster, notifier.groupIds[msg.Cluster][msg.Group].Id))
+
 			if err != nil {
-				log.Errorf("Failed to assemble DELETE for group %s in cluster %s (Id %s): %v", msg.Group,
-					msg.Cluster, notifier.groupIds[msg.Cluster][msg.Group].Id, err)
 				return err
-			}
-
-			req, err := http.NewRequest("DELETE", notifier.Url, bytesToSend)
-			req.Header.Set("Content-Type", "application/json")
-
-			// Adding Authentication
-			switch notifier.AuthType {
-			case "basic":
-				req.SetBasicAuth(notifier.Username, notifier.Password)
-			}
-
-			resp, err := notifier.HttpClient.Do(req)
-			if err != nil {
-				log.Errorf("Failed to send DELETE for group %s in cluster %s (Id %s): %v", msg.Group,
-					msg.Cluster, notifier.groupIds[msg.Cluster][msg.Group].Id, err)
-				return err
-			}
-			io.Copy(ioutil.Discard, resp.Body)
-			resp.Body.Close()
-
-			if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
-				log.Infof("Sent DELETE for group %s in cluster %s (Id %s)", msg.Group, msg.Cluster,
-					notifier.groupIds[msg.Cluster][msg.Group].Id)
-			} else {
-				log.Errorf("Failed to send DELETE for group %s in cluster %s (Id %s): %s", msg.Group,
-					msg.Cluster, notifier.groupIds[msg.Cluster][msg.Group].Id, resp.Status)
 			}
 
 			// Remove ID for group that is now clear
 			delete(notifier.groupIds[msg.Cluster], msg.Group)
 		}
 	}
+	return nil
+}
+
+func (request *HttpNotifierRequest) ensureTemplateCompiled(name string, fmap template.FuncMap) error {
+	if request.template != nil {
+		return nil
+	}
+
+	template, err := template.New(name).Funcs(fmap).ParseFiles(request.TemplateFile)
+	if err != nil {
+		return err
+	}
+	request.template = template.Templates()[0]
+
+	return nil
+}
+
+func (request *HttpNotifierRequest) send(templateData interface{}, httpClient *http.Client, details string) error {
+	bytesToSend := new(bytes.Buffer)
+	err := request.template.Execute(bytesToSend, templateData)
+	if err != nil {
+		log.Errorf("Failed to assemble %s: %v", details, err)
+		return err
+	}
+
+	// Send POST to HTTP endpoint
+	req, err := http.NewRequest(request.Method, request.Url, bytesToSend)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Adding Authentication
+	switch request.AuthType {
+	case "basic":
+		req.SetBasicAuth(request.Username, request.Password)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Errorf("Failed to send %s: %v", details, err)
+		return err
+	}
+	io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+
+	if (resp.StatusCode >= 200) && (resp.StatusCode <= 299) {
+		log.Debugf("Sent %s", details)
+	} else {
+		log.Errorf("Failed to send %s: %s", details, resp.Status)
+	}
+
 	return nil
 }

@@ -11,9 +11,6 @@
 package main
 
 import (
-	log "github.com/cihub/seelog"
-	"github.com/cgosiak/Burrow/notifier"
-	"github.com/cgosiak/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"
@@ -21,7 +18,10 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"crypto/tls"
+
+	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/notifier"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type NotifyCenter struct {
@@ -37,7 +37,7 @@ type NotifyCenter struct {
 
 func LoadNotifiers(app *ApplicationContext) error {
 	notifiers := []notifier.Notifier{}
-	if app.Config.Httpnotifier.Url != "" {
+	if app.Config.Httpnotifier.UrlOpen != "" {
 		if httpNotifier, err := NewHttpNotifier(app); err == nil {
 			notifiers = append(notifiers, httpNotifier)
 		}
@@ -115,9 +115,7 @@ func StopNotifiers(app *ApplicationContext) {
 func (nc *NotifyCenter) handleEvaluationResponse(result *protocol.ConsumerGroupStatus) {
 	msg := notifier.Message(*result)
 	for _, notifier := range nc.notifiers {
-		if !notifier.Ignore(msg) {
-			notifier.Notify(msg)
-		}
+		notifier.Notify(msg)
 	}
 }
 
@@ -221,15 +219,25 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 	}
 
 	return &notifier.HttpNotifier{
-		Url:                httpConfig.Url,
-		Threshold:          httpConfig.PostThreshold,
-		SendDelete:         httpConfig.SendDelete,
-		TemplatePostFile:   httpConfig.TemplatePost,
-		TemplateDeleteFile: httpConfig.TemplateDelete,
-		Username:           httpConfig.Username,
-		Password:           httpConfig.Password,
-		AuthType:           httpConfig.AuthType,
-		Extras:             extras,
+		RequestOpen: notifier.HttpNotifierRequest{
+			Username:     httpConfig.Username,
+			Password:     httpConfig.Password,
+			AuthType:     httpConfig.AuthType,
+			Url:          httpConfig.UrlOpen,
+			Method:       httpConfig.MethodOpen,
+			TemplateFile: httpConfig.TemplateOpen,
+		},
+		RequestClose: notifier.HttpNotifierRequest{
+			Username:     httpConfig.Username,
+			Password:     httpConfig.Password,
+			AuthType:     httpConfig.AuthType,
+			Url:          httpConfig.UrlClose,
+			Method:       httpConfig.MethodClose,
+			TemplateFile: httpConfig.TemplateClose,
+		},
+		Threshold: httpConfig.PostThreshold,
+		SendClose: httpConfig.SendClose,
+		Extras:    extras,
 		HttpClient: &http.Client{
 			Timeout: time.Duration(httpConfig.Timeout) * time.Second,
 			Transport: &http.Transport{
@@ -237,7 +245,6 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 					KeepAlive: time.Duration(httpConfig.Keepalive) * time.Second,
 				}).Dial,
 				Proxy: http.ProxyFromEnvironment,
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
 		},
 	}, nil
