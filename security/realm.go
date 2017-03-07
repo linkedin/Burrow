@@ -1,5 +1,9 @@
 package security
 
+import (
+	log "github.com/cihub/seelog"
+)
+
 type Realm interface {
 	Authenticate(username, password string) (*User, error)
 }
@@ -31,8 +35,8 @@ type UserChecker struct {
 	Realms []Realm
 }
 
-func NewUserChecker(enabled bool, userConfigFile, anonymousRole string) (uc *UserChecker,err error) {
-	uc = &UserChecker{Enabled: enabled}
+func NewUserChecker(enabled bool, realmName, userConfigFile, anonymousRole string) (uc *UserChecker,err error) {
+	uc = &UserChecker{Enabled: enabled, RealmName: realmName}
 	if !enabled {
 		return
 	}
@@ -40,6 +44,7 @@ func NewUserChecker(enabled bool, userConfigFile, anonymousRole string) (uc *Use
 	realms := make([]Realm, 0, 2)
 	// Add File Realm
 	if userConfigFile != "" {
+		log.Infof("HTTP Basic Auth, Initializing File Realm from %s", userConfigFile)
 		realm, err = NewFileRealm(userConfigFile)
 		if err != nil {
 			return
@@ -48,6 +53,7 @@ func NewUserChecker(enabled bool, userConfigFile, anonymousRole string) (uc *Use
 	}
 	// Add Anonymous (should always be the last one)
 	if anonymousRole != "" {
+		log.Infof("HTTP Basic Auth, Initializing Anonymous Realm with role %s", anonymousRole)
 		realm = &AnonymousRealm{anonymousRole}
 		realms = append(realms, realm)
 	}
