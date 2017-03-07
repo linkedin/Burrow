@@ -345,7 +345,8 @@ func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChan
 // Rule 2:  If the consumer offset does not change, and the lag is non-zero, it's an error (partition is stalled)
 // Rule 3:  If the consumer offsets are moving, but the lag is consistently increasing, it's a warning (consumer is slow)
 // Rule 4:  If the difference between now and the last offset timestamp is greater than the difference between the last and first offset timestamps, the
-//          consumer has stopped committing offsets for that partition (error), unless
+//          consumer has stopped committing offsets for that partition (error), unless the consumer offset and the current broker offset for the partition
+//          are equal, the partition is not considered to be in error.
 // Rule 5:  If the lag is -1, this is a special value that means there is no broker offset yet. Consider it good (will get caught in the next refresh of topics)
 // Rule 6:  If the consumer offset decreases from one interval to the next the partition is marked as a rewind (error)
 func (storage *OffsetStorage) evaluateGroup(cluster string, group string, resultChannel chan *protocol.ConsumerGroupStatus, showall bool) {
@@ -472,7 +473,10 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 			// Rule 4 - Offsets haven't been committed in a while
 			if ((time.Now().Unix() * 1000) - lastOffset.Timestamp) > (lastOffset.Timestamp - firstOffset.Timestamp) {
-				status.Status = protocol.StatusError
+				// Set consumer to error if there is also lag on partition
+				if lastOffset.Lag > 0 {
+					status.Status = protocol.StatusError
+				}
 				thispart.Status = protocol.StatusStop
 				status.Partitions = append(status.Partitions, thispart)
 				continue
