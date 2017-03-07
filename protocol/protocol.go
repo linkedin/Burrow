@@ -29,6 +29,7 @@ type ConsumerOffset struct {
 	Timestamp  int64 `json:"timestamp"`
 	Lag        int64 `json:"lag"`
 	Artificial bool  `json:"-"`
+	MaxOffset  int64 `json:"max_offset"`
 }
 
 type StatusConstant int
