@@ -25,9 +25,12 @@ import (
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID    string `gcfg:"client-id"`
-	TLS         bool   `gcfg:"tls"`
-	TLSNoVerify bool   `gcfg:"tls-noverify"`
+	ClientID        string `gcfg:"client-id"`
+	TLS             bool   `gcfg:"tls"`
+	TLSNoVerify     bool   `gcfg:"tls-noverify"`
+	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -37,6 +40,7 @@ type BurrowConfig struct {
 		ClientID       string `gcfg:"client-id"`
 		GroupBlacklist string `gcfg:"group-blacklist"`
 		GroupWhitelist string `gcfg:"group-whitelist"`
+		StdoutLogfile  string `gcfg:"stdout-logfile"`
 	}
 	Zookeeper struct {
 		Hosts    []string `gcfg:"hostname"`
