@@ -72,7 +72,11 @@ func (uc *UserChecker) Authenticate(username, password string) (user *User, err 
 }
 
 func (uc *UserChecker) Check(username, password, method, path string) bool {
-	user, _ := uc.Authenticate(username, password)
+	user, err := uc.Authenticate(username, password)
+	if err != nil {
+		log.Warnf("User %s authentication failed with error %v", username, err)
+		return false
+	}
 	if user == nil {
 		return false
 	}

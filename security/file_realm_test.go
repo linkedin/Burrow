@@ -48,7 +48,7 @@ func TestFileRealm_Admin(t *testing.T) {
 	}
 }
 
-func TestFileRealmg_Anonymous(t *testing.T) {
+func TestFileRealm_Anonymous(t *testing.T) {
 	var realm Realm
 	var err error
 	var user *User
