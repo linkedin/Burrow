@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cgosiak/Burrow/protocol"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type SlackNotifier struct {

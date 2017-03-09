@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cgosiak/Burrow/protocol"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
