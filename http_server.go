@@ -184,8 +184,14 @@ func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
 	}
 }
 
-func writeJSONResponse(w http.ResponseWriter, status int, value  interface{}) int {
-	jsonStr, err := json.Marshal(value)
+func writeJSONResponse(w http.ResponseWriter, r *http.Request, status int, value  interface{}) int {
+	var jsonStr []byte
+	var err error
+	if r.URL.Query().Get("pretty")=="true" {
+		jsonStr, err = json.MarshalIndent(value, "", "\t")
+	} else {
+		jsonStr, err = json.Marshal(value)
+	}
 	if err != nil {
 		http.Error(w, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}", http.StatusInternalServerError)
 	}
@@ -201,7 +207,7 @@ func makeErrorResponse(errValue int, message string, w http.ResponseWriter, r *h
 		Request: makeRequestInfo(r),
 	}
 
-	return writeJSONResponse(w, errValue, rv)
+	return writeJSONResponse(w, r, errValue, rv)
 }
 
 func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.Request) int {
@@ -216,7 +222,7 @@ func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.R
 		i++
 	}
 	requestInfo := makeRequestInfo(r)
-	return writeJSONResponse(w, 200, HTTPResponseClusterList{
+	return writeJSONResponse(w, r, 200, HTTPResponseClusterList{
 		Error:    false,
 		Message:  "cluster list returned",
 		Clusters: clusterList,
@@ -297,7 +303,7 @@ func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	return writeJSONResponse(w, 200, HTTPResponseClusterDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseClusterDetail{
 		Request: requestInfo,
 		Error:   false,
 		Message: "cluster detail returned",
@@ -318,7 +324,7 @@ func handleConsumerList(app *ApplicationContext, w http.ResponseWriter, r *http.
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	return writeJSONResponse(w, 200, HTTPResponseConsumerList{
+	return writeJSONResponse(w, r, 200, HTTPResponseConsumerList{
 		Error:     false,
 		Request:   requestInfo,
 		Message:   "consumer list returned",
@@ -337,7 +343,7 @@ func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	return writeJSONResponse(w, 200, HTTPResponseTopicList{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "consumer topic list returned",
 		Topics:  result.TopicList,
@@ -360,7 +366,7 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
 	requestInfo.Topic = topic
-	return writeJSONResponse(w, 200, HTTPResponseTopicDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "consumer group topic offsets returned",
 		Offsets: result.OffsetList,
@@ -379,7 +385,7 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *htt
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	return writeJSONResponse(w, 200, HTTPResponseConsumerStatus{
+	return writeJSONResponse(w, r, 200, HTTPResponseConsumerStatus{
 		Error:   false,
 		Message: "consumer group status returned",
 		Status:  *result,
@@ -398,7 +404,7 @@ func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	return writeJSONResponse(w, 200, HTTPResponseError{
+	return writeJSONResponse(w, r, 200, HTTPResponseError{
 		Error:   false,
 		Message: "consumer group removed",
 		Request: requestInfo,
@@ -412,7 +418,7 @@ func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, r *ht
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	return writeJSONResponse(w, 200, HTTPResponseTopicList{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "broker topic list returned",
 		Topics:  result.TopicList,
@@ -431,7 +437,7 @@ func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Topic = topic
-	return writeJSONResponse(w, 200, HTTPResponseTopicDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "broker topic offsets returned",
 		Offsets: result.OffsetList,
