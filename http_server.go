@@ -191,6 +191,16 @@ func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
 		Host: hostname,
 	}
 }
+
+func writeJSONResponse(w http.ResponseWriter, status int, value  interface{}) (int, string) {
+	jsonStr, err := json.Marshal(value)
+	if err != nil {
+		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
+	}
+	w.Write(jsonStr)
+	return status, ""
+}
+
 func makeErrorResponse(errValue int, message string, w http.ResponseWriter, r *http.Request) (int, string) {
 	rv := HTTPResponseError{
 		Error:   true,
@@ -198,13 +208,7 @@ func makeErrorResponse(errValue int, message string, w http.ResponseWriter, r *h
 		Request: makeRequestInfo(r),
 	}
 
-	jsonStr, err := json.Marshal(rv)
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	} else {
-		w.Write(jsonStr)
-		return errValue, ""
-	}
+	return writeJSONResponse(w, errValue, rv)
 }
 
 func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.Request) (int, string) {
@@ -219,18 +223,12 @@ func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.R
 		i++
 	}
 	requestInfo := makeRequestInfo(r)
-	jsonStr, err := json.Marshal(HTTPResponseClusterList{
+	return writeJSONResponse(w, 200, HTTPResponseClusterList{
 		Error:    false,
 		Message:  "cluster list returned",
 		Clusters: clusterList,
 		Request:  requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 // This is a router for all requests that operate against Kafka clusters (/v2/kafka/...)
@@ -306,7 +304,7 @@ func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseClusterDetail{
+	return writeJSONResponse(w, 200, HTTPResponseClusterDetail{
 		Request: requestInfo,
 		Error:   false,
 		Message: "cluster detail returned",
@@ -319,12 +317,6 @@ func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http
 			OffsetsTopic:  app.Config.Kafka[cluster].OffsetsTopic,
 		},
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleConsumerList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) (int, string) {
@@ -333,19 +325,12 @@ func handleConsumerList(app *ApplicationContext, w http.ResponseWriter, r *http.
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseConsumerList{
+	return writeJSONResponse(w, 200, HTTPResponseConsumerList{
 		Error:     false,
 		Request:   requestInfo,
 		Message:   "consumer list returned",
 		Consumers: <-storageRequest.Result,
 	})
-
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
@@ -359,17 +344,12 @@ func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseTopicList{
+	return writeJSONResponse(w, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "consumer topic list returned",
 		Topics:  result.TopicList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, topic string) (int, string) {
@@ -387,18 +367,12 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
 	requestInfo.Topic = topic
-	jsonStr, err := json.Marshal(HTTPResponseTopicDetail{
+	return writeJSONResponse(w, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "consumer group topic offsets returned",
 		Offsets: result.OffsetList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, showall bool) (int, string) {
@@ -412,17 +386,12 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *htt
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseConsumerStatus{
+	return writeJSONResponse(w, 200, HTTPResponseConsumerStatus{
 		Error:   false,
 		Message: "consumer group status returned",
 		Status:  *result,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
@@ -436,17 +405,11 @@ func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseError{
+	return writeJSONResponse(w, 200, HTTPResponseError{
 		Error:   false,
 		Message: "consumer group removed",
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	} else {
-		w.Write(jsonStr)
-		return 200, ""
-	}
 }
 
 func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) (int, string) {
@@ -456,18 +419,12 @@ func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, r *ht
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseTopicList{
+	return writeJSONResponse(w, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "broker topic list returned",
 		Topics:  result.TopicList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, topic string) (int, string) {
@@ -481,18 +438,12 @@ func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Topic = topic
-	jsonStr, err := json.Marshal(HTTPResponseTopicDetail{
+	return writeJSONResponse(w, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "broker topic offsets returned",
 		Offsets: result.OffsetList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func (server *HttpServer) Stop() {
