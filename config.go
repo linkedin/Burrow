@@ -120,6 +120,7 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+		TLS            string   `gcfg:"tls"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`

@@ -11,6 +11,7 @@
 package main
 
 import (
+	"crypto/tls"
 	log "github.com/cihub/seelog"
 	"github.com/linkedin/Burrow/notifier"
 	"github.com/linkedin/Burrow/protocol"
@@ -217,6 +218,16 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 		extras[parts[0]] = parts[1]
 	}
 
+	// Prepare TLS Config
+	var tlsConfig *tls.Config
+	if app.Config.Httpnotifier.TLS != "" {
+		var err error
+		tlsConfig, err = NewTLSConfig(app.Config, app.Config.Httpnotifier.TLS)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &notifier.HttpNotifier{
 		RequestOpen: notifier.HttpNotifierRequest{
 			Url:          httpConfig.UrlOpen,
@@ -238,6 +249,7 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 					KeepAlive: time.Duration(httpConfig.Keepalive) * time.Second,
 				}).Dial,
 				Proxy: http.ProxyFromEnvironment,
+				TLSClientConfig: tlsConfig,
 			},
 		},
 	}, nil
