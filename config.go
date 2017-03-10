@@ -31,6 +31,10 @@ type ClientProfile struct {
 	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
 	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
 	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
+	SASLEnabled     bool    `gcfg:"sasl-enabled"`
+	SASLUsername    string  `gcfg:"sasl-username"`
+	SASLPassword    string  `gcfg:"sasl-password"`
+
 }
 type BurrowConfig struct {
 	General struct {
