@@ -12,7 +12,6 @@ package notifier
 
 import (
 	"encoding/json"
-
 	"github.com/linkedin/Burrow/protocol"
 )
 
