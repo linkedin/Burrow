@@ -12,7 +12,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/linkedin/Burrow/protocol"
 )
 

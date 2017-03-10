@@ -11,14 +11,13 @@
 package main
 
 import (
+	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
+	"github.com/samuel/go-zookeeper/zk"
 	"math/rand"
 	"strconv"
 	"sync"
 	"time"
-
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
-	"github.com/samuel/go-zookeeper/zk"
 )
 
 type ZookeeperClient struct {
