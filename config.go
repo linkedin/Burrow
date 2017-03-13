@@ -113,6 +113,9 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+		AuthType      string   `gcfg:"auth-type"`
+		Username      string   `gcfg:"username"`
+		Password      string   `gcfg:"password"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`

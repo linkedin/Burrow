@@ -219,11 +219,17 @@ func NewHttpNotifier(app *ApplicationContext) (*notifier.HttpNotifier, error) {
 
 	return &notifier.HttpNotifier{
 		RequestOpen: notifier.HttpNotifierRequest{
+			Username:     httpConfig.Username,
+			Password:     httpConfig.Password,
+			AuthType:     httpConfig.AuthType,
 			Url:          httpConfig.UrlOpen,
 			Method:       httpConfig.MethodOpen,
 			TemplateFile: httpConfig.TemplateOpen,
 		},
 		RequestClose: notifier.HttpNotifierRequest{
+			Username:     httpConfig.Username,
+			Password:     httpConfig.Password,
+			AuthType:     httpConfig.AuthType,
 			Url:          httpConfig.UrlClose,
 			Method:       httpConfig.MethodClose,
 			TemplateFile: httpConfig.TemplateClose,
