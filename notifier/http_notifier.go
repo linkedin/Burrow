@@ -35,6 +35,9 @@ type HttpNotifier struct {
 
 type HttpNotifierRequest struct {
 	Url string
+	Username     string
+	Password     string
+	AuthType     string
 	TemplateFile string
 	Method string
 	template *template.Template
@@ -188,6 +191,12 @@ func (request *HttpNotifierRequest) send(templateData interface{}, httpClient *h
 	// Send POST to HTTP endpoint
 	req, err := http.NewRequest(request.Method, request.Url, bytesToSend)
 	req.Header.Set("Content-Type", "application/json")
+
+	// Adding Authentication
+	switch request.AuthType {
+	case "basic":
+		req.SetBasicAuth(request.Username, request.Password)
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
