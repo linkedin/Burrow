@@ -180,7 +180,6 @@ func (stormClient *StormClient) refreshConsumerGroups() {
 		stormClient.stormGroupList[consumerGroup] = false
 	}
 
-
 	for _, stormZookeeperPath := range stormClient.app.Config.Storm[stormClient.cluster].ZookeeperPath {
 		consumerGroups, _, err := stormClient.conn.Children(stormZookeeperPath)
 		if err != nil {

@@ -316,6 +316,7 @@ func (storage *OffsetStorage) addConsumerOffset(offset *protocol.PartitionOffset
 		offset.Cluster, offset.Topic, offset.Partition, offset.Group, offset.Timestamp, offset.Offset,
 		partitionLag)
 
+
 	// Advance the ring pointer
 	consumerTopicMap[offset.Partition] = consumerTopicMap[offset.Partition].Next()
 	clusterOffsets.consumerLock.Unlock()
@@ -392,8 +393,12 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			// Add an artificial offset commit if the consumer has no lag against the current broker offset	AND if the distance away from the
 			// last offset timestamp is outside the MinDistance threshold
 			lastOffset := offsetRing.Prev().Value.(*protocol.ConsumerOffset)
+<<<<<<< HEAD
+			if lastOffset.MaxOffset >= clusterMap.broker[topic][partition].Offset {
+=======
 			timestampDifference := (time.Now().Unix() * 1000) - lastOffset.Timestamp
 			if lastOffset.MaxOffset >= clusterMap.broker[topic][partition].Offset && (timestampDifference >= (storage.app.Config.Lagcheck.MinDistance * 1000)) {
+>>>>>>> d2c71bc6447ae8e94ee1b1674473774463d8f5ff
 				ringval, _ := offsetRing.Value.(*protocol.ConsumerOffset)
 				ringval.Offset = lastOffset.Offset
 				ringval.MaxOffset = lastOffset.MaxOffset
@@ -699,14 +704,14 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 func (storage *OffsetStorage) AcceptConsumerGroup(group string) bool {
 	// First check to make sure group is in the whitelist
 	if (storage.groupWhitelist != nil) && !storage.groupWhitelist.MatchString(group) {
-		return false
+		return false;
 	}
 
 	// The group is in the whitelist (or there is not whitelist).  Now check the blacklist
 	if (storage.groupBlacklist != nil) && storage.groupBlacklist.MatchString(group) {
-		return false
+		return false;
 	}
 
 	// good to go
-	return true
+	return true;
 }
