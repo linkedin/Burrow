@@ -12,14 +12,14 @@ package main
 
 import (
 	"encoding/json"
-	log "github.com/cihub/seelog"
 	"github.com/linkedin/Burrow/protocol"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"strings"
+	"net"
 	"time"
+	log "github.com/cihub/seelog"
 )
 
 type HttpServer struct {

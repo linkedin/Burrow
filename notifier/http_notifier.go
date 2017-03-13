@@ -42,8 +42,8 @@ type HttpNotifierRequest struct {
 	AuthType     string
 	Url          string
 	TemplateFile string
-	Method       string
-	template     *template.Template
+	Method string
+	template *template.Template
 }
 
 type Event struct {
