@@ -13,6 +13,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -20,7 +21,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition
@@ -28,9 +28,9 @@ type ClientProfile struct {
 	ClientID        string `gcfg:"client-id"`
 	TLS             bool   `gcfg:"tls"`
 	TLSNoVerify     bool   `gcfg:"tls-noverify"`
-	TLSCertFilePath string `gcfg:"tls-certfilepath"`
-	TLSKeyFilePath  string `gcfg:"tls-keyfilepath"`
-	TLSCAFilePath   string `gcfg:"tls-cafilepath"`
+	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -76,8 +76,8 @@ type BurrowConfig struct {
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
 	}
 	Httpserver struct {
-		Enable bool     `gcfg:"server"`
-		Port   int      `gcfg:"port"`
+		Enable bool `gcfg:"server"`
+		Port   int  `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
 	}
 	Notify struct {
@@ -99,23 +99,23 @@ type BurrowConfig struct {
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
-		Enable        bool     `gcfg:"enable"`
-		Groups        []string `gcfg:"group"`
-		UrlOpen       string   `gcfg:"url"`
-		UrlClose      string   `gcfg:"url-delete"`
-		MethodOpen    string   `gcfg:"method"`
-		MethodClose   string   `gcfg:"method-delete"`
-		Interval      int64    `gcfg:"interval"`
-		Extras        []string `gcfg:"extra"`
-		TemplateOpen  string   `gcfg:"template-post"`
-		TemplateClose string   `gcfg:"template-delete"`
-		SendClose     bool     `gcfg:"send-delete"`
-		PostThreshold int      `gcfg:"post-threshold"`
-		Timeout       int      `gcfg:"timeout"`
-		Keepalive     int      `gcfg:"keepalive"`
-		AuthType      string   `gcfg:"auth-type"`
-		Username      string   `gcfg:"username"`
-		Password      string   `gcfg:"password"`
+		Enable         bool     `gcfg:"enable"`
+		Groups         []string `gcfg:"group"`
+		UrlOpen        string   `gcfg:"url"`
+		UrlClose       string   `gcfg:"url-delete"`
+		MethodOpen     string   `gcfg:"method"`
+		MethodClose    string   `gcfg:"method-delete"`
+		Interval       int64    `gcfg:"interval"`
+		Extras         []string `gcfg:"extra"`
+		TemplateOpen   string   `gcfg:"template-post"`
+		TemplateClose  string   `gcfg:"template-delete"`
+		SendClose      bool     `gcfg:"send-delete"`
+		PostThreshold  int      `gcfg:"post-threshold"`
+		Timeout        int      `gcfg:"timeout"`
+		Keepalive      int      `gcfg:"keepalive"`
+		AuthType       string   `gcfg:"auth-type"`
+		Username       string   `gcfg:"username"`
+		Password       string   `gcfg:"password"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`
