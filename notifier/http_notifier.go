@@ -21,9 +21,6 @@ import (
 	"text/template"
 	"time"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
-	"github.com/pborman/uuid"
 )
 
 type HttpNotifier struct {
@@ -37,10 +34,10 @@ type HttpNotifier struct {
 }
 
 type HttpNotifierRequest struct {
+	Url string
 	Username     string
 	Password     string
 	AuthType     string
-	Url          string
 	TemplateFile string
 	Method string
 	template *template.Template

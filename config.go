@@ -77,7 +77,7 @@ type BurrowConfig struct {
 	}
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
-		Port   int `gcfg:"port"`
+		Port   int  `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
 	}
 	Notify struct {
