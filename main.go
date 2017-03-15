@@ -57,8 +57,8 @@ func burrowMain() int {
 	}
 
 	// Create the PID file to lock out other processes. Defer removal so it's the last thing to go
-	createPidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
-	defer removePidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
+	createPidFile(appContext.Config.General.PIDDir + "/" + appContext.Config.General.PIDFile)
+	defer removePidFile(appContext.Config.General.PIDDir + "/" + appContext.Config.General.PIDFile)
 
 	// Set up stderr/stdout to go to a separate log file, if enabled
 	if appContext.Config.General.StdoutLogfile != "" {
