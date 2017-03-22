@@ -82,6 +82,7 @@ type BurrowConfig struct {
 		BasicAuthEnabled bool 					`gcfg:"basic-auth-enabled"`
 		BasicAuthAnonymousRole string		`gcfg:"basic-auth-anonymous-role"`
 		BasicAuthUserConfigFile string  `gcfg:"basic-auth-user-config-file"`
+		BasicAuthUserPasswordHash string  `gcfg:"basic-auth-user-password-hash"`
 		BasicAuthRealmName string  `gcfg:"basic-auth-realm-name"`
 	}
 	Notify struct {
@@ -360,6 +361,9 @@ func ValidateConfig(app *ApplicationContext) error {
 			if app.Config.Httpserver.BasicAuthUserConfigFile != "" {
 				if _, err := os.Stat(app.Config.Httpserver.BasicAuthUserConfigFile); os.IsNotExist(err) {
 					errs = append(errs, "Basic Auth Users File not found")
+				}
+				if app.Config.Httpserver.BasicAuthUserPasswordHash == "" {
+					app.Config.Httpserver.BasicAuthUserPasswordHash = "sha256"
 				}
 			}
 		}

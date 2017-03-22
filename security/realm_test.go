@@ -11,7 +11,7 @@ func assertBool(t *testing.T, expected, actual bool) {
 
 }
 func TestUserChecker_AnonymousOnly(t *testing.T) {
-	uc, _ := NewUserChecker(true, "Burrow", "", "USER")
+	uc, _ := NewUserChecker(true, "Burrow", "", "", "USER")
 	assertBool(t, true, uc.Check("", "", "GET", "/some/path"))
 	assertBool(t, false, uc.Check("", "", "DELETE", "/some/path"))
 	assertBool(t, false, uc.Check("user", "user", "GET", "/some/path"))
@@ -19,7 +19,7 @@ func TestUserChecker_AnonymousOnly(t *testing.T) {
 }
 
 func TestUserChecker_FileOnly(t *testing.T) {
-	uc, _ := NewUserChecker(true, "Burrow", "_test/user.cfg", "")
+	uc, _ := NewUserChecker(true, "Burrow", "_test/user.cfg", "sha256", "")
 	assertBool(t, false, uc.Check("", "", "GET", "/some/path"))
 	assertBool(t, false, uc.Check("", "", "DELETE", "/some/path"))
 	assertBool(t, true, uc.Check("user", "user", "GET", "/some/path"))
@@ -28,7 +28,7 @@ func TestUserChecker_FileOnly(t *testing.T) {
 }
 
 func TestUserChecker_FileAnonymous(t *testing.T) {
-	uc, _ := NewUserChecker(true, "Burrow", "_test/user.cfg", "USER")
+	uc, _ := NewUserChecker(true, "Burrow", "_test/user.cfg", "sha256", "USER")
 	assertBool(t, true, uc.Check("", "", "GET", "/some/path"))
 	assertBool(t, false, uc.Check("", "", "DELETE", "/some/path"))
 	assertBool(t, true, uc.Check("user", "user", "GET", "/some/path"))

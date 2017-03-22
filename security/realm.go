@@ -35,7 +35,7 @@ type UserChecker struct {
 	Realms []Realm
 }
 
-func NewUserChecker(enabled bool, realmName, userConfigFile, anonymousRole string) (uc *UserChecker,err error) {
+func NewUserChecker(enabled bool, realmName, userConfigFile, userPasswordHash, anonymousRole string) (uc *UserChecker,err error) {
 	uc = &UserChecker{Enabled: enabled, RealmName: realmName}
 	if !enabled {
 		return
@@ -45,7 +45,7 @@ func NewUserChecker(enabled bool, realmName, userConfigFile, anonymousRole strin
 	// Add File Realm
 	if userConfigFile != "" {
 		log.Infof("HTTP Basic Auth, Initializing File Realm from %s", userConfigFile)
-		realm, err = NewFileRealm(userConfigFile)
+		realm, err = NewFileRealm(userConfigFile, userPasswordHash)
 		if err != nil {
 			return
 		}

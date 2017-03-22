@@ -70,6 +70,7 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	userChecker, err := security.NewUserChecker(app.Config.Httpserver.BasicAuthEnabled,
 		app.Config.Httpserver.BasicAuthRealmName,
 		app.Config.Httpserver.BasicAuthUserConfigFile,
+		app.Config.Httpserver.BasicAuthUserPasswordHash,
 		app.Config.Httpserver.BasicAuthAnonymousRole)
 	if err != nil {
 		return nil, err
