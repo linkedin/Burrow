@@ -63,6 +63,12 @@ type BurrowConfig struct {
 		ZookeeperPort int      `gcfg:"zookeeper-port"`
 		ZookeeperPath []string `gcfg:"zookeeper-path"`
 	}
+	Druid map[string]*struct {
+		Zookeepers    []string `gcfg:"zookeeper"`
+		ZookeeperPort int      `gcfg:"zookeeper-port"`
+		ZookeeperPath []string `gcfg:"zookeeper-path"`
+		DruidOverlord string `gcfg:"druid-overlord"`
+	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
 	}
@@ -74,6 +80,8 @@ type BurrowConfig struct {
 		ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
 		StormCheck        int64 `gcfg:"storm-interval"`
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
+		DruidCheck        int64 `gcfg:"druid-interval"`
+		DruidGroupRefresh int64 `gcfg:"druid-group-refresh"`
 	}
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
@@ -308,6 +316,34 @@ func ValidateConfig(app *ApplicationContext) error {
 		}
 	}
 
+	// Druid Clusters
+	if len(app.Config.Druid) > 0 {
+		for cluster, cfg := range app.Config.Druid {
+			if cfg.ZookeeperPort == 0 {
+				cfg.ZookeeperPort = 2181
+			}
+			if len(cfg.Zookeepers) == 0 {
+				errs = append(errs, fmt.Sprintf("No Zookeeper hosts specified for cluster %s", cluster))
+			} else {
+				hostlistError := checkHostlist(cfg.Zookeepers, cfg.ZookeeperPort, "Zookeeper")
+				if hostlistError != "" {
+					errs = append(errs, hostlistError)
+				}
+			}
+			if len(cfg.ZookeeperPath) == 0 {
+				errs = append(errs, fmt.Sprintf("No Zookeeper paths specified for cluster %s", cluster))
+			} else {
+				for _, zkpath := range cfg.ZookeeperPath {
+					if zkpath == "" {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
+					} else if !validateZookeeperPath(zkpath) {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
+					}
+				}
+			}
+		}
+	}
+
 	// Tickers
 	if app.Config.Tickers.BrokerOffsets == 0 {
 		app.Config.Tickers.BrokerOffsets = 60
@@ -334,6 +370,12 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	if app.Config.Lagcheck.StormGroupRefresh == 0 {
 		app.Config.Lagcheck.StormGroupRefresh = 300
+	}
+	if app.Config.Lagcheck.DruidCheck == 0 {
+		app.Config.Lagcheck.DruidCheck = 60
+	}
+	if app.Config.Lagcheck.DruidGroupRefresh == 0 {
+		app.Config.Lagcheck.DruidGroupRefresh = 300
 	}
 
 	// HTTP Server

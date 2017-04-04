@@ -31,11 +31,16 @@ type StormCluster struct {
 	Storm *StormClient
 }
 
+type DruidCluster struct {
+	Druid *DruidClient
+}
+
 type ApplicationContext struct {
 	Config       *BurrowConfig
 	Storage      *OffsetStorage
 	Clusters     map[string]*KafkaCluster
 	Storms       map[string]*StormCluster
+	Druids       map[string]*DruidCluster
 	Server       *HttpServer
 	NotifyCenter *NotifyCenter
 	NotifierLock *zk.Lock
@@ -134,6 +139,20 @@ func burrowMain() int {
 		appContext.Storms[cluster] = &StormCluster{Storm: stormClient}
 	}
 
+	// Start Druid Clients for each druid cluster
+	appContext.Druids = make(map[string]*DruidCluster, len(appContext.Config.Druid))
+	for cluster, _ := range appContext.Config.Druid {
+		log.Infof("Starting Druid client for cluster %s", cluster)
+		druidClient, err := NewDruidClient(appContext, cluster)
+		if err != nil {
+			log.Criticalf("Cannot start Druid client for cluster %s: %v", cluster, err)
+			return 1
+		}
+		defer druidClient.Stop()
+
+		appContext.Druids[cluster] = &DruidCluster{Druid: druidClient}
+	}
+
 	// Set up the Zookeeper lock for notification
 	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, zk.WorldACL(zk.PermAll))
 
@@ -147,10 +166,12 @@ func burrowMain() int {
 	// Notifiers are started in a goroutine if we get the ZK lock
 	go StartNotifiers(appContext)
 	defer StopNotifiers(appContext)
+	fmt.Println("start notifier")
 
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)
 	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
+	fmt.Println("signal handlers registered")
 
 	// Wait until we're told to exit
 	<-exitChannel
