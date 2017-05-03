@@ -13,7 +13,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -21,16 +20,19 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID        string `gcfg:"client-id"`
-	TLS             bool   `gcfg:"tls"`
-	TLSNoVerify     bool   `gcfg:"tls-noverify"`
-	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
-	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
-	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
+	ClientID         string `gcfg:"client-id"`
+	TLS              bool   `gcfg:"tls"`
+	TLSNoVerify      bool   `gcfg:"tls-noverify"`
+	TLSCertFilePath  string `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath   string `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath    string `gcfg:"tls-cafilepath"`
+	RefreshFrequency int    `gcfg:"refresh-frequency"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -49,15 +51,14 @@ type BurrowConfig struct {
 		LockPath string   `gcfg:"lock-path"`
 	}
 	Kafka map[string]*struct {
-		Brokers           []string `gcfg:"broker"`
-		BrokerPort        int      `gcfg:"broker-port"`
-		Zookeepers        []string `gcfg:"zookeeper"`
-		ZookeeperPort     int      `gcfg:"zookeeper-port"`
-		ZookeeperPath     string   `gcfg:"zookeeper-path"`
-		OffsetsTopic      string   `gcfg:"offsets-topic"`
-		ZKOffsets         bool     `gcfg:"zookeeper-offsets"`
-		Clientprofile     string   `gcfg:"client-profile"`
-		RefreshFrequency  int      `gcfg:"refresh-frequency"`
+		Brokers       []string `gcfg:"broker"`
+		BrokerPort    int      `gcfg:"broker-port"`
+		Zookeepers    []string `gcfg:"zookeeper"`
+		ZookeeperPort int      `gcfg:"zookeeper-port"`
+		ZookeeperPath string   `gcfg:"zookeeper-path"`
+		OffsetsTopic  string   `gcfg:"offsets-topic"`
+		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
+		Clientprofile string   `gcfg:"client-profile"`
 	}
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
@@ -77,8 +78,8 @@ type BurrowConfig struct {
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
 	}
 	Httpserver struct {
-		Enable bool `gcfg:"server"`
-		Port   int  `gcfg:"port"`
+		Enable bool     `gcfg:"server"`
+		Port   int      `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
 	}
 	Notify struct {
@@ -100,20 +101,20 @@ type BurrowConfig struct {
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
-		Enable         bool     `gcfg:"enable"`
-		Groups         []string `gcfg:"group"`
-		UrlOpen        string   `gcfg:"url"`
-		UrlClose       string   `gcfg:"url-delete"`
-		MethodOpen     string   `gcfg:"method"`
-		MethodClose    string   `gcfg:"method-delete"`
-		Interval       int64    `gcfg:"interval"`
-		Extras         []string `gcfg:"extra"`
-		TemplateOpen   string   `gcfg:"template-post"`
-		TemplateClose  string   `gcfg:"template-delete"`
-		SendClose      bool     `gcfg:"send-delete"`
-		PostThreshold  int      `gcfg:"post-threshold"`
-		Timeout        int      `gcfg:"timeout"`
-		Keepalive      int      `gcfg:"keepalive"`
+		Enable        bool     `gcfg:"enable"`
+		Groups        []string `gcfg:"group"`
+		UrlOpen       string   `gcfg:"url"`
+		UrlClose      string   `gcfg:"url-delete"`
+		MethodOpen    string   `gcfg:"method"`
+		MethodClose   string   `gcfg:"method-delete"`
+		Interval      int64    `gcfg:"interval"`
+		Extras        []string `gcfg:"extra"`
+		TemplateOpen  string   `gcfg:"template-post"`
+		TemplateClose string   `gcfg:"template-delete"`
+		SendClose     bool     `gcfg:"send-delete"`
+		PostThreshold int      `gcfg:"post-threshold"`
+		Timeout       int      `gcfg:"timeout"`
+		Keepalive     int      `gcfg:"keepalive"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`
@@ -212,8 +213,9 @@ func ValidateConfig(app *ApplicationContext) error {
 	}
 	if _, ok := app.Config.Clientprofile["default"]; !ok {
 		app.Config.Clientprofile["default"] = &ClientProfile{
-			ClientID: app.Config.General.ClientID,
-			TLS:      false,
+			ClientID:         app.Config.General.ClientID,
+			TLS:              false,
+			RefreshFrequency: 600,
 		}
 	}
 
@@ -224,6 +226,10 @@ func ValidateConfig(app *ApplicationContext) error {
 			if !validateTopic(cfg.ClientID) {
 				errs = append(errs, fmt.Sprintf("Kafka client ID is not valid for profile %s", name))
 			}
+		}
+
+		if cfg.RefreshFrequency == 0 {
+			cfg.RefreshFrequency = 600
 		}
 	}
 
@@ -278,9 +284,6 @@ func ValidateConfig(app *ApplicationContext) error {
 			if _, ok := app.Config.Clientprofile[cfg.Clientprofile]; !ok {
 				errs = append(errs, fmt.Sprintf("Kafka client profile is not defined for cluster %s", cluster))
 			}
-		}
-		if cfg.RefreshFrequency == 0 {
-			cfg.RefreshFrequency = 600
 		}
 	}
 

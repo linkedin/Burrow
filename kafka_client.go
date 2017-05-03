@@ -14,14 +14,15 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"encoding/binary"
 	"errors"
+	"io/ioutil"
+	"sync"
+	"time"
+
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
 	"github.com/linkedin/Burrow/protocol"
-	"sync"
-	"time"
 )
 
 type KafkaClient struct {
@@ -48,10 +49,10 @@ type BrokerTopicRequest struct {
 func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, error) {
 	// Set up sarama config from profile
 	clientConfig := sarama.NewConfig()
-	clientConfig.Metadata.RefreshFrequency = time.Duration(app.Config.Kafka[cluster].RefreshFrequency) * time.Second
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
 	clientConfig.Net.TLS.Enable = profile.TLS
+	clientConfig.Metadata.RefreshFrequency = time.Duration(profile.RefreshFrequency) * time.Second
 	if profile.TLSCertFilePath == "" || profile.TLSKeyFilePath == "" || profile.TLSCAFilePath == "" {
 		clientConfig.Net.TLS.Config = &tls.Config{}
 	} else {
@@ -67,7 +68,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 		caCertPool.AppendCertsFromPEM(caCert)
 		clientConfig.Net.TLS.Config = &tls.Config{
 			Certificates: []tls.Certificate{cert},
-			RootCAs: caCertPool,
+			RootCAs:      caCertPool,
 		}
 		clientConfig.Net.TLS.Config.BuildNameToCertificate()
 	}
