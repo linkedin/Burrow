@@ -25,9 +25,12 @@ import (
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID    string `gcfg:"client-id"`
-	TLS         bool   `gcfg:"tls"`
-	TLSNoVerify bool   `gcfg:"tls-noverify"`
+	ClientID        string `gcfg:"client-id"`
+	TLS             bool   `gcfg:"tls"`
+	TLSNoVerify     bool   `gcfg:"tls-noverify"`
+	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -36,6 +39,8 @@ type BurrowConfig struct {
 		PIDFile        string `gcfg:"pidfile"`
 		ClientID       string `gcfg:"client-id"`
 		GroupBlacklist string `gcfg:"group-blacklist"`
+		GroupWhitelist string `gcfg:"group-whitelist"`
+		StdoutLogfile  string `gcfg:"stdout-logfile"`
 	}
 	Zookeeper struct {
 		Hosts    []string `gcfg:"hostname"`
@@ -57,7 +62,7 @@ type BurrowConfig struct {
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
 		ZookeeperPort int      `gcfg:"zookeeper-port"`
-		ZookeeperPath string   `gcfg:"zookeeper-path"`
+		ZookeeperPath []string `gcfg:"zookeeper-path"`
 	}
 	Tickers struct {
 		BrokerOffsets int `gcfg:"broker-offsets"`
@@ -74,6 +79,10 @@ type BurrowConfig struct {
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
+		Listen []string `gcfg:"listen"`
+	}
+	Notify struct {
+		Interval int64 `gcfg:"interval"`
 	}
 	Smtp struct {
 		Server   string `gcfg:"server"`
@@ -84,21 +93,40 @@ type BurrowConfig struct {
 		From     string `gcfg:"from"`
 		Template string `gcfg:"template"`
 	}
-	Email map[string]*struct {
+	Emailnotifier map[string]*struct {
+		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
-		Interval  int      `gcfg:"interval"`
-		Threshold string   `gcfg:"threhsold"`
+		Interval  int64    `gcfg:"interval"`
+		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
-		Url            string   `gcfg:"url"`
+		Enable         bool     `gcfg:"enable"`
+		Groups         []string `gcfg:"group"`
+		UrlOpen        string   `gcfg:"url"`
+		UrlClose       string   `gcfg:"url-delete"`
+		MethodOpen     string   `gcfg:"method"`
+		MethodClose    string   `gcfg:"method-delete"`
 		Interval       int64    `gcfg:"interval"`
 		Extras         []string `gcfg:"extra"`
-		TemplatePost   string   `gcfg:"template-post"`
-		TemplateDelete string   `gcfg:"template-delete"`
-		SendDelete     bool     `gcfg:"send-delete"`
+		TemplateOpen   string   `gcfg:"template-post"`
+		TemplateClose  string   `gcfg:"template-delete"`
+		SendClose      bool     `gcfg:"send-delete"`
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+	}
+	Slacknotifier struct {
+		Enable    bool     `gcfg:"enable"`
+		Groups    []string `gcfg:"group"`
+		Url       string   `gcfg:"url"`
+		Interval  int64    `gcfg:"interval"`
+		Channel   string   `gcfg:"channel"`
+		Username  string   `gcfg:"username"`
+		IconUrl   string   `gcfg:"icon-url"`
+		IconEmoji string   `gfcg:"icon-emoji"`
+		Threshold int      `gcfg:"threshold"`
+		Timeout   int      `gcfg:"timeout"`
+		Keepalive int      `gcfg:"keepalive"`
 	}
 	Clientprofile map[string]*ClientProfile
 }
@@ -107,7 +135,9 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	var cfg BurrowConfig
 
 	// Set some non-standard defaults
-	cfg.Httpnotifier.SendDelete = true
+	cfg.Httpnotifier.MethodOpen = "POST"
+	cfg.Httpnotifier.SendClose = true
+	cfg.Httpnotifier.MethodClose = "DELETE"
 
 	err := gcfg.ReadFileInto(&cfg, cfgFile)
 	if err != nil {
@@ -268,11 +298,15 @@ func ValidateConfig(app *ApplicationContext) error {
 					errs = append(errs, hostlistError)
 				}
 			}
-			if cfg.ZookeeperPath == "" {
-				errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
+			if len(cfg.ZookeeperPath) == 0 {
+				errs = append(errs, fmt.Sprintf("No Zookeeper paths specified for cluster %s", cluster))
 			} else {
-				if !validateZookeeperPath(cfg.ZookeeperPath) {
-					errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
+				for _, zkpath := range cfg.ZookeeperPath {
+					if zkpath == "" {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not specified for cluster %s", cluster))
+					} else if !validateZookeeperPath(zkpath) {
+						errs = append(errs, fmt.Sprintf("Zookeeper path is not valid for cluster %s", cluster))
+					}
 				}
 			}
 		}
@@ -308,9 +342,22 @@ func ValidateConfig(app *ApplicationContext) error {
 
 	// HTTP Server
 	if app.Config.Httpserver.Enable {
-		if app.Config.Httpserver.Port == 0 {
-			errs = append(errs, "HTTP server port is not specified")
+		if len(app.Config.Httpserver.Listen) == 0 {
+			if app.Config.Httpserver.Port == 0 {
+				errs = append(errs, "HTTP server port is not specified")
+			}
+			listenPort := fmt.Sprintf(":%v", app.Config.Httpserver.Port)
+			app.Config.Httpserver.Listen = append(app.Config.Httpserver.Listen, listenPort)
+		} else {
+			if app.Config.Httpserver.Port != 0 {
+				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
+			}
 		}
+	}
+
+	// Notify
+	if app.Config.Notify.Interval == 0 {
+		app.Config.Notify.Interval = 10
 	}
 
 	// SMTP server config
@@ -342,7 +389,7 @@ func ValidateConfig(app *ApplicationContext) error {
 		// Username and password are not validated - they're optional
 
 		// Email configs
-		for email, cfg := range app.Config.Email {
+		for email, cfg := range app.Config.Emailnotifier {
 			if !validateEmail(email) {
 				errs = append(errs, "Email address is invalid")
 			}
@@ -368,38 +415,36 @@ func ValidateConfig(app *ApplicationContext) error {
 			if cfg.Interval == 0 {
 				errs = append(errs, "Email notification interval is not specified")
 			}
-			if cfg.Threshold == "" {
-				cfg.Threshold = "WARNING"
-			} else {
-				// Upcase the threshold
-				cfg.Threshold = strings.ToUpper(cfg.Threshold)
-				if (cfg.Threshold != "WARNING") && (cfg.Threshold != "ERROR") {
-					errs = append(errs, "Email notification threshold is invalid (must be WARNING or ERROR)")
-				}
-			}
 		}
 	} else {
-		if len(app.Config.Email) > 0 {
+		if len(app.Config.Emailnotifier) > 0 {
 			errs = append(errs, "Email notifications are configured, but SMTP server is not configured")
 		}
 	}
 
 	// HTTP Notifier config
-	if app.Config.Httpnotifier.Url != "" {
-		if !validateUrl(app.Config.Httpnotifier.Url) {
+	if app.Config.Httpnotifier.UrlOpen != "" {
+		if !validateUrl(app.Config.Httpnotifier.UrlOpen) {
 			errs = append(errs, "HTTP notifier URL is invalid")
 		}
-		if app.Config.Httpnotifier.TemplatePost == "" {
-			app.Config.Httpnotifier.TemplatePost = "config/default-http-post.tmpl"
+		if app.Config.Httpnotifier.TemplateOpen == "" {
+			app.Config.Httpnotifier.TemplateOpen = "config/default-http-post.tmpl"
 		}
-		if _, err := os.Stat(app.Config.Httpnotifier.TemplatePost); os.IsNotExist(err) {
-			errs = append(errs, "HTTP notifier POST template file does not exist")
+		if _, err := os.Stat(app.Config.Httpnotifier.TemplateOpen); os.IsNotExist(err) {
+			errs = append(errs, "HTTP notifier template file does not exist")
 		}
-		if app.Config.Httpnotifier.TemplateDelete == "" {
-			app.Config.Httpnotifier.TemplateDelete = "config/default-http-delete.tmpl"
+		if app.Config.Httpnotifier.TemplateClose == "" {
+			app.Config.Httpnotifier.TemplateClose = "config/default-http-delete.tmpl"
 		}
-		if _, err := os.Stat(app.Config.Httpnotifier.TemplateDelete); os.IsNotExist(err) {
-			errs = append(errs, "HTTP notifier DELETE template file does not exist")
+		if app.Config.Httpnotifier.UrlClose == "" {
+			app.Config.Httpnotifier.UrlClose = app.Config.Httpnotifier.UrlOpen
+		} else {
+			if !validateUrl(app.Config.Httpnotifier.UrlClose) {
+				errs = append(errs, "HTTP notifier close URL is invalid")
+			}
+		}
+		if _, err := os.Stat(app.Config.Httpnotifier.TemplateClose); os.IsNotExist(err) {
+			errs = append(errs, "HTTP notifier close template file does not exist")
 		}
 		if app.Config.Httpnotifier.PostThreshold == 0 {
 			app.Config.Httpnotifier.PostThreshold = 2
@@ -416,6 +461,25 @@ func ValidateConfig(app *ApplicationContext) error {
 				errs = append(errs, "One or more HTTP notifier extra fields are invalid")
 				break
 			}
+		}
+	}
+
+	// Slack Notifier config
+	if app.Config.Slacknotifier.Url != "" {
+		if !validateUrl(app.Config.Slacknotifier.Url) {
+			errs = append(errs, "Slack notifier URL is invalid")
+		}
+		if app.Config.Slacknotifier.Channel == "" {
+			app.Config.Slacknotifier.Channel = "#general"
+		}
+		if app.Config.Slacknotifier.Username == "" {
+			app.Config.Slacknotifier.Username = "Burrower"
+		}
+		if app.Config.Slacknotifier.IconUrl == "" {
+			app.Config.Slacknotifier.IconUrl = "https://slack.com/img/icons/app-57.png"
+		}
+		if app.Config.Slacknotifier.IconEmoji == "" {
+			app.Config.Slacknotifier.IconEmoji = ":ghost:"
 		}
 	}
 
@@ -462,7 +526,7 @@ func validateZookeeperPath(path string) bool {
 }
 
 func validateTopic(topic string) bool {
-	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-]+$`, topic)
+	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\.-]+$`, topic)
 	return matches
 }
 

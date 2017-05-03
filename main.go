@@ -37,68 +37,8 @@ type ApplicationContext struct {
 	Clusters     map[string]*KafkaCluster
 	Storms       map[string]*StormCluster
 	Server       *HttpServer
-	Emailer      *Emailer
-	HttpNotifier *HttpNotifier
+	NotifyCenter *NotifyCenter
 	NotifierLock *zk.Lock
-}
-
-func loadNotifiers(app *ApplicationContext) error {
-	// Set up the Emailer, if configured
-	if len(app.Config.Email) > 0 {
-		log.Info("Configuring Email notifier")
-		emailer, err := NewEmailer(app)
-		if err != nil {
-			log.Criticalf("Cannot configure email notifier: %v", err)
-			return err
-		}
-		app.Emailer = emailer
-	}
-
-	// Set up the HTTP Notifier, if configured
-	if app.Config.Httpnotifier.Url != "" {
-		log.Info("Configuring HTTP notifier")
-		httpnotifier, err := NewHttpNotifier(app)
-		if err != nil {
-			log.Criticalf("Cannot configure HTTP notifier: %v", err)
-			return err
-		}
-		app.HttpNotifier = httpnotifier
-	}
-
-	return nil
-}
-
-func startNotifiers(app *ApplicationContext) {
-	// Do not proceed until we get the Zookeeper lock
-	err := app.NotifierLock.Lock()
-	if err != nil {
-		log.Criticalf("Cannot get ZK notifier lock: %v", err)
-		os.Exit(1)
-	}
-	log.Info("Acquired Zookeeper notifier lock")
-
-	if app.Emailer != nil {
-		log.Info("Starting Email notifier")
-		app.Emailer.Start()
-	}
-	if app.HttpNotifier != nil {
-		log.Info("Starting HTTP notifier")
-		app.HttpNotifier.Start()
-	}
-}
-
-func stopNotifiers(app *ApplicationContext) {
-	// Ignore errors on unlock - we're quitting anyways, and it might not be locked
-	app.NotifierLock.Unlock()
-
-	if app.Emailer != nil {
-		log.Info("Stopping Email notifier")
-		app.Emailer.Stop()
-	}
-	if app.HttpNotifier != nil {
-		log.Info("Stopping HTTP notifier")
-		app.HttpNotifier.Stop()
-	}
 }
 
 // Why two mains? Golang doesn't let main() return, which means defers will not run.
@@ -120,8 +60,10 @@ func burrowMain() int {
 	createPidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
 	defer removePidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
 
-	// Set up stderr/stdout to go to a separate log file
-	openOutLog(appContext.Config.General.LogDir + "/burrow.out")
+	// Set up stderr/stdout to go to a separate log file, if enabled
+	if appContext.Config.General.StdoutLogfile != "" {
+		openOutLog(appContext.Config.General.LogDir + "/" + appContext.Config.General.StdoutLogfile)
+	}
 	fmt.Println("Started Burrow at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
 
 	// If a logging config is specified, replace the existing loggers
@@ -196,15 +138,15 @@ func burrowMain() int {
 	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, zk.WorldACL(zk.PermAll))
 
 	// Load the notifiers, but do not start them
-	err = loadNotifiers(appContext)
+	err = LoadNotifiers(appContext)
 	if err != nil {
 		// Error was already logged
 		return 1
 	}
 
 	// Notifiers are started in a goroutine if we get the ZK lock
-	go startNotifiers(appContext)
-	defer stopNotifiers(appContext)
+	go StartNotifiers(appContext)
+	defer StopNotifiers(appContext)
 
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)

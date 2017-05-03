@@ -20,16 +20,36 @@ If you have not yet installed the [Go Package Manager](https://github.com/pote/g
 
 ### Build and Install
 ```
-$ go get github.com/linkedin/burrow
-$ cd $GOPATH/src/github.com/linkedin/burrow
+$ go get github.com/linkedin/Burrow
+$ cd $GOPATH/src/github.com/linkedin/Burrow
 $ gpm install
 $ go install
 ```
 
 ### Running Burrow
 ```
-$ $GOPATH/bin/burrow --config path/to/burrow.cfg
+$ $GOPATH/bin/Burrow --config path/to/burrow.cfg
 ```
+
+### Using Docker
+A Docker file is available which builds this project on top of an Alpine Linux image.
+To use it, build your docker container, mount your Burrow configuration into `/etc/burrow` and run docker.
+
+A [Docker Compose](https://docs.docker.com/compose/) is also available for quick and easy development.
+
+Install Docker Compose and then:
+
+1. Build the docker container:
+   ```
+   docker-compose build
+   ```
+
+2. Run the docker compose stack which includes kafka and zookeeper:
+   ```
+   docker-compose down; docker-compose up
+   ```
+
+3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v2/kafka`
 
 ### Configuration
 For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)

@@ -12,6 +12,7 @@ package main
 
 import (
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 	"math/rand"
 	"strconv"
@@ -89,7 +90,7 @@ func (zkClient *ZookeeperClient) refreshConsumerGroups() {
 	// Check for new groups, mark existing groups true
 	for _, consumerGroup := range consumerGroups {
 		// Don't bother adding groups in the blacklist
-		if (zkClient.app.Storage.groupBlacklist != nil) && zkClient.app.Storage.groupBlacklist.MatchString(consumerGroup) {
+		if !zkClient.app.Storage.AcceptConsumerGroup(consumerGroup) {
 			continue
 		}
 
@@ -181,7 +182,7 @@ func (zkClient *ZookeeperClient) getOffsetForPartition(consumerGroup string, top
 		return
 	}
 
-	partitionOffset := &PartitionOffset{
+	partitionOffset := &protocol.PartitionOffset{
 		Cluster:   zkClient.cluster,
 		Topic:     topic,
 		Partition: int32(partitionNum),

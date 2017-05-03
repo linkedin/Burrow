@@ -12,11 +12,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/linkedin/Burrow/protocol"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"net"
+	"time"
+	log "github.com/cihub/seelog"
 )
 
 type HttpServer struct {
@@ -27,6 +30,25 @@ type HttpServer struct {
 type appHandler struct {
 	app     *ApplicationContext
 	handler func(*ApplicationContext, http.ResponseWriter, *http.Request) (int, string)
+}
+
+
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
 
 func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
@@ -47,7 +69,27 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 	server.mux.Handle("/v2/zookeeper", appHandler{server.app, handleClusterList})
 	// server.mux.Handle("/v2/zookeeper/", appHandler{server.app, handleZookeeper})
 
-	go http.ListenAndServe(fmt.Sprintf(":%v", server.app.Config.Httpserver.Port), server.mux)
+	listeners := make([]net.Listener, 0, len(server.app.Config.Httpserver.Listen))
+
+	for _, listenAddress := range server.app.Config.Httpserver.Listen {
+		ln, err := net.Listen("tcp", listenAddress)
+		if err != nil {
+			for _, listenerToClose := range listeners {
+				closeErr := listenerToClose.Close()
+				if closeErr != nil {
+					log.Errorf("Could not close listener: %v", closeErr)
+				}
+			}
+			return nil, err
+		}
+		listeners = append(listeners, tcpKeepAliveListener{ln.(*net.TCPListener)})
+	}
+
+	httpServer := &http.Server{Handler: server.mux}
+	for _, listener := range listeners {
+		go httpServer.Serve(listener)
+	}
+
 	return server, nil
 }
 
@@ -136,10 +178,10 @@ type HTTPResponseConsumerList struct {
 	Request   HTTPResponseRequestInfo `json:"request"`
 }
 type HTTPResponseConsumerStatus struct {
-	Error   bool                    `json:"error"`
-	Message string                  `json:"message"`
-	Status  ConsumerGroupStatus     `json:"status"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Error   bool                         `json:"error"`
+	Message string                       `json:"message"`
+	Status  protocol.ConsumerGroupStatus `json:"status"`
+	Request HTTPResponseRequestInfo      `json:"request"`
 }
 
 func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
@@ -360,10 +402,10 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 }
 
 func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, showall bool) (int, string) {
-	storageRequest := &RequestConsumerStatus{Result: make(chan *ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
+	storageRequest := &RequestConsumerStatus{Result: make(chan *protocol.ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
-	if result.Status == StatusNotFound {
+	if result.Status == protocol.StatusNotFound {
 		return makeErrorResponse(http.StatusNotFound, "consumer group not found", w, r)
 	}
 
@@ -384,10 +426,10 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *htt
 }
 
 func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
-	storageRequest := &RequestConsumerDrop{Result: make(chan StatusConstant), Cluster: cluster, Group: group}
+	storageRequest := &RequestConsumerDrop{Result: make(chan protocol.StatusConstant), Cluster: cluster, Group: group}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
-	if result == StatusNotFound {
+	if result == protocol.StatusNotFound {
 		return makeErrorResponse(http.StatusNotFound, "consumer group not found", w, r)
 	}
 

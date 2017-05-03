@@ -13,10 +13,13 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"encoding/binary"
 	"errors"
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 	"sync"
 	"time"
 )
@@ -49,7 +52,25 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	profile := app.Config.Clientprofile[app.Config.Kafka[cluster].Clientprofile]
 	clientConfig.ClientID = profile.ClientID
 	clientConfig.Net.TLS.Enable = profile.TLS
-	clientConfig.Net.TLS.Config = &tls.Config{}
+	if profile.TLSCertFilePath == "" || profile.TLSKeyFilePath == "" || profile.TLSCAFilePath == "" {
+		clientConfig.Net.TLS.Config = &tls.Config{}
+	} else {
+		caCert, err := ioutil.ReadFile(profile.TLSCAFilePath)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := tls.LoadX509KeyPair(profile.TLSCertFilePath, profile.TLSKeyFilePath)
+		if err != nil {
+			return nil, err
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		clientConfig.Net.TLS.Config = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			RootCAs: caCertPool,
+		}
+		clientConfig.Net.TLS.Config.BuildNameToCertificate()
+	}
 	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
 
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
@@ -161,7 +182,7 @@ func (client *KafkaClient) Stop() {
 }
 
 // Send the offset on the specified channel, but wait no more than maxTime seconds to do so
-func timeoutSendOffset(offsetChannel chan *PartitionOffset, offset *PartitionOffset, maxTime int) {
+func timeoutSendOffset(offsetChannel chan *protocol.PartitionOffset, offset *protocol.PartitionOffset, maxTime int) {
 	timeout := time.After(time.Duration(maxTime) * time.Second)
 	select {
 	case offsetChannel <- offset:
@@ -216,7 +237,7 @@ func (client *KafkaClient) getOffsets() error {
 					log.Warnf("Error in OffsetResponse for %s:%v from broker %v: %s", topic, partition, brokerID, offsetResponse.Err.Error())
 					continue
 				}
-				offset := &PartitionOffset{
+				offset := &protocol.PartitionOffset{
 					Cluster:             client.cluster,
 					Topic:               topic,
 					Partition:           partition,
@@ -329,7 +350,7 @@ func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	}
 
 	// fmt.Printf("[%s,%s,%v]::OffsetAndMetadata[%v,%s,%v]\n", group, topic, partition, offset, metadata, timestamp)
-	partitionOffset := &PartitionOffset{
+	partitionOffset := &protocol.PartitionOffset{
 		Cluster:   client.cluster,
 		Topic:     topic,
 		Partition: int32(partition),
