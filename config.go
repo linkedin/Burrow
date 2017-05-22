@@ -31,6 +31,10 @@ type ClientProfile struct {
 	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
 	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
 	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
+	SASLEnable	bool	`gcfg:"sasl-enable"`
+	SASLHandshake	bool	`gcfg:"sasl-handshake"`
+	SASLUser	string	`gcfg:"sasl-username"`
+	SASLPassword	string	`gcfg:"sasl-password"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -212,7 +216,8 @@ func ValidateConfig(app *ApplicationContext) error {
 	if _, ok := app.Config.Clientprofile["default"]; !ok {
 		app.Config.Clientprofile["default"] = &ClientProfile{
 			ClientID: app.Config.General.ClientID,
-			TLS:      false,
+			TLS:      	false,
+			SASLEnable:	false,
 		}
 	}
 
