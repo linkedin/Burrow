@@ -13,13 +13,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type KafkaCluster struct {
@@ -37,6 +38,7 @@ type ApplicationContext struct {
 	Clusters     map[string]*KafkaCluster
 	Storms       map[string]*StormCluster
 	Server       *HttpServer
+	Emitor       *Emiter
 	NotifyCenter *NotifyCenter
 	NotifierLock *zk.Lock
 }
@@ -147,6 +149,13 @@ func burrowMain() int {
 	// Notifiers are started in a goroutine if we get the ZK lock
 	go StartNotifiers(appContext)
 	defer StopNotifiers(appContext)
+
+	// Start the emitors
+	if appContext.Config.Influxdb.Enable {
+		appContext.Emitor = NewEmiter(appContext)
+		go appContext.Emitor.Run()
+		defer appContext.Emitor.Stop()
+	}
 
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)
