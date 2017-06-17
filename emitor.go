@@ -11,7 +11,6 @@ import (
 
 	log "github.com/cihub/seelog"
 	client "github.com/influxdata/influxdb/client/v2"
-	"github.com/sundy-li/burrow_plus/util"
 )
 
 type Emiter struct {
@@ -218,7 +217,7 @@ func (e *Emiter) fetch() error {
 		//get all consumers
 		log.Debug("fetching cluster =>", cluster)
 		consumerResp := &ConsumerResp{}
-		err = util.HttpGetAndResp(apiUrl+"/v2/kafka/"+cluster+"/consumer", consumerResp)
+		err = httpGetAndResp(apiUrl+"/v2/kafka/"+cluster+"/consumer", consumerResp)
 		if err != nil {
 			log.Debug("error in fetch consumers", err.Error())
 			continue
@@ -231,7 +230,7 @@ func (e *Emiter) fetch() error {
 		//fetch offset and lags for one consumer
 		for _, consumer := range consumerResp.Consumers {
 			metric := &ConsumerMetric{}
-			err = util.HttpGetAndResp(apiUrl+"/v2/kafka/"+cluster+"/consumer/"+consumer+"/lag", metric)
+			err = httpGetAndResp(apiUrl+"/v2/kafka/"+cluster+"/consumer/"+consumer+"/lag", metric)
 			if err != nil {
 				log.Debug("error in fetch consumer lags", err.Error())
 				continue
