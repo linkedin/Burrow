@@ -1,0 +1,11 @@
+director: camilo
+owners:
+  - Sam Obeid
+  - Shopify/datadelivery
+security:
+  data_management:
+    contains_pii: false
+production:
+  classification: tier-shared
+staging:
+  classification: tierstaging
