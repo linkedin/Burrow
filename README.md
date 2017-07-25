@@ -16,13 +16,13 @@ Burrow is a monitoring companion for [Apache Kafka](http://kafka.apache.org) tha
 ### Prerequisites
 Burrow is written in Go, so before you get started, you should [install and set up Go](https://golang.org/doc/install).
 
-If you have not yet installed the [Go Package Manager](https://github.com/pote/gpm), please go over there and follow their short installation instructions. GPM is used to automatically pull in the dependencies for Burrow so you don't have to chase them all down.
+If you have not yet installed [Dep](https://github.com/golang/dep), please go over there and follow their short installation instructions. Dep is used to automatically pull in the dependencies for Burrow so you don't have to chase them all down.
 
 ### Build and Install
 ```
 $ go get github.com/linkedin/Burrow
 $ cd $GOPATH/src/github.com/linkedin/Burrow
-$ gpm install
+$ dep ensure
 $ go install
 ```
 
