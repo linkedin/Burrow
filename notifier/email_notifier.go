@@ -72,9 +72,14 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 			emailer.groupMsgs[clusterGroup] = msg
 		}
 	}
-	if len(emailer.Groups) == len(emailer.groupMsgs) {
-		return emailer.sendConsumerGroupStatusNotify()
-	}
+  if emailer.OnSingleFail == true {
+		if len(emailer.groupMsgs) > 0 {
+			return emailer.sendConsumerGroupStatusNotify()
+		}
+		} else {
+			if len(emailer.Groups) == len(emailer.groupMsgs) {
+				return emailer.sendConsumerGroupStatusNotify()
+		}
 	return nil
 }
 
@@ -86,7 +91,7 @@ func (emailer *EmailNotifier) sendConsumerGroupStatusNotify() error {
 	var bytesToSend bytes.Buffer
 	log.Debug("send email")
 
-	msgs := make([]Message, len(emailer.Groups))
+	msgs := make([]Message, len(emailer.groupMsgs))
 	i := 0
 	for group, msg := range emailer.groupMsgs {
 		msgs[i] = msg

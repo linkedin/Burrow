@@ -41,12 +41,21 @@ type ApplicationContext struct {
 	NotifierLock *zk.Lock
 }
 
+var version string
+
 // Why two mains? Golang doesn't let main() return, which means defers will not run.
 // So we do everything in a separate main, that way we can easily exit out with an error code and still run defers
 func burrowMain() int {
-	// The only command line arg is the config file
 	var cfgfile = flag.String("config", "burrow.cfg", "Full path to the configuration file")
+	var show_version = flag.Bool("version", false, "show burrow version")
 	flag.Parse()
+
+	if *show_version {
+		if len(version) != 0 {
+			fmt.Println("Burrow " + version)
+		}
+		os.Exit(0)
+	}
 
 	// Load and validate the configuration
 	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
@@ -160,7 +169,6 @@ func burrowMain() int {
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	rv := burrowMain()
 	if rv != 0 {
 		fmt.Println("Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))

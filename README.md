@@ -23,7 +23,7 @@ If you have not yet installed the [Go Package Manager](https://github.com/pote/g
 $ go get github.com/linkedin/Burrow
 $ cd $GOPATH/src/github.com/linkedin/Burrow
 $ gpm install
-$ go install
+$ go install -ldflags "-X main.version=`cat ./VERSION`"
 ```
 
 ### Running Burrow
@@ -60,4 +60,3 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied.
-

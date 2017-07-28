@@ -1,3 +1,10 @@
+## 0.1.1-jm
+Features:
+  - Added support for sending notification emails when a single topic fails.
+  - Moved notification email address to `to` configuration item.
+  - Notification email is no longer used a key.
+  - Added `--version` command line argument.
+
 ## X.Y.Z (TBD)
 
 Features:
@@ -19,4 +26,3 @@ Bugfixes:
 ## 0.1.0 (2015-10-07)
 
 Initial version release
-
