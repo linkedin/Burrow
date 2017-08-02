@@ -12,8 +12,8 @@ package main
 
 import (
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/notifier"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/jeffmontagna/Burrow/notifier"
+	"github.com/jeffmontagna/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"

@@ -29,6 +29,7 @@ type EmailNotifier struct {
 	AuthType     string
 	From         string
 	To           string
+	OnSingleFail bool
 	Groups       []string
 	auth         smtp.Auth
 	template     *template.Template
@@ -72,7 +73,7 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 			emailer.groupMsgs[clusterGroup] = msg
 		}
 	}
-  if emailer.OnSingleFail == true {
+	if emailer.OnSingleFail == true {
 		if len(emailer.groupMsgs) > 0 {
 			return emailer.sendConsumerGroupStatusNotify()
 		}
@@ -80,6 +81,7 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 			if len(emailer.Groups) == len(emailer.groupMsgs) {
 				return emailer.sendConsumerGroupStatusNotify()
 		}
+	}
 	return nil
 }
 
