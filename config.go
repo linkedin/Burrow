@@ -97,8 +97,8 @@ type BurrowConfig struct {
 		Groups    []string `gcfg:"group"`
 		Interval  int64    `gcfg:"interval"`
 		Threshold int      `gcfg:"threshold"`
-    To        string   `gcfg:"to"`
-    OnSingleFail bool  `gcfg:"on-single-fail"`
+		To        string   `gcfg:"to"`
+		OnSingleFail bool  `gcfg:"on-single-fail"`
 	}
 	Httpnotifier struct {
 		Enable         bool     `gcfg:"enable"`
