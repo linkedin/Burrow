@@ -185,6 +185,7 @@ func (storage *OffsetStorage) addBrokerOffset(offset *protocol.PartitionOffset) 
 		partitionEntry.Timestamp = offset.Timestamp
 	}
 
+	clusterMap.broker[offset.Topic] = topicList
 	clusterMap.brokerLock.Unlock()
 }
 
