@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"github.com/Shopify/sarama"
 )
 
 // Configuration definition
@@ -57,6 +58,7 @@ type BurrowConfig struct {
 		OffsetsTopic  string   `gcfg:"offsets-topic"`
 		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
 		Clientprofile string   `gcfg:"client-profile"`
+		KafkaVersion  string   `gcfg:"kafka-version"`
 	}
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
@@ -128,6 +130,29 @@ type BurrowConfig struct {
 		Keepalive int      `gcfg:"keepalive"`
 	}
 	Clientprofile map[string]*ClientProfile
+}
+
+func (cfg *BurrowConfig) ToSaramaKafkaVersion(cluster string) sarama.KafkaVersion {
+	switch(cfg.Kafka[cluster].KafkaVersion) {
+	case "0.8.2.0":
+		return sarama.V0_8_2_0
+	case "0.8.2.1":
+		return sarama.V0_8_2_1
+	case "0.8.2.2":
+		return sarama.V0_8_2_2
+	case "0.9.0.0":
+		return sarama.V0_9_0_0
+	case "0.9.0.1":
+		return sarama.V0_9_0_1
+	case "0.10.0.0":
+		return sarama.V0_10_0_0
+	case "0.10.0.1":
+		return sarama.V0_10_0_1
+	case "0.10.1.0":
+		return sarama.V0_10_1_0
+	default:
+		return sarama.V0_8_2_0
+	}
 }
 
 func ReadConfig(cfgFile string) *BurrowConfig {
@@ -234,6 +259,14 @@ func ValidateConfig(app *ApplicationContext) error {
 		if cfg.BrokerPort == 0 {
 			cfg.BrokerPort = 9092
 		}
+
+		if len(cfg.KafkaVersion) == 0 {
+			cfg.KafkaVersion = "0.8.2.0"
+		}
+		if !validateKafkaVersion(cfg.KafkaVersion) {
+			errs = append(errs, fmt.Sprint("Kafka Version %s is invalid should be in the format similar to 0.9.1"))
+		}
+
 		if len(cfg.Brokers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Kafka brokers specified for cluster %s", cluster))
 		} else {
@@ -498,6 +531,14 @@ func validateHostname(hostname string) bool {
 		return validateIP(hostname)
 	}
 	return matches
+}
+
+func validateKafkaVersion(version string) bool {
+	if parts := strings.Split(version, "."); len(parts) != 4 {
+		return false
+	}
+
+	return true
 }
 
 func validateZookeeperPath(path string) bool {
