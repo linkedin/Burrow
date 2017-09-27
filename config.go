@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"github.com/Shopify/sarama"
 	"code.google.com/p/gcfg"
 )
 
