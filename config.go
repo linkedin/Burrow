@@ -13,6 +13,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/gcfg.v1"
 	"log"
 	"net"
 	"net/url"
@@ -20,7 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"gopkg.in/gcfg.v1"
+	"github.com/Shopify/sarama"
 )
 
 // Configuration definition
@@ -34,20 +35,20 @@ type ClientProfile struct {
 }
 type BurrowConfig struct {
 	General struct {
-		LogDir         string `gcfg:"logdir"`
-		LogConfig      string `gcfg:"logconfig"`
-		PIDFile        string `gcfg:"pidfile"`
-		ClientID       string `gcfg:"client-id"`
-		GroupBlacklist string `gcfg:"group-blacklist"`
-		GroupWhitelist string `gcfg:"group-whitelist"`
-		StdoutLogfile  string `gcfg:"stdout-logfile"`
-	}
+			LogDir         string `gcfg:"logdir"`
+			LogConfig      string `gcfg:"logconfig"`
+			PIDFile        string `gcfg:"pidfile"`
+			ClientID       string `gcfg:"client-id"`
+			GroupBlacklist string `gcfg:"group-blacklist"`
+			GroupWhitelist string `gcfg:"group-whitelist"`
+			StdoutLogfile  string `gcfg:"stdout-logfile"`
+		}
 	Zookeeper struct {
-		Hosts    []string `gcfg:"hostname"`
-		Port     int      `gcfg:"port"`
-		Timeout  int      `gcfg:"timeout"`
-		LockPath string   `gcfg:"lock-path"`
-	}
+			Hosts    []string `gcfg:"hostname"`
+			Port     int      `gcfg:"port"`
+			Timeout  int      `gcfg:"timeout"`
+			LockPath string   `gcfg:"lock-path"`
+		}
 	Kafka map[string]*struct {
 		Brokers       []string `gcfg:"broker"`
 		BrokerPort    int      `gcfg:"broker-port"`
@@ -65,34 +66,34 @@ type BurrowConfig struct {
 		ZookeeperPath []string `gcfg:"zookeeper-path"`
 	}
 	Tickers struct {
-		BrokerOffsets int `gcfg:"broker-offsets"`
-	}
+			BrokerOffsets int `gcfg:"broker-offsets"`
+		}
 	Lagcheck struct {
-		Intervals         int   `gcfg:"intervals"`
-		MinDistance       int64 `gcfg:"min-distance"`
-		ExpireGroup       int64 `gcfg:"expire-group"`
-		ZKCheck           int64 `gcfg:"zookeeper-interval"`
-		ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
-		StormCheck        int64 `gcfg:"storm-interval"`
-		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
-	}
+			Intervals         int   `gcfg:"intervals"`
+			MinDistance       int64 `gcfg:"min-distance"`
+			ExpireGroup       int64 `gcfg:"expire-group"`
+			ZKCheck           int64 `gcfg:"zookeeper-interval"`
+			ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
+			StormCheck        int64 `gcfg:"storm-interval"`
+			StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
+		}
 	Httpserver struct {
-		Enable bool `gcfg:"server"`
-		Port   int  `gcfg:"port"`
-		Listen []string `gcfg:"listen"`
-	}
+			Enable bool `gcfg:"server"`
+			Port   int  `gcfg:"port"`
+			Listen []string `gcfg:"listen"`
+		}
 	Notify struct {
-		Interval int64 `gcfg:"interval"`
-	}
+			Interval int64 `gcfg:"interval"`
+		}
 	Smtp struct {
-		Server   string `gcfg:"server"`
-		Port     int    `gcfg:"port"`
-		AuthType string `gcfg:"auth-type"`
-		Username string `gcfg:"username"`
-		Password string `gcfg:"password"`
-		From     string `gcfg:"from"`
-		Template string `gcfg:"template"`
-	}
+			Server   string `gcfg:"server"`
+			Port     int    `gcfg:"port"`
+			AuthType string `gcfg:"auth-type"`
+			Username string `gcfg:"username"`
+			Password string `gcfg:"password"`
+			From     string `gcfg:"from"`
+			Template string `gcfg:"template"`
+		}
 	Emailnotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
@@ -100,101 +101,57 @@ type BurrowConfig struct {
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
-		Enable         bool     `gcfg:"enable"`
-		Groups         []string `gcfg:"group"`
-		UrlOpen        string   `gcfg:"url"`
-		UrlClose       string   `gcfg:"url-delete"`
-		MethodOpen     string   `gcfg:"method"`
-		MethodClose    string   `gcfg:"method-delete"`
-		Interval       int64    `gcfg:"interval"`
-		Extras         []string `gcfg:"extra"`
-		TemplateOpen   string   `gcfg:"template-post"`
-		TemplateClose  string   `gcfg:"template-delete"`
-		SendClose      bool     `gcfg:"send-delete"`
-		PostThreshold  int      `gcfg:"post-threshold"`
-		Timeout        int      `gcfg:"timeout"`
-		Keepalive      int      `gcfg:"keepalive"`
-	}
+			Enable         bool     `gcfg:"enable"`
+			Groups         []string `gcfg:"group"`
+			UrlOpen        string   `gcfg:"url"`
+			UrlClose       string   `gcfg:"url-delete"`
+			MethodOpen     string   `gcfg:"method"`
+			MethodClose    string   `gcfg:"method-delete"`
+			Interval       int64    `gcfg:"interval"`
+			Extras         []string `gcfg:"extra"`
+			TemplateOpen   string   `gcfg:"template-post"`
+			TemplateClose  string   `gcfg:"template-delete"`
+			SendClose      bool     `gcfg:"send-delete"`
+			PostThreshold  int      `gcfg:"post-threshold"`
+			Timeout        int      `gcfg:"timeout"`
+			Keepalive      int      `gcfg:"keepalive"`
+		}
 	Slacknotifier struct {
-		Enable    bool     `gcfg:"enable"`
-		Groups    []string `gcfg:"group"`
-		Url       string   `gcfg:"url"`
-		Interval  int64    `gcfg:"interval"`
-		Channel   string   `gcfg:"channel"`
-		Username  string   `gcfg:"username"`
-		IconUrl   string   `gcfg:"icon-url"`
-		IconEmoji string   `gfcg:"icon-emoji"`
-		Threshold int      `gcfg:"threshold"`
-		Timeout   int      `gcfg:"timeout"`
-		Keepalive int      `gcfg:"keepalive"`
-	}
+			Enable    bool     `gcfg:"enable"`
+			Groups    []string `gcfg:"group"`
+			Url       string   `gcfg:"url"`
+			Interval  int64    `gcfg:"interval"`
+			Channel   string   `gcfg:"channel"`
+			Username  string   `gcfg:"username"`
+			IconUrl   string   `gcfg:"icon-url"`
+			IconEmoji string   `gfcg:"icon-emoji"`
+			Threshold int      `gcfg:"threshold"`
+			Timeout   int      `gcfg:"timeout"`
+			Keepalive int      `gcfg:"keepalive"`
+		}
 	Clientprofile map[string]*ClientProfile
 }
 
-// KafkaVersion helps to identify the version that the kafka brokers are running to check for protocol compatibility
-type KafkaVersion struct {
-	// it's a struct rather than just typing the array directly to make it opaque and stop people
-	// generating their own arbitrary versions
-	version [4]uint
-}
-
-func newKafkaVersion(major, minor, veryMinor, patch uint) KafkaVersion {
-	return KafkaVersion{
-		version: [4]uint{major, minor, veryMinor, patch},
-	}
-}
-
-// IsAtLeast return true if and only if the version it is called on is
-// greater than or equal to the version passed in:
-//    V1.IsAtLeast(V2) // false
-//    V2.IsAtLeast(V1) // true
-func (v KafkaVersion) IsAtLeast(other KafkaVersion) {
-	for i := range v.version {
-		if v.version[i] > other.version[i] {
-			return true
-		} else if v.version[i] < other.version[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// Effective constants defining the supported kafka versions.
-var (
-	V0_8_2_0   = newKafkaVersion(0, 8, 2, 0)
-	V0_8_2_1   = newKafkaVersion(0, 8, 2, 1)
-	V0_8_2_2   = newKafkaVersion(0, 8, 2, 2)
-	V0_9_0_0   = newKafkaVersion(0, 9, 0, 0)
-	V0_9_0_1   = newKafkaVersion(0, 9, 0, 1)
-	V0_10_0_0  = newKafkaVersion(0, 10, 0, 0)
-	V0_10_0_1  = newKafkaVersion(0, 10, 0, 1)
-	V0_10_1_0  = newKafkaVersion(0, 10, 1, 0)
-	V0_10_2_0  = newKafkaVersion(0, 10, 2, 0)
-	minVersion = V0_8_2_0
-)
-
-func (cfg *BurrowConfig) ToKafkaVersion(cluster string) KafkaVersion {
+func (cfg *BurrowConfig) ToSaramaKafkaVersion(cluster string) sarama.KafkaVersion {
 	switch(cfg.Kafka[cluster].KafkaVersion) {
 	case "0.8.2.0":
-		return V0_8_2_0
+		return sarama.V0_8_2_0
 	case "0.8.2.1":
-		return V0_8_2_1
+		return sarama.V0_8_2_1
 	case "0.8.2.2":
-		return V0_8_2_2
+		return sarama.V0_8_2_2
 	case "0.9.0.0":
-		return V0_9_0_0
+		return sarama.V0_9_0_0
 	case "0.9.0.1":
-		return V0_9_0_1
+		return sarama.V0_9_0_1
 	case "0.10.0.0":
-		return V0_10_0_0
+		return sarama.V0_10_0_0
 	case "0.10.0.1":
-		return V0_10_0_1
+		return sarama.V0_10_0_1
 	case "0.10.1.0":
-		return V0_10_1_0
-	case "0.10.2.0":
-		return V0_10_2_0
+		return sarama.V0_10_1_0
 	default:
-		return minVersion
+		return sarama.V0_8_2_0
 	}
 }
 

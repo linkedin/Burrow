@@ -370,7 +370,7 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 
 	groupTopicPartitionOwners := make(map[string]map[int32]string)
 	// Annotating owners only works for v 0.9.0.0 and above
-	if storage.app.Config.ToKafkaVersion(cluster).IsAtLeast(V0_9_0_0) {
+	if storage.app.Config.ToSaramaKafkaVersion(cluster).IsAtLeast(sarama.V0_9_0_0) {
 		kCluster, ok := storage.app.Clusters[cluster]
 		if !ok {
 			resultChannel <- status

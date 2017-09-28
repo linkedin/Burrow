@@ -71,7 +71,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 		clientConfig.Net.TLS.Config.BuildNameToCertificate()
 	}
 	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
-	clientConfig.Version = app.Config.ToKafkaVersion(cluster)
+	clientConfig.Version = app.Config.ToSaramaKafkaVersion(cluster)
 
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
 	if err != nil {
