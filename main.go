@@ -19,7 +19,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/toddpalino/Burrow/burrow"
+	"github.com/toddpalino/Burrow/core"
+	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/toddpalino/Burrow/core/configuration"
 )
 
 // exit code handler
@@ -49,27 +51,22 @@ func main() {
 	var cfgfile = flag.String("config", "burrow.cfg", "Full path to the configuration file")
 	flag.Parse()
 
-	// Load and validate the configuration
+	// Load the configuration from the file
 	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
-	appContext := &burrow.ApplicationContext{
-		Configuration: burrow.ReadConfig(*cfgfile),
+	appContext := &protocol.ApplicationContext{
+		Configuration: configuration.ReadConfig(*cfgfile),
 	}
-	if err := burrow.ValidateConfig(appContext); err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot validate configuration: %v", err)
-		panic(Exit{1})
-	}
-
 	// Create the PID file to lock out other processes
-	burrow.CreatePidFile(appContext.Configuration.General.PIDFile)
-	defer burrow.RemovePidFile(appContext.Configuration.General.PIDFile)
+	core.CreatePidFile(appContext.Configuration.General.PIDFile)
+	defer core.RemovePidFile(appContext.Configuration.General.PIDFile)
 
 	// Set up stderr/stdout to go to a separate log file, if enabled
 	if appContext.Configuration.General.StdoutLogfile != "" {
-		burrow.OpenOutLog(appContext.Configuration.General.StdoutLogfile)
+		core.OpenOutLog(appContext.Configuration.General.StdoutLogfile)
 	}
 
 	// Set up the logger
-	appContext.Logger, appContext.LogLevel = burrow.ConfigureLogger(appContext.Configuration)
+	appContext.Logger, appContext.LogLevel = core.ConfigureLogger(appContext.Configuration)
 	defer appContext.Logger.Sync()
 	appContext.Logger.Info("Started Burrow")
 
@@ -78,5 +75,5 @@ func main() {
 	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
 
 	// This triggers handleExit (after other defers), which will then call os.Exit properly
-	panic(Exit{appContext.Start(exitChannel)})
+	panic(Exit{core.Start(appContext, exitChannel)})
 }
