@@ -3,6 +3,7 @@ burrow-src
 !config
 log
 .idea
+Burrow
 Burrow.iml
 tmp
 vendor
