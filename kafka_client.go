@@ -311,12 +311,12 @@ func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 		}
 		topic, err = readString(buf)
 		if err != nil {
-			log.Warnf("Failed to decode %s:%v offset %v: topic", msg.Topic, msg.Partition, msg.Offset)
+			log.Warnf("Failed to decode %s:%v offset %v: topic; group %s", msg.Topic, msg.Partition, msg.Offset, group)
 			return
 		}
 		err = binary.Read(buf, binary.BigEndian, &partition)
 		if err != nil {
-			log.Warnf("Failed to decode %s:%v offset %v: partition", msg.Topic, msg.Partition, msg.Offset)
+			log.Warnf("Failed to decode %s:%v offset %v: partition; group %s topic %s", msg.Topic, msg.Partition, msg.Offset, group, topic)
 			return
 		}
 	case 2:
@@ -330,12 +330,12 @@ func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	buf = bytes.NewBuffer(msg.Value)
 	err = binary.Read(buf, binary.BigEndian, &valver)
 	if (err != nil) || ((valver != 0) && (valver != 1)) {
-		log.Warnf("Failed to decode %s:%v offset %v: valver %v", msg.Topic, msg.Partition, msg.Offset, valver)
+		log.Warnf("Failed to decode %s:%v offset %v: valver %v; group %s topic %s partition %d; err=%s", msg.Topic, msg.Partition, msg.Offset, valver, group, topic, partition)
 		return
 	}
 	err = binary.Read(buf, binary.BigEndian, &offset)
 	if err != nil {
-		log.Warnf("Failed to decode %s:%v offset %v: offset", msg.Topic, msg.Partition, msg.Offset)
+		log.Warnf("Failed to decode %s:%v offset %v: offset; group %s topic %s partition %d; err=%s", msg.Topic, msg.Partition, msg.Offset, valver, group, topic, partition)
 		return
 	}
 	_, err = readString(buf)
