@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func StartCoordinatorModules(modules map[string]protocol.Module) error {

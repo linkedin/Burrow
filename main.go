@@ -19,9 +19,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/toddpalino/Burrow/core"
-	"github.com/toddpalino/Burrow/core/protocol"
-	"github.com/toddpalino/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core"
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 // exit code handler

@@ -18,14 +18,14 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"go.uber.org/zap"
 
-	"github.com/toddpalino/Burrow/core/protocol"
-	"github.com/toddpalino/Burrow/core/storage"
-	"github.com/toddpalino/Burrow/core/cluster"
-	"github.com/toddpalino/Burrow/core/consumer"
-	"github.com/toddpalino/Burrow/core/evaluator"
-	"github.com/toddpalino/Burrow/core/httpserver"
-	"github.com/toddpalino/Burrow/core/notifier"
-	"github.com/toddpalino/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/internal/storage"
+	"github.com/linkedin/Burrow/core/internal/cluster"
+	"github.com/linkedin/Burrow/core/internal/consumer"
+	"github.com/linkedin/Burrow/core/internal/evaluator"
+	"github.com/linkedin/Burrow/core/internal/httpserver"
+	"github.com/linkedin/Burrow/core/internal/notifier"
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 func NewZookeeperClient(app *protocol.ApplicationContext) (*zk.Conn, error) {

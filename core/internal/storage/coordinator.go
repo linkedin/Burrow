@@ -12,10 +12,11 @@ package storage
 
 import (
 	"errors"
+
 	"go.uber.org/zap"
 
-	"github.com/toddpalino/Burrow/core/helpers"
-	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 type OffsetMessage protocol.PartitionOffset

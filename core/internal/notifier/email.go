@@ -2,13 +2,14 @@ package notifier
 
 import (
 	"sync"
+
 	"go.uber.org/zap"
 
-	"github.com/toddpalino/Burrow/core/configuration"
-	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type HttpNotifier struct {
+type EmailNotifier struct {
 	App             *protocol.ApplicationContext
 	Log             *zap.Logger
 
@@ -18,23 +19,23 @@ type HttpNotifier struct {
 	running         sync.WaitGroup
 }
 
-func (module *HttpNotifier) Configure(name string) {
+func (module *EmailNotifier) Configure(name string) {
 	module.name = name
 	module.myConfiguration = module.App.Configuration.Notifier[name]
 	module.requestChannel = make(chan interface{})
 	module.running = sync.WaitGroup{}
 }
 
-func (module *HttpNotifier) GetCommunicationChannel() chan interface{} {
+func (module *EmailNotifier) GetCommunicationChannel() chan interface{} {
 	return module.requestChannel
 }
 
-func (module *HttpNotifier) Start() error {
+func (module *EmailNotifier) Start() error {
 	module.running.Add(1)
 	return nil
 }
 
-func (module *HttpNotifier) Stop() error {
+func (module *EmailNotifier) Stop() error {
 	close(module.requestChannel)
 	module.running.Done()
 	return nil

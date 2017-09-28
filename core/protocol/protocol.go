@@ -12,9 +12,11 @@ package protocol
 
 import (
 	"encoding/json"
+
 	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
-	"github.com/toddpalino/Burrow/core/configuration"
+
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 type ApplicationContext struct {

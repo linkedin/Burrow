@@ -20,7 +20,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"github.com/toddpalino/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 func CreatePidFile(filename string) {

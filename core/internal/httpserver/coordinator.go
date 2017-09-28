@@ -13,7 +13,7 @@ package httpserver
 import (
 	"go.uber.org/zap"
 
-	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 type Coordinator struct {

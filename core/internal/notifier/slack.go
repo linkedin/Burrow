@@ -2,10 +2,11 @@ package notifier
 
 import (
 	"sync"
+
 	"go.uber.org/zap"
 
-	"github.com/toddpalino/Burrow/core/configuration"
-	"github.com/toddpalino/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 type SlackNotifier struct {
