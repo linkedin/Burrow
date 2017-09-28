@@ -25,12 +25,17 @@ import (
 
 // Configuration definition
 type ClientProfile struct {
-	ClientID        string `gcfg:"client-id"`
-	TLS             bool   `gcfg:"tls"`
-	TLSNoVerify     bool   `gcfg:"tls-noverify"`
-	TLSCertFilePath string  `gcfg:"tls-certfilepath"`
-	TLSKeyFilePath  string  `gcfg:"tls-keyfilepath"`
-	TLSCAFilePath   string  `gcfg:"tls-cafilepath"`
+	ClientID    string `gcfg:"client-id"`
+	TLS         string   `gcfg:"tls"`
+}
+// TLS Configuration
+type TLSConfig struct {
+	CertFile		string `gcfg:"cert-file"`
+	KeyFile			string `gcfg:"key-file"`
+	CAFile			string `gcfg:"ca-file"`
+	NoVerify		bool	 `gcfg:"no-verify"`
+	Ciphers			string `gcfg:"ciphers"`
+	Versions		string `gcfg:"versions"`
 }
 type BurrowConfig struct {
 	General struct {
@@ -75,9 +80,11 @@ type BurrowConfig struct {
 		StormCheck        int64 `gcfg:"storm-interval"`
 		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
 	}
+	Tls map[string]*TLSConfig
 	Httpserver struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
+		TLS		 string   `gcfg:"tls"`
 		Listen []string `gcfg:"listen"`
 	}
 	Notify struct {
@@ -113,6 +120,7 @@ type BurrowConfig struct {
 		PostThreshold  int      `gcfg:"post-threshold"`
 		Timeout        int      `gcfg:"timeout"`
 		Keepalive      int      `gcfg:"keepalive"`
+		TLS            string   `gcfg:"tls"`
 	}
 	Slacknotifier struct {
 		Enable    bool     `gcfg:"enable"`
@@ -145,6 +153,25 @@ func ReadConfig(cfgFile string) *BurrowConfig {
 	}
 	return &cfg
 }
+
+// Split http://myhost:1234 into http myhost and 1234
+func SplitHttpListen(httpListen string) (string, string, uint16) {
+	listenRegex := regexp.MustCompile("^((https?)://)?([^:]+):([0-9]+)")
+	listenMatch := listenRegex.FindStringSubmatch(httpListen)
+	if listenMatch == nil {
+	  return "", "", 0
+	}
+	scheme := listenMatch[2]
+	if scheme == "" {
+	  scheme = "http"
+	}
+	port, err :=  strconv.ParseUint(listenMatch[4], 10, 16)
+	if err != nil {
+	  return "", "", 0
+	}
+	return scheme, listenMatch[3], uint16(port)
+}
+
 
 // Validate that the config is complete
 // For a couple values, this will set reasonable defaults for missing values
@@ -210,10 +237,7 @@ func ValidateConfig(app *ApplicationContext) error {
 		app.Config.Clientprofile = make(map[string]*ClientProfile)
 	}
 	if _, ok := app.Config.Clientprofile["default"]; !ok {
-		app.Config.Clientprofile["default"] = &ClientProfile{
-			ClientID: app.Config.General.ClientID,
-			TLS:      false,
-		}
+		app.Config.Clientprofile["default"] = &ClientProfile{ClientID: app.Config.General.ClientID}
 	}
 
 	for name, cfg := range app.Config.Clientprofile {
@@ -223,6 +247,10 @@ func ValidateConfig(app *ApplicationContext) error {
 			if !validateTopic(cfg.ClientID) {
 				errs = append(errs, fmt.Sprintf("Kafka client ID is not valid for profile %s", name))
 			}
+		}
+		if cfg.TLS != "" && !validateTls(app.Config, cfg.TLS) {
+				errs = append(errs, "%s TLS Client Profile specified, but not TLS configuration", name)
+				break
 		}
 	}
 
@@ -336,6 +364,24 @@ func ValidateConfig(app *ApplicationContext) error {
 		app.Config.Lagcheck.StormGroupRefresh = 300
 	}
 
+  // TLS
+	for name, cfg := range app.Config.Tls {
+		if cfg.KeyFile != "" {
+			if !validateFile(cfg.KeyFile) {
+				errs = append(errs, "TLS %s Key file invalid", name)
+			}
+			if cfg.CertFile == "" {
+				errs = append(errs, "TLS %s Cert file not configured", name)
+			}
+		}
+		if cfg.CertFile != "" && !validateFile(cfg.CertFile) {
+			errs = append(errs, "TLS %s Cert file invalid", name)
+		}
+		if cfg.CAFile != "" && !validateFile(cfg.CAFile) {
+			errs = append(errs, "TLS %s CA file invalid", name)
+		}
+	}
+
 	// HTTP Server
 	if app.Config.Httpserver.Enable {
 		if len(app.Config.Httpserver.Listen) == 0 {
@@ -347,6 +393,13 @@ func ValidateConfig(app *ApplicationContext) error {
 		} else {
 			if app.Config.Httpserver.Port != 0 {
 				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
+			}
+			for _, httpListen := range app.Config.Httpserver.Listen {
+				s, _, _ := SplitHttpListen(httpListen)
+				if s == "https" && !validateTls(app.Config, app.Config.Httpserver.TLS) {
+					errs = append(errs, "HTTPS listener specified, but not TLS configuration")
+					break
+				}
 			}
 		}
 	}
@@ -532,6 +585,12 @@ func validateFilename(filename string) bool {
 	return matches
 }
 
+// Verify file exists and is file
+func validateFile(filePath string) bool {
+	fileInfo, err := os.Stat(filePath)
+	return err == nil && fileInfo != nil && fileInfo.Mode().IsRegular()
+}
+
 // Very simplistic email address validator - just looks for an @ and a .
 func validateEmail(email string) bool {
 	matches, _ := regexp.MatchString(`^.+@.+\..+$`, email)
@@ -542,6 +601,15 @@ func validateEmail(email string) bool {
 func validateUrl(rawUrl string) bool {
 	_, err := url.Parse(rawUrl)
 	return err == nil
+}
+
+// Validate TLS config
+func validateTls(appConfig *BurrowConfig, tlsName string) bool {
+	if tlsName == "" {
+		return false
+	}
+ 	_, tlsFound := appConfig.Tls[tlsName]
+	return tlsFound
 }
 
 // Validate a list of ZK or Kafka hosts with optional ports
