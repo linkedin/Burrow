@@ -118,7 +118,7 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 
 	// Validate the configuration that was passed in
 	if err := configuration.ValidateConfig(app.Configuration); err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot validate configuration: %v", err)
+		fmt.Fprintf(os.Stderr, "Cannot validate configuration: %v", err)
 		return(1)
 	}
 
