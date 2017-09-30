@@ -433,7 +433,10 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 			// last offset timestamp is outside the MinDistance threshold
 			lastOffset := offsetRing.Prev().Value.(*protocol.ConsumerOffset)
 			timestampDifference := (time.Now().Unix() * 1000) - lastOffset.Timestamp
-			if lastOffset.MaxOffset >= clusterMap.broker[topic][partition].Offset && (timestampDifference >= (storage.app.Config.Lagcheck.MinDistance * 1000)) {
+			clusterMap.brokerLock.RLock()
+			offset := clusterMap.broker[topic][partition].Offset
+			clusterMap.brokerLock.RUnlock()
+			if lastOffset.MaxOffset >= offset && (timestampDifference >= (storage.app.Config.Lagcheck.MinDistance * 1000)) {
 				ringval, _ := offsetRing.Value.(*protocol.ConsumerOffset)
 				ringval.Offset = lastOffset.Offset
 				ringval.MaxOffset = lastOffset.MaxOffset
