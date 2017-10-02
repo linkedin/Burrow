@@ -64,6 +64,7 @@ type PartitionStatus struct {
 	Topic     string         `json:"topic"`
 	Partition int32          `json:"partition"`
 	Status    StatusConstant `json:"status"`
+	Owner     string         `json:"owner"`
 	Start     ConsumerOffset `json:"start"`
 	End       ConsumerOffset `json:"end"`
 }

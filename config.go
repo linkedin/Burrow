@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"github.com/Shopify/sarama"
 )
 
 // Configuration definition
@@ -34,20 +35,20 @@ type ClientProfile struct {
 }
 type BurrowConfig struct {
 	General struct {
-		LogDir         string `gcfg:"logdir"`
-		LogConfig      string `gcfg:"logconfig"`
-		PIDFile        string `gcfg:"pidfile"`
-		ClientID       string `gcfg:"client-id"`
-		GroupBlacklist string `gcfg:"group-blacklist"`
-		GroupWhitelist string `gcfg:"group-whitelist"`
-		StdoutLogfile  string `gcfg:"stdout-logfile"`
-	}
+			LogDir         string `gcfg:"logdir"`
+			LogConfig      string `gcfg:"logconfig"`
+			PIDFile        string `gcfg:"pidfile"`
+			ClientID       string `gcfg:"client-id"`
+			GroupBlacklist string `gcfg:"group-blacklist"`
+			GroupWhitelist string `gcfg:"group-whitelist"`
+			StdoutLogfile  string `gcfg:"stdout-logfile"`
+		}
 	Zookeeper struct {
-		Hosts    []string `gcfg:"hostname"`
-		Port     int      `gcfg:"port"`
-		Timeout  int      `gcfg:"timeout"`
-		LockPath string   `gcfg:"lock-path"`
-	}
+			Hosts    []string `gcfg:"hostname"`
+			Port     int      `gcfg:"port"`
+			Timeout  int      `gcfg:"timeout"`
+			LockPath string   `gcfg:"lock-path"`
+		}
 	Kafka map[string]*struct {
 		Brokers       []string `gcfg:"broker"`
 		BrokerPort    int      `gcfg:"broker-port"`
@@ -57,6 +58,7 @@ type BurrowConfig struct {
 		OffsetsTopic  string   `gcfg:"offsets-topic"`
 		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
 		Clientprofile string   `gcfg:"client-profile"`
+		KafkaVersion  string   `gcfg:"kafka-version"`
 	}
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
@@ -64,34 +66,34 @@ type BurrowConfig struct {
 		ZookeeperPath []string `gcfg:"zookeeper-path"`
 	}
 	Tickers struct {
-		BrokerOffsets int `gcfg:"broker-offsets"`
-	}
+			BrokerOffsets int `gcfg:"broker-offsets"`
+		}
 	Lagcheck struct {
-		Intervals         int   `gcfg:"intervals"`
-		MinDistance       int64 `gcfg:"min-distance"`
-		ExpireGroup       int64 `gcfg:"expire-group"`
-		ZKCheck           int64 `gcfg:"zookeeper-interval"`
-		ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
-		StormCheck        int64 `gcfg:"storm-interval"`
-		StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
-	}
+			Intervals         int   `gcfg:"intervals"`
+			MinDistance       int64 `gcfg:"min-distance"`
+			ExpireGroup       int64 `gcfg:"expire-group"`
+			ZKCheck           int64 `gcfg:"zookeeper-interval"`
+			ZKGroupRefresh    int64 `gcfg:"zk-group-refresh"`
+			StormCheck        int64 `gcfg:"storm-interval"`
+			StormGroupRefresh int64 `gcfg:"storm-group-refresh"`
+		}
 	Httpserver struct {
-		Enable bool `gcfg:"server"`
-		Port   int  `gcfg:"port"`
-		Listen []string `gcfg:"listen"`
-	}
+			Enable bool `gcfg:"server"`
+			Port   int  `gcfg:"port"`
+			Listen []string `gcfg:"listen"`
+		}
 	Notify struct {
-		Interval int64 `gcfg:"interval"`
-	}
+			Interval int64 `gcfg:"interval"`
+		}
 	Smtp struct {
-		Server   string `gcfg:"server"`
-		Port     int    `gcfg:"port"`
-		AuthType string `gcfg:"auth-type"`
-		Username string `gcfg:"username"`
-		Password string `gcfg:"password"`
-		From     string `gcfg:"from"`
-		Template string `gcfg:"template"`
-	}
+			Server   string `gcfg:"server"`
+			Port     int    `gcfg:"port"`
+			AuthType string `gcfg:"auth-type"`
+			Username string `gcfg:"username"`
+			Password string `gcfg:"password"`
+			From     string `gcfg:"from"`
+			Template string `gcfg:"template"`
+		}
 	Emailnotifier map[string]*struct {
 		Enable    bool     `gcfg:"enable"`
 		Groups    []string `gcfg:"group"`
@@ -99,35 +101,58 @@ type BurrowConfig struct {
 		Threshold int      `gcfg:"threshold"`
 	}
 	Httpnotifier struct {
-		Enable         bool     `gcfg:"enable"`
-		Groups         []string `gcfg:"group"`
-		UrlOpen        string   `gcfg:"url"`
-		UrlClose       string   `gcfg:"url-delete"`
-		MethodOpen     string   `gcfg:"method"`
-		MethodClose    string   `gcfg:"method-delete"`
-		Interval       int64    `gcfg:"interval"`
-		Extras         []string `gcfg:"extra"`
-		TemplateOpen   string   `gcfg:"template-post"`
-		TemplateClose  string   `gcfg:"template-delete"`
-		SendClose      bool     `gcfg:"send-delete"`
-		PostThreshold  int      `gcfg:"post-threshold"`
-		Timeout        int      `gcfg:"timeout"`
-		Keepalive      int      `gcfg:"keepalive"`
-	}
+			Enable         bool     `gcfg:"enable"`
+			Groups         []string `gcfg:"group"`
+			UrlOpen        string   `gcfg:"url"`
+			UrlClose       string   `gcfg:"url-delete"`
+			MethodOpen     string   `gcfg:"method"`
+			MethodClose    string   `gcfg:"method-delete"`
+			Interval       int64    `gcfg:"interval"`
+			Extras         []string `gcfg:"extra"`
+			TemplateOpen   string   `gcfg:"template-post"`
+			TemplateClose  string   `gcfg:"template-delete"`
+			SendClose      bool     `gcfg:"send-delete"`
+			PostThreshold  int      `gcfg:"post-threshold"`
+			Timeout        int      `gcfg:"timeout"`
+			Keepalive      int      `gcfg:"keepalive"`
+		}
 	Slacknotifier struct {
-		Enable    bool     `gcfg:"enable"`
-		Groups    []string `gcfg:"group"`
-		Url       string   `gcfg:"url"`
-		Interval  int64    `gcfg:"interval"`
-		Channel   string   `gcfg:"channel"`
-		Username  string   `gcfg:"username"`
-		IconUrl   string   `gcfg:"icon-url"`
-		IconEmoji string   `gfcg:"icon-emoji"`
-		Threshold int      `gcfg:"threshold"`
-		Timeout   int      `gcfg:"timeout"`
-		Keepalive int      `gcfg:"keepalive"`
-	}
+			Enable    bool     `gcfg:"enable"`
+			Groups    []string `gcfg:"group"`
+			Url       string   `gcfg:"url"`
+			Interval  int64    `gcfg:"interval"`
+			Channel   string   `gcfg:"channel"`
+			Username  string   `gcfg:"username"`
+			IconUrl   string   `gcfg:"icon-url"`
+			IconEmoji string   `gfcg:"icon-emoji"`
+			Threshold int      `gcfg:"threshold"`
+			Timeout   int      `gcfg:"timeout"`
+			Keepalive int      `gcfg:"keepalive"`
+		}
 	Clientprofile map[string]*ClientProfile
+}
+
+func (cfg *BurrowConfig) ToSaramaKafkaVersion(cluster string) sarama.KafkaVersion {
+	switch(cfg.Kafka[cluster].KafkaVersion) {
+	case "0.8.2.0":
+		return sarama.V0_8_2_0
+	case "0.8.2.1":
+		return sarama.V0_8_2_1
+	case "0.8.2.2":
+		return sarama.V0_8_2_2
+	case "0.9.0.0":
+		return sarama.V0_9_0_0
+	case "0.9.0.1":
+		return sarama.V0_9_0_1
+	case "0.10.0.0":
+		return sarama.V0_10_0_0
+	case "0.10.0.1":
+		return sarama.V0_10_0_1
+	case "0.10.1.0":
+		return sarama.V0_10_1_0
+	default:
+		return sarama.V0_8_2_0
+	}
 }
 
 func ReadConfig(cfgFile string) *BurrowConfig {
@@ -234,6 +259,14 @@ func ValidateConfig(app *ApplicationContext) error {
 		if cfg.BrokerPort == 0 {
 			cfg.BrokerPort = 9092
 		}
+
+		if len(cfg.KafkaVersion) == 0 {
+			cfg.KafkaVersion = "0.8.2.0"
+		}
+		if !validateKafkaVersion(cfg.KafkaVersion) {
+			errs = append(errs, fmt.Sprint("Kafka Version %s is invalid should be in the format similar to 0.9.1"))
+		}
+
 		if len(cfg.Brokers) == 0 {
 			errs = append(errs, fmt.Sprintf("No Kafka brokers specified for cluster %s", cluster))
 		} else {
@@ -498,6 +531,14 @@ func validateHostname(hostname string) bool {
 		return validateIP(hostname)
 	}
 	return matches
+}
+
+func validateKafkaVersion(version string) bool {
+	if parts := strings.Split(version, "."); len(parts) != 4 {
+		return false
+	}
+
+	return true
 }
 
 func validateZookeeperPath(path string) bool {

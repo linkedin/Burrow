@@ -13,7 +13,7 @@ package notifier
 import (
 	"bytes"
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/CrowdStrike/Burrow/protocol"
 	"github.com/pborman/uuid"
 	"io"
 	"io/ioutil"
@@ -21,6 +21,7 @@ import (
 	"text/template"
 	"time"
 	"fmt"
+	"sync"
 )
 
 type HttpNotifier struct {
@@ -31,9 +32,11 @@ type HttpNotifier struct {
 	Extras             map[string]string
 	HttpClient         *http.Client
 	groupIds           map[string]map[string]Event
+	sync.Mutex
 }
 
 type HttpNotifierRequest struct {
+	sync.Mutex
 	Url string
 	TemplateFile string
 	Method string
@@ -50,6 +53,8 @@ func (notify *HttpNotifier) NotifierName() string {
 }
 
 func (notifier *HttpNotifier) Notify(msg Message) error {
+	notifier.Lock()
+	defer notifier.Unlock()
 	// Helper functions for templates
 	fmap := template.FuncMap{
 		"jsonencoder":     templateJsonEncoder,

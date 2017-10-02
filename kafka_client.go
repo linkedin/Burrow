@@ -14,12 +14,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"encoding/binary"
 	"errors"
 	"github.com/Shopify/sarama"
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/CrowdStrike/Burrow/protocol"
+	"io/ioutil"
 	"sync"
 	"time"
 )
@@ -66,11 +66,12 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 		caCertPool.AppendCertsFromPEM(caCert)
 		clientConfig.Net.TLS.Config = &tls.Config{
 			Certificates: []tls.Certificate{cert},
-			RootCAs: caCertPool,
+			RootCAs:      caCertPool,
 		}
 		clientConfig.Net.TLS.Config.BuildNameToCertificate()
 	}
 	clientConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
+	clientConfig.Version = app.Config.ToSaramaKafkaVersion(cluster)
 
 	sclient, err := sarama.NewClient(app.Config.Kafka[cluster].Brokers, clientConfig)
 	if err != nil {
@@ -140,7 +141,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	client.partitionConsumers = make([]sarama.PartitionConsumer, len(partitions))
 	log.Infof("Starting consumers for %v partitions of %s in cluster %s", len(partitions), client.app.Config.Kafka[client.cluster].OffsetsTopic, client.cluster)
 	for i, partition := range partitions {
-		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, sarama.OffsetNewest)
+		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, sarama.OffsetOldest)
 		if err != nil {
 			return nil, err
 		}
@@ -310,12 +311,12 @@ func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 		}
 		topic, err = readString(buf)
 		if err != nil {
-			log.Warnf("Failed to decode %s:%v offset %v: topic", msg.Topic, msg.Partition, msg.Offset)
+			log.Warnf("Failed to decode %s:%v offset %v: topic; group %s", msg.Topic, msg.Partition, msg.Offset, group)
 			return
 		}
 		err = binary.Read(buf, binary.BigEndian, &partition)
 		if err != nil {
-			log.Warnf("Failed to decode %s:%v offset %v: partition", msg.Topic, msg.Partition, msg.Offset)
+			log.Warnf("Failed to decode %s:%v offset %v: partition; group %s topic %s", msg.Topic, msg.Partition, msg.Offset, group, topic)
 			return
 		}
 	case 2:
@@ -329,12 +330,12 @@ func (client *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	buf = bytes.NewBuffer(msg.Value)
 	err = binary.Read(buf, binary.BigEndian, &valver)
 	if (err != nil) || ((valver != 0) && (valver != 1)) {
-		log.Warnf("Failed to decode %s:%v offset %v: valver %v", msg.Topic, msg.Partition, msg.Offset, valver)
+		log.Warnf("Failed to decode %s:%v offset %v: valver %v; group %s topic %s partition %d; err=%s", msg.Topic, msg.Partition, msg.Offset, valver, group, topic, partition, err)
 		return
 	}
 	err = binary.Read(buf, binary.BigEndian, &offset)
 	if err != nil {
-		log.Warnf("Failed to decode %s:%v offset %v: offset", msg.Topic, msg.Partition, msg.Offset)
+		log.Warnf("Failed to decode %s:%v offset %v: offset; group %s topic %s partition %d; err=%s", msg.Topic, msg.Partition, msg.Offset, valver, group, topic, partition, err)
 		return
 	}
 	_, err = readString(buf)
