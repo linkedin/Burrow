@@ -141,7 +141,7 @@ func NewKafkaClient(app *ApplicationContext, cluster string) (*KafkaClient, erro
 	client.partitionConsumers = make([]sarama.PartitionConsumer, len(partitions))
 	log.Infof("Starting consumers for %v partitions of %s in cluster %s", len(partitions), client.app.Config.Kafka[client.cluster].OffsetsTopic, client.cluster)
 	for i, partition := range partitions {
-		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, sarama.OffsetNewest)
+		pconsumer, err := client.masterConsumer.ConsumePartition(client.app.Config.Kafka[client.cluster].OffsetsTopic, partition, sarama.OffsetOldest)
 		if err != nil {
 			return nil, err
 		}
