@@ -18,8 +18,6 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type RequestMessage protocol.EvaluatorRequest
-
 type Coordinator struct {
 	App         *protocol.ApplicationContext
 	Log         *zap.Logger
@@ -79,24 +77,6 @@ func (nc *Coordinator) Start() error {
 	if err != nil {
 		return errors.New("Error starting notifier module: " + err.Error())
 	}
-
-	// Start request forwarder
-	go func() {
-		for {
-			select {
-			case request := <-nc.App.EvaluatorChannel:
-				// Right now, send all requests to all evaluator modules. This means that if there is more than one
-				// module configured, there may be multiple responses sent back. In the future we will want to route
-				// requests, or have a config for which module gets requests
-				for _, module := range nc.modules {
-					module.GetCommunicationChannel() <- request
-				}
-			case <-nc.quitChannel:
-				return
-			}
-		}
-	}()
-
 	return nil
 }
 

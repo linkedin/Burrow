@@ -19,8 +19,10 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type OffsetMessage protocol.PartitionOffset
-type FetchMessage protocol.StorageFetchRequest
+type StorageModule interface {
+	protocol.Module
+	GetCommunicationChannel() chan *protocol.StorageRequest
+}
 
 /* Module requests
  * No response:
@@ -45,7 +47,7 @@ type Coordinator struct {
 	modules     map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, className string) protocol.Module {
+func GetModuleForClass(app *protocol.ApplicationContext, className string) StorageModule {
 	switch className {
 	case "inmemory":
 		return &InMemoryStorage{
@@ -55,7 +57,6 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) proto
 				zap.String("coordinator", "storage"),
 				zap.String("name", "inmemory"),
 			),
-
 		}
 	default:
 		panic("Unknown storage className provided: " + className)
@@ -93,7 +94,7 @@ func (sc *Coordinator) Start() error {
 				// is more than one module configured, there may be multiple responses sent back. In the future we
 				// will want to route requests, or have a config for which module gets fetch requests
 				for _, module := range sc.modules {
-					module.GetCommunicationChannel() <- request
+					module.(StorageModule).GetCommunicationChannel() <- request
 				}
 			case <-sc.quitChannel:
 				return

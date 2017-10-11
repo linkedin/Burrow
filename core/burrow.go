@@ -142,8 +142,8 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	//   * The Notifiers send evaluation requests to the evaluator coordinator to check group status
 	//   * The Evaluators send requests to the storage coordinator for group offset and lag information
 	//   * The HTTP server sends requests to both the evaluator and storage coordinators to fulfill API requests
-	app.EvaluatorChannel = make(chan interface{})
-	app.StorageChannel = make(chan interface{})
+	app.EvaluatorChannel = make(chan *protocol.EvaluatorRequest)
+	app.StorageChannel = make(chan *protocol.StorageRequest)
 
 	// Configure the coordinators in order. Note that they will panic if there is a configuration problem
 	for _, coordinator := range coordinators {

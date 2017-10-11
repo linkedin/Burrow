@@ -28,16 +28,8 @@ type ApplicationContext struct {
 	// These fields will be created by Start after it is called
 	Zookeeper        *zk.Conn
 	ZookeeperRoot    string
-	EvaluatorChannel chan interface{}
-	StorageChannel   chan interface{}
-}
-
-type ConsumerOffset struct {
-	Offset     int64 `json:"offset"`
-	Timestamp  int64 `json:"timestamp"`
-	Lag        int64 `json:"lag"`
-	Artificial bool  `json:"-"`
-	MaxOffset  int64 `json:"max_offset"`
+	EvaluatorChannel chan *EvaluatorRequest
+	StorageChannel   chan *StorageRequest
 }
 
 func (c StatusConstant) String() string {
@@ -66,7 +58,6 @@ func (c StatusConstant) MarshalJSON() ([]byte, error) {
  */
 type Module	interface {
 	Configure(name string)
-	GetCommunicationChannel() chan interface{}
 	Start() error
 	Stop() error
 }

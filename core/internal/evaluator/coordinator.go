@@ -19,6 +19,11 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+type EvaluatorModule interface {
+	protocol.Module
+	GetCommunicationChannel() chan *protocol.EvaluatorRequest
+}
+
 type RequestMessage protocol.EvaluatorRequest
 
 type Coordinator struct {
@@ -75,7 +80,7 @@ func (ec *Coordinator) Start() error {
 				// module configured, there may be multiple responses sent back. In the future we will want to route
 				// requests, or have a config for which module gets requests
 				for _, module := range ec.modules {
-					module.GetCommunicationChannel() <- request
+					module.(EvaluatorModule).GetCommunicationChannel() <- request
 				}
 			case <-ec.quitChannel:
 				return

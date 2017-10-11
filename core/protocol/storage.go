@@ -9,19 +9,37 @@ type PartitionOffset struct {
 	Group               string
 }
 
-type StorageFetchConstant int
-
+type StorageRequestConstant int
 const (
-	StorageFetchClusters  StorageFetchConstant = 0
-	StorageFetchConsumers StorageFetchConstant = 1
-	StorageFetchTopics    StorageFetchConstant = 2
-	StorageFetchConsumer  StorageFetchConstant = 3
-	StorageFetchTopic     StorageFetchConstant = 4
+	StorageSetBrokerOffset   StorageRequestConstant = 0
+	StorageSetConsumerOffset StorageRequestConstant = 1
+	StorageSetDeleteTopic    StorageRequestConstant = 2
+	StorageFetchClusters     StorageRequestConstant = 3
+	StorageFetchConsumers    StorageRequestConstant = 4
+	StorageFetchTopics       StorageRequestConstant = 5
+	StorageFetchConsumer     StorageRequestConstant = 6
+	StorageFetchTopic        StorageRequestConstant = 7
 )
 
-type StorageFetchRequest struct {
-	RequestType			int
+type StorageRequest struct {
+	RequestType         StorageRequestConstant
+	Reply               chan interface{}
 	Cluster             string
-	Topic               string
 	Group               string
+	Topic               string
+	Partition           int32
+	TopicPartitionCount int32
+	Offset              int64
+	Timestamp           int64
+}
+
+type ConsumerPartition struct {
+	Offsets    []*ConsumerOffset
+	CurrentLag int64
+}
+
+type ConsumerOffset struct {
+	Offset     int64 `json:"offset"`
+	Timestamp  int64 `json:"timestamp"`
+	Lag        int64 `json:"lag"`
 }
