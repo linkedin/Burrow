@@ -420,6 +420,9 @@ func TestInMemoryStorage_fetchClusterList(t *testing.T) {
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testcluster", "Expected return value to be 'testcluster', not %v", val[0])
+
+	response, ok := <- request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchTopicList(t *testing.T) {
@@ -439,6 +442,9 @@ func TestInMemoryStorage_fetchTopicList(t *testing.T) {
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testtopic", "Expected return value to be 'testtopic', not %v", val[0])
+
+	response, ok := <- request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchTopicList_BadCluster(t *testing.T) {
@@ -452,9 +458,10 @@ func TestInMemoryStorage_fetchTopicList_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopicList(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
@@ -474,6 +481,9 @@ func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %v", val[0])
+
+	response, ok := <- request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchConsumerList_BadCluster(t *testing.T) {
@@ -487,9 +497,10 @@ func TestInMemoryStorage_fetchConsumerList_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumerList(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchTopic(t *testing.T) {
@@ -510,6 +521,9 @@ func TestInMemoryStorage_fetchTopic(t *testing.T) {
 	val := response.([]int64)
 	assert.Len(t, val, 1, "One partition not returned")
 	assert.Equalf(t, val[0], int64(4321), "Expected return value to be 4321, not %v", val[0])
+
+	response, ok := <- request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchTopic_BadCluster(t *testing.T) {
@@ -524,9 +538,10 @@ func TestInMemoryStorage_fetchTopic_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopic(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
@@ -541,9 +556,10 @@ func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopic(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchConsumer(t *testing.T) {
@@ -581,6 +597,9 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.Equalf(t, timestampValue, offsets[i].Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offsets[i].Timestamp)
 		assert.Equalf(t, lagValue, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
+
+	response, ok = <- request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
@@ -595,9 +614,10 @@ func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
 
 func TestInMemoryStorage_fetchConsumer_BadTopic(t *testing.T) {
@@ -612,7 +632,8 @@ func TestInMemoryStorage_fetchConsumer_BadTopic(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response := <- request.Reply
+	response, ok := <- request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
 }
