@@ -13,10 +13,7 @@
 package core
 
 import (
-	"fmt"
-	"os"
 	"syscall"
-	"time"
 )
 
 var (
@@ -24,7 +21,7 @@ var (
 	procSetStdHandle = kernel32.MustFindProc("SetStdHandle")
 )
 
-func dupFD2(oldfd uintptr, newfd uintptr) error {
+func internalDup2(oldfd uintptr, newfd uintptr) error {
 	r0, _, e1 := syscall.Syscall(procSetStdHandle.Addr(), 2, oldfd, newfd, 0)
 	if r0 == 0 {
 		if e1 != 0 {
@@ -33,20 +30,4 @@ func dupFD2(oldfd uintptr, newfd uintptr) error {
 		return syscall.EINVAL
 	}
 	return nil
-}
-
-func OpenOutLog(filename string) *os.File {
-	// Move existing out file to a dated file if it exists
-	if _, err := os.Stat(filename); err == nil {
-		if err = os.Rename(filename, filename+"."+time.Now().Format("2006-01-02_15:04:05")); err != nil {
-			fmt.Printf("Cannot move old out file: %v", err)
-			os.Exit(1)
-		}
-	}
-
-	// Redirect stdout and stderr to out file
-	logFile, _ := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
-	dupFD2(uintptr(logFile.Fd()), 1)
-	dupFD2(uintptr(logFile.Fd()), 2)
-	return logFile
 }
