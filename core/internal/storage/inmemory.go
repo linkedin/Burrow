@@ -86,6 +86,7 @@ func (module *InMemoryStorage) Start() error {
 		}
 	}
 
+	go module.mainLoop()
 	return nil
 }
 
