@@ -54,6 +54,11 @@ func (module *InMemoryStorage) Configure(name string) {
 	module.running = sync.WaitGroup{}
 	module.offsets = make(map[string]ClusterOffsets)
 
+	// Set defaults for configs if needed
+	if module.App.Configuration.Storage[module.name].Intervals == 0 {
+		module.App.Configuration.Storage[module.name].Intervals = 10
+	}
+
 	if module.App.Configuration.Storage[module.name].GroupWhitelist != "" {
 		re, err := regexp.Compile(module.App.Configuration.Storage[module.name].GroupWhitelist)
 		if err != nil {
@@ -72,7 +77,8 @@ func (module *InMemoryStorage) Start() error {
 	module.running.Add(1)
 
 	for cluster := range module.App.Configuration.Cluster {
-		module.offsets[cluster] = ClusterOffsets{
+		module.
+		offsets[cluster] = ClusterOffsets{
 			broker:       make(map[string][]*BrokerOffset),
 			consumer:     make(map[string]*ConsumerGroup),
 			brokerLock:   &sync.RWMutex{},
@@ -128,6 +134,9 @@ func (module *InMemoryStorage) mainLoop() {
 			requestLogger.Error("unknown storage request type",
 				zap.Int("request_type", int(r.RequestType)),
 			)
+			if r.Reply != nil {
+				close(r.Reply)
+			}
 		}
 	}
 }
@@ -218,7 +227,7 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 	// Get or create the offsets ring for this partition
 	consumerPartitionRing := consumerTopicMap[partition]
 	if consumerPartitionRing == nil {
-		consumerTopicMap[partition] = ring.New(module.App.Configuration.Storage[module.name].Intervals)
+		consumerTopicMap[partition] = ring.New(module.myConfiguration.Intervals)
 		consumerPartitionRing = consumerTopicMap[partition]
 	}
 
@@ -262,8 +271,10 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	if consumerPartitionRing.Prev().Value != nil {
 		// If the offset commit is faster than we are allowing (less than the min-distance config), rewind the ring by one spot
 		// This lets us store the offset commit without dropping an old one
-		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.App.Configuration.Storage[module.name].MinDistance * 1000) {
+		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.myConfiguration.MinDistance * 1000) {
+			// We have to change both pointers here, as we're essentially rewinding the ring one spot to add this commit
 			consumerPartitionRing = consumerPartitionRing.Prev()
+			consumerMap.topics[request.Topic][request.Partition] = consumerPartitionRing
 		}
 	}
 	// Calculate the lag against the brokerOffset
@@ -422,8 +433,8 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 			}
 
 			ringPtr := offsetRing
-			for ringPtr.Next() != offsetRing {
-				if ringPtr == nil {
+			for i := 0; i < offsetRing.Len(); i++ {
+				if ringPtr.Value == nil {
 					partition.Offsets = append(partition.Offsets, nil)
 				} else {
 					ringval, _ := ringPtr.Value.(*protocol.ConsumerOffset)
@@ -435,6 +446,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 						Timestamp: ringval.Timestamp,
 					})
 				}
+				ringPtr = ringPtr.Next()
 			}
 			topicList[topic] = append(topicList[topic], partition)
 		}
