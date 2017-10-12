@@ -68,8 +68,8 @@ func (sc *Coordinator) Configure() {
 	sc.modules = make(map[string]protocol.Module)
 
 	// Create all configured storage modules, add to list of storage
-	if len(sc.App.Configuration.Storage) == 0 {
-		panic("At least one storage module must be configured")
+	if len(sc.App.Configuration.Storage) != 1 {
+		panic("Only one storage module must be configured")
 	}
 	for name, config := range sc.App.Configuration.Storage {
 		module := GetModuleForClass(sc.App, config.ClassName)
@@ -87,15 +87,19 @@ func (sc *Coordinator) Start() error {
 
 	// Start request forwarder
 	go func() {
+		// We only support 1 module right now, so only send to that module
+		var channel chan *protocol.StorageRequest
+		for _, module := range sc.modules {
+			channel = module.(StorageModule).GetCommunicationChannel()
+		}
+
 		for {
 			select {
 			case request := <-sc.App.StorageChannel:
-				// Right now, send all requests to all storage modules. This means that for fetch requests, if there
-				// is more than one module configured, there may be multiple responses sent back. In the future we
-				// will want to route requests, or have a config for which module gets fetch requests
-				for _, module := range sc.modules {
-					module.(StorageModule).GetCommunicationChannel() <- request
-				}
+				// Yes, this forwarder is silly. However, in the future we want to support multiple storage modules
+				// concurrently. However, that will require implementing a router that properly handles sets and
+				// fetches and makes sure only 1 module responds to fetches
+				channel <- request
 			case <-sc.quitChannel:
 				return
 			}
