@@ -440,6 +440,49 @@ func TestInMemoryStorage_deleteTopic_NoTopic(t *testing.T) {
 	assert.True(t, ok, "Wrong topic deleted from group offsets")
 }
 
+func TestInMemoryStorage_deleteGroup(t *testing.T) {
+	module := startWithTestConsumerOffsets("")
+
+	request := protocol.StorageRequest{
+		RequestType:         protocol.StorageSetDeleteGroup,
+		Cluster:             "testcluster",
+		Group:               "testgroup",
+	}
+	module.deleteGroup(&request, module.Log)
+
+	_, ok := module.offsets["testcluster"].consumer["testgroup"]
+	assert.False(t, ok, "Group not deleted from consumer offsets")
+}
+
+func TestInMemoryStorage_deleteGroup_BadCluster(t *testing.T) {
+	module := startWithTestConsumerOffsets("")
+
+	request := protocol.StorageRequest{
+		RequestType:         protocol.StorageSetDeleteGroup,
+		Cluster:             "nocluster",
+		Group:               "testgroup",
+	}
+	module.deleteGroup(&request, module.Log)
+
+	assert.Len(t, module.offsets, 1, "Extra cluster exists")
+	_, ok := module.offsets["testcluster"].consumer["testgroup"]
+	assert.True(t, ok, "Group deleted in wrong cluster")
+}
+
+func TestInMemoryStorage_deleteGroup_NoGroup(t *testing.T) {
+	module := startWithTestConsumerOffsets("")
+
+	request := protocol.StorageRequest{
+		RequestType:         protocol.StorageSetDeleteGroup,
+		Cluster:             "testcluster",
+		Group:               "nogroup",
+	}
+	module.deleteGroup(&request, module.Log)
+
+	_, ok := module.offsets["testcluster"].consumer["testgroup"]
+	assert.True(t, ok, "Wrong group deleted from consumer offsets")
+}
+
 func TestInMemoryStorage_fetchClusterList(t *testing.T) {
 	module := startWithTestConsumerOffsets("")
 

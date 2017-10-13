@@ -14,11 +14,12 @@ const (
 	StorageSetBrokerOffset   StorageRequestConstant = 0
 	StorageSetConsumerOffset StorageRequestConstant = 1
 	StorageSetDeleteTopic    StorageRequestConstant = 2
-	StorageFetchClusters     StorageRequestConstant = 3
-	StorageFetchConsumers    StorageRequestConstant = 4
-	StorageFetchTopics       StorageRequestConstant = 5
-	StorageFetchConsumer     StorageRequestConstant = 6
-	StorageFetchTopic        StorageRequestConstant = 7
+	StorageSetDeleteGroup    StorageRequestConstant = 3
+	StorageFetchClusters     StorageRequestConstant = 4
+	StorageFetchConsumers    StorageRequestConstant = 5
+	StorageFetchTopics       StorageRequestConstant = 6
+	StorageFetchConsumer     StorageRequestConstant = 7
+	StorageFetchTopic        StorageRequestConstant = 8
 )
 
 type StorageRequest struct {

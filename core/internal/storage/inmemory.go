@@ -129,6 +129,8 @@ func (module *InMemoryStorage) mainLoop() {
 				go module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
 			case protocol.StorageSetDeleteTopic:
 				go module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
+			case protocol.StorageSetDeleteGroup:
+				go module.deleteGroup(r, requestLogger.With(zap.String("request", "StorageSetDeleteGroup")))
 			case protocol.StorageFetchClusters:
 				go module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
 			case protocol.StorageFetchConsumers:
@@ -351,6 +353,20 @@ func (module *InMemoryStorage) deleteTopic(request *protocol.StorageRequest, req
 	clusterMap.brokerLock.Lock()
 	delete(clusterMap.broker, request.Topic)
 	clusterMap.brokerLock.Unlock()
+
+	requestLogger.Debug("ok")
+}
+
+func (module *InMemoryStorage) deleteGroup(request *protocol.StorageRequest, requestLogger *zap.Logger) {
+	clusterMap, ok := module.offsets[request.Cluster]
+	if !ok {
+		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	clusterMap.consumerLock.Lock()
+	delete(clusterMap.consumer, request.Group)
+	clusterMap.consumerLock.Unlock()
 
 	requestLogger.Debug("ok")
 }
