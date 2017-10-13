@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
+	"time"
 )
 
 func fixtureModule(whitelist string) *InMemoryStorage {
@@ -57,7 +58,7 @@ func startWithTestBrokerOffsets(whitelist string) *InMemoryStorage {
 	return module
 }
 
-func startWithTestConsumerOffsets(whitelist string) *InMemoryStorage {
+func startWithTestConsumerOffsets(whitelist string, startTime int64) *InMemoryStorage {
 	module := startWithTestBrokerOffsets(whitelist)
 
 	request := protocol.StorageRequest{
@@ -69,7 +70,7 @@ func startWithTestConsumerOffsets(whitelist string) *InMemoryStorage {
 	}
 	for i := 0; i < 10; i++ {
 		request.Offset = int64(1000 + (i * 100))
-		request.Timestamp = int64(100000 + (i * 10000))
+		request.Timestamp = startTime + int64(i * 10000)
 		module.addConsumerOffset(&request, module.Log)
 	}
 	return module
@@ -232,7 +233,8 @@ func TestInMemoryStorage_getBrokerOffset(t *testing.T) {
 }
 
 func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageSetConsumerOffset,
@@ -241,7 +243,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Offset:      2000,
-		Timestamp:   200000,
+		Timestamp:   startTime + 100000,
 	}
 	module.addConsumerOffset(&request, module.Log)
 
@@ -260,7 +262,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1100 + (i * 100))
-		timestampValue := int64(110000 + (i * 10000))
+		timestampValue := startTime + 10000 + int64(i * 10000)
 		lagValue := int64(4321) - offsetValue
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
@@ -272,7 +274,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 }
 
 func TestInMemoryStorage_addConsumerOffset_Whitelist(t *testing.T) {
-	module := startWithTestConsumerOffsets("whitelistedgroup")
+	module := startWithTestConsumerOffsets("whitelistedgroup", 100000)
 
 	// All offsets for the test group should have been dropped
 	_, ok := module.offsets["testcluster"].consumer["testgroup"]
@@ -309,7 +311,8 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 }
 
 func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
 
 	// This commit violates min-distance and should not cause the ring to advance
 	request := protocol.StorageRequest{
@@ -338,7 +341,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1000 + (i * 100))
-		timestampValue := int64(100000 + (i * 10000))
+		timestampValue := startTime + int64(i * 10000)
 		if i == 9 {
 			// The last offset in the ring is the one that got the min-distance update
 			offsetValue = 2000
@@ -392,7 +395,7 @@ func TestInMemoryStorage_addConsumerOffset_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteTopic(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteTopic,
@@ -409,7 +412,7 @@ func TestInMemoryStorage_deleteTopic(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteTopic_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteTopic,
@@ -424,7 +427,7 @@ func TestInMemoryStorage_deleteTopic_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteTopic_NoTopic(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteTopic,
@@ -441,7 +444,7 @@ func TestInMemoryStorage_deleteTopic_NoTopic(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteGroup(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteGroup,
@@ -455,7 +458,7 @@ func TestInMemoryStorage_deleteGroup(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteGroup_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteGroup,
@@ -470,7 +473,7 @@ func TestInMemoryStorage_deleteGroup_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_deleteGroup_NoGroup(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetDeleteGroup,
@@ -484,7 +487,7 @@ func TestInMemoryStorage_deleteGroup_NoGroup(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchClusterList(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchClusters,
@@ -505,7 +508,7 @@ func TestInMemoryStorage_fetchClusterList(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchTopicList(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchTopics,
@@ -527,7 +530,7 @@ func TestInMemoryStorage_fetchTopicList(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchTopicList_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchTopics,
@@ -544,7 +547,7 @@ func TestInMemoryStorage_fetchTopicList_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumers,
@@ -566,7 +569,7 @@ func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchConsumerList_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumers,
@@ -583,7 +586,7 @@ func TestInMemoryStorage_fetchConsumerList_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchTopic(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchTopic,
@@ -606,7 +609,7 @@ func TestInMemoryStorage_fetchTopic(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchTopic_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchTopic,
@@ -624,7 +627,7 @@ func TestInMemoryStorage_fetchTopic_BadCluster(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchTopic,
@@ -642,7 +645,8 @@ func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchConsumer(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumer,
@@ -669,7 +673,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.NotNilf(t, offsets[0], "Expected offset to be NOT nil at position %v", i)
 
 		offsetValue := int64(1000 + (i * 100))
-		timestampValue := int64(100000 + (i * 10000))
+		timestampValue := startTime + int64(i * 10000)
 		lagValue := int64(4321) - offsetValue
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
@@ -682,7 +686,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumer,
@@ -699,13 +703,31 @@ func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
-func TestInMemoryStorage_fetchConsumer_BadTopic(t *testing.T) {
-	module := startWithTestConsumerOffsets("")
+func TestInMemoryStorage_fetchConsumer_BadGroup(t *testing.T) {
+	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumer,
 		Cluster:     "testcluster",
 		Group:       "nogroup",
+		Reply:       make(chan interface{}),
+	}
+
+	// Can't read a reply without concurrency
+	go module.fetchConsumer(&request, module.Log)
+	response, ok := <- request.Reply
+
+	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
+	module := startWithTestConsumerOffsets("", 100000)
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
 		Reply:       make(chan interface{}),
 	}
 

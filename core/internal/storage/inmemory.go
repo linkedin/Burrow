@@ -9,6 +9,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 	"container/ring"
 	"regexp"
+	"time"
 )
 
 type InMemoryStorage struct {
@@ -31,8 +32,9 @@ type BrokerOffset struct {
 
 type ConsumerGroup struct {
 	// This lock is held when using the individual group, either for read or write
-	lock   *sync.RWMutex
-	topics map[string][]*ring.Ring
+	lock       *sync.RWMutex
+	topics     map[string][]*ring.Ring
+	lastCommit int64
 }
 
 type ClusterOffsets struct {
@@ -59,6 +61,9 @@ func (module *InMemoryStorage) Configure(name string) {
 	// Set defaults for configs if needed
 	if module.App.Configuration.Storage[module.name].Intervals == 0 {
 		module.App.Configuration.Storage[module.name].Intervals = 10
+	}
+	if module.App.Configuration.Storage[module.name].ExpireGroup == 0 {
+		module.App.Configuration.Storage[module.name].ExpireGroup = 604800
 	}
 
 	if module.App.Configuration.Storage[module.name].GroupWhitelist != "" {
@@ -328,6 +333,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		ringval.Timestamp = request.Timestamp
 		ringval.Lag = partitionLag
 	}
+	consumerMap.lastCommit = request.Timestamp
 
 	// Advance the ring pointer
 	requestLogger.Debug("ok", zap.Int64("lag", partitionLag))
@@ -450,24 +456,11 @@ func (module *InMemoryStorage) fetchTopic(request *protocol.StorageRequest, requ
 	request.Reply <- offsetList
 }
 
-func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, requestLogger *zap.Logger) {
-	defer close(request.Reply)
-
-	clusterMap, ok := module.offsets[request.Cluster]
-	if !ok {
-		requestLogger.Warn("unknown cluster")
-		return
-	}
-
-	clusterMap.consumerLock.RLock()
-	consumerMap, ok := clusterMap.consumer[request.Group]
-	if !ok {
-		requestLogger.Warn("unknown consumer")
-		clusterMap.consumerLock.RUnlock()
-		return
-	}
-
+func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
 	topicList := make(protocol.ConsumerTopics)
+	consumerMap.lock.RLock()
+	defer consumerMap.lock.RUnlock()
+
 	for topic, partitions := range consumerMap.topics {
 		topicList[topic] = make(protocol.ConsumerPartitions, 0, len(partitions))
 
@@ -495,6 +488,39 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 			topicList[topic] = append(topicList[topic], partition)
 		}
 	}
+	return topicList
+}
+
+func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, requestLogger *zap.Logger) {
+	defer close(request.Reply)
+
+	clusterMap, ok := module.offsets[request.Cluster]
+	if !ok {
+		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	clusterMap.consumerLock.RLock()
+	consumerMap, ok := clusterMap.consumer[request.Group]
+	if !ok {
+		requestLogger.Warn("unknown consumer")
+		clusterMap.consumerLock.RUnlock()
+		return
+	}
+
+	// Lazily purge consumers that haven't committed in longer than the defined interval. Return as a 404
+	if (time.Now().Unix() - module.myConfiguration.ExpireGroup) > consumerMap.lastCommit {
+		// Swap for a write lock
+		clusterMap.consumerLock.RUnlock()
+
+		clusterMap.consumerLock.Lock()
+		requestLogger.Info("purge expired consumer")
+		delete(clusterMap.consumer, request.Group)
+		clusterMap.consumerLock.Unlock()
+		return
+	}
+
+	topicList := getConsumerTopicList(consumerMap)
 	clusterMap.consumerLock.RUnlock()
 
 	// Calculate the current lag for each now. We do this separate from getting the consumer info so we can avoid

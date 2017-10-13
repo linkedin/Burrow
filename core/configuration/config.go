@@ -55,6 +55,7 @@ type StorageConfig struct {
 	Intervals      int    `gcfg:"intervals"`
 	MinDistance    int64  `gcfg:"min-distance"`
 	GroupWhitelist string `gcfg:"group-whitelist"`
+	ExpireGroup    int64  `gcfg:"expire-group"`
 }
 type ConsumerConfig struct {
 	ClassName      string   `gcfg:"class-name"`
