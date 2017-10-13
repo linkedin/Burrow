@@ -65,7 +65,7 @@ type ConsumerConfig struct {
 	ClientProfile  string   `gcfg:"client-profile"`
 	OffsetRefresh  int64    `gcfg:"offset-refresh"`
 	GroupWhitelist string   `gcfg:"group-whitelist"`
-	GroupRefresh   int64    `gcfg:"offset-refresh"`
+	GroupRefresh   int64    `gcfg:"group-refresh"`
 }
 type ClusterConfig struct {
 	ClassName     string   `gcfg:"class-name"`
