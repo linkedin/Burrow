@@ -48,6 +48,8 @@ type ClusterOffsets struct {
 }
 
 func (module *InMemoryStorage) Configure(name string) {
+	module.Log.Info("configuring")
+
 	module.name = name
 	module.myConfiguration = module.App.Configuration.Storage[name]
 	module.RequestChannel = make(chan *protocol.StorageRequest)
@@ -74,7 +76,7 @@ func (module *InMemoryStorage) GetCommunicationChannel() chan *protocol.StorageR
 }
 
 func (module *InMemoryStorage) Start() error {
-	module.running.Add(1)
+	module.Log.Info("starting")
 
 	for cluster := range module.App.Configuration.Cluster {
 		module.
@@ -91,52 +93,59 @@ func (module *InMemoryStorage) Start() error {
 }
 
 func (module *InMemoryStorage) Stop() error {
+	module.Log.Info("stopping")
+
 	close(module.RequestChannel)
-	module.running.Done()
+	module.running.Wait()
 	return nil
 }
 
 func (module *InMemoryStorage) mainLoop() {
-	select {
-	case r := <-module.RequestChannel:
-		if r == nil {
-			return
-		}
+	module.running.Add(1)
+	defer module.running.Done()
 
-		// Easier to set up the structured logger once for the request
-		requestLogger := module.Log.With(
-			zap.String("cluster", r.Cluster),
-			zap.String("consumer", r.Group),
-			zap.String("topic", r.Topic),
-			zap.Int32("partition", r.Partition),
-			zap.Int32("topic_partition_count", r.TopicPartitionCount),
-			zap.Int64("offset", r.Offset),
-			zap.Int64("timestamp", r.Timestamp),
-		)
+	for {
+		select {
+		case r, isOpen := <-module.RequestChannel:
+			if ! isOpen {
+				return
+			}
 
-		switch r.RequestType {
-		case protocol.StorageSetBrokerOffset:
-			go module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
-		case protocol.StorageSetConsumerOffset:
-			go module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
-		case protocol.StorageSetDeleteTopic:
-			go module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
-		case protocol.StorageFetchClusters:
-			go module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
-		case protocol.StorageFetchConsumers:
-			go module.fetchConsumerList(r, requestLogger.With(zap.String("request", "StorageFetchConsumers")))
-		case protocol.StorageFetchTopics:
-			go module.fetchTopicList(r, requestLogger.With(zap.String("request", "StorageFetchTopics")))
-		case protocol.StorageFetchConsumer:
-			go module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
-		case protocol.StorageFetchTopic:
-			go module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
-		default:
-			requestLogger.Error("unknown storage request type",
-				zap.Int("request_type", int(r.RequestType)),
+			// Easier to set up the structured logger once for the request
+			requestLogger := module.Log.With(
+				zap.String("cluster", r.Cluster),
+				zap.String("consumer", r.Group),
+				zap.String("topic", r.Topic),
+				zap.Int32("partition", r.Partition),
+				zap.Int32("topic_partition_count", r.TopicPartitionCount),
+				zap.Int64("offset", r.Offset),
+				zap.Int64("timestamp", r.Timestamp),
 			)
-			if r.Reply != nil {
-				close(r.Reply)
+
+			switch r.RequestType {
+			case protocol.StorageSetBrokerOffset:
+				go module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
+			case protocol.StorageSetConsumerOffset:
+				go module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
+			case protocol.StorageSetDeleteTopic:
+				go module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
+			case protocol.StorageFetchClusters:
+				go module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
+			case protocol.StorageFetchConsumers:
+				go module.fetchConsumerList(r, requestLogger.With(zap.String("request", "StorageFetchConsumers")))
+			case protocol.StorageFetchTopics:
+				go module.fetchTopicList(r, requestLogger.With(zap.String("request", "StorageFetchTopics")))
+			case protocol.StorageFetchConsumer:
+				go module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
+			case protocol.StorageFetchTopic:
+				go module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
+			default:
+				requestLogger.Error("unknown storage request type",
+					zap.Int("request_type", int(r.RequestType)),
+				)
+				if r.Reply != nil {
+					close(r.Reply)
+				}
 			}
 		}
 	}
@@ -424,9 +433,9 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		return
 	}
 
-	topicList := make(map[string][]*protocol.ConsumerPartition)
+	topicList := make(protocol.ConsumerTopics)
 	for topic, partitions := range consumerMap.topics {
-		topicList[topic] = make([]*protocol.ConsumerPartition, 0, len(partitions))
+		topicList[topic] = make(protocol.ConsumerPartitions, 0, len(partitions))
 
 		for _, offsetRing := range partitions {
 			partition := &protocol.ConsumerPartition{

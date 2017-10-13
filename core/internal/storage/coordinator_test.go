@@ -86,3 +86,8 @@ func TestCoordinator_Start(t *testing.T) {
 
 	coordinator.Stop()
 }
+
+func TestCoordinator_MultipleRequests(t *testing.T) {
+	coordinator := StorageCoordinatorWithOffsets()
+	coordinator.Stop()
+}

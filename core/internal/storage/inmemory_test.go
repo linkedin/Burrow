@@ -566,7 +566,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	module := startWithTestConsumerOffsets()
 
 	request := protocol.StorageRequest{
-		RequestType: protocol.StorageFetchTopic,
+		RequestType: protocol.StorageFetchConsumer,
 		Cluster:     "testcluster",
 		Group:       "testgroup",
 		Reply:       make(chan interface{}),
@@ -576,8 +576,8 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	go module.fetchConsumer(&request, module.Log)
 	response := <- request.Reply
 
-	assert.IsType(t, map[string][]*protocol.ConsumerPartition{}, response, "Expected response to be of type map[string][]*protocol.ConsumerPartition")
-	val := response.(map[string][]*protocol.ConsumerPartition)
+	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type map[string][]*protocol.ConsumerPartition")
+	val := response.(protocol.ConsumerTopics)
 	assert.Len(t, val, 1, "One topic for consumer not returned")
 	_, ok := val["testtopic"]
 	assert.True(t, ok, "Expected response to contain topic testtopic")
@@ -606,7 +606,7 @@ func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
 	module := startWithTestConsumerOffsets()
 
 	request := protocol.StorageRequest{
-		RequestType: protocol.StorageFetchTopic,
+		RequestType: protocol.StorageFetchConsumer,
 		Cluster:     "nocluster",
 		Group:       "testgroup",
 		Reply:       make(chan interface{}),
@@ -624,7 +624,7 @@ func TestInMemoryStorage_fetchConsumer_BadTopic(t *testing.T) {
 	module := startWithTestConsumerOffsets()
 
 	request := protocol.StorageRequest{
-		RequestType: protocol.StorageFetchTopic,
+		RequestType: protocol.StorageFetchConsumer,
 		Cluster:     "testcluster",
 		Group:       "nogroup",
 		Reply:       make(chan interface{}),

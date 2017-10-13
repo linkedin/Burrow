@@ -17,6 +17,7 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"sync"
 )
 
 type StorageModule interface {
@@ -45,6 +46,7 @@ type Coordinator struct {
 	Log         *zap.Logger
 	quitChannel	chan struct{}
 	modules     map[string]protocol.Module
+	running     sync.WaitGroup
 }
 
 func GetModuleForClass(app *protocol.ApplicationContext, className string) StorageModule {
@@ -64,8 +66,10 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) Stora
 }
 
 func (sc *Coordinator) Configure() {
+	sc.Log.Info("configuring")
 	sc.quitChannel = make(chan struct{})
 	sc.modules = make(map[string]protocol.Module)
+	sc.running = sync.WaitGroup{}
 
 	// Create all configured storage modules, add to list of storage
 	if len(sc.App.Configuration.Storage) != 1 {
@@ -79,6 +83,8 @@ func (sc *Coordinator) Configure() {
 }
 
 func (sc *Coordinator) Start() error {
+	sc.Log.Info("starting")
+
 	// Start Storage modules
 	err := helpers.StartCoordinatorModules(sc.modules)
 	if err != nil {
@@ -86,33 +92,40 @@ func (sc *Coordinator) Start() error {
 	}
 
 	// Start request forwarder
-	go func() {
-		// We only support 1 module right now, so only send to that module
-		var channel chan *protocol.StorageRequest
-		for _, module := range sc.modules {
-			channel = module.(StorageModule).GetCommunicationChannel()
-		}
-
-		for {
-			select {
-			case request := <-sc.App.StorageChannel:
-				// Yes, this forwarder is silly. However, in the future we want to support multiple storage modules
-				// concurrently. However, that will require implementing a router that properly handles sets and
-				// fetches and makes sure only 1 module responds to fetches
-				channel <- request
-			case <-sc.quitChannel:
-				return
-			}
-		}
-	}()
-
+	go sc.mainLoop()
 	return nil
 }
 
 func (sc *Coordinator) Stop() error {
+	sc.Log.Info("stopping")
+
 	close(sc.quitChannel)
+	sc.running.Wait()
 
 	// The individual storage modules can choose whether or not to implement a wait in the Stop routine
 	helpers.StopCoordinatorModules(sc.modules)
 	return nil
+}
+
+func (sc *Coordinator) mainLoop() {
+	sc.running.Add(1)
+	defer sc.running.Done()
+
+	// We only support 1 module right now, so only send to that module
+	var channel chan *protocol.StorageRequest
+	for _, module := range sc.modules {
+		channel = module.(StorageModule).GetCommunicationChannel()
+	}
+
+	for {
+		select {
+		case request := <-sc.App.StorageChannel:
+			// Yes, this forwarder is silly. However, in the future we want to support multiple storage modules
+			// concurrently. However, that will require implementing a router that properly handles sets and
+			// fetches and makes sure only 1 module responds to fetches
+			channel <- request
+		case <-sc.quitChannel:
+			return
+		}
+	}
 }

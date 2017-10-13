@@ -43,3 +43,6 @@ type ConsumerOffset struct {
 	Timestamp  int64 `json:"timestamp"`
 	Lag        int64 `json:"lag"`
 }
+
+type ConsumerTopics map[string]ConsumerPartitions
+type ConsumerPartitions []*ConsumerPartition
