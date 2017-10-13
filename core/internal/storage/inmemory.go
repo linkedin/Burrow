@@ -244,11 +244,24 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 	return consumerPartitionRing
 }
 
+func (module *InMemoryStorage) acceptConsumerGroup(group string) bool {
+	// No whitelist means everything passes
+	if module.groupWhitelist == nil {
+		return true
+	}
+	return module.groupWhitelist.MatchString(group)
+}
+
 func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageRequest, requestLogger *zap.Logger) {
 	clusterMap, ok := module.offsets[request.Cluster]
 	if !ok {
 		// Ignore offsets for clusters that we don't know about - should never happen anyways
 		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	if ! module.acceptConsumerGroup(request.Group) {
+		requestLogger.Debug("dropped offset", zap.String("reason", "group not whitelisted"))
 		return
 	}
 
