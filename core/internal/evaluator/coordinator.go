@@ -54,8 +54,8 @@ func (ec *Coordinator) Configure() {
 	ec.modules = make(map[string]protocol.Module)
 
 	// Create all configured evaluator modules, add to list of evaluators
-	if len(ec.App.Configuration.Cluster) == 0 {
-		panic("At least one cluster module must be configured")
+	if len(ec.App.Configuration.Evaluator) != 1 {
+		panic("Only one evaluator module must be configured")
 	}
 	for name, config := range ec.App.Configuration.Evaluator {
 		module := GetModuleForClass(ec.App, config.ClassName)
@@ -73,15 +73,19 @@ func (ec *Coordinator) Start() error {
 
 	// Start request forwarder
 	go func() {
+		// We only support 1 module right now, so only send to that module
+		var channel chan *protocol.EvaluatorRequest
+		for _, module := range ec.modules {
+			channel = module.(EvaluatorModule).GetCommunicationChannel()
+		}
+
 		for {
 			select {
 			case request := <-ec.App.EvaluatorChannel:
-				// Right now, send all requests to all evaluator modules. This means that if there is more than one
-				// module configured, there may be multiple responses sent back. In the future we will want to route
-				// requests, or have a config for which module gets requests
-				for _, module := range ec.modules {
-					module.(EvaluatorModule).GetCommunicationChannel() <- request
-				}
+				// Yes, this forwarder is silly. However, in the future we want to support multiple evaluator modules
+				// concurrently. However, that will require implementing a router that properly handles requests and
+				// makes sure that only 1 evaluator responds
+				channel <- request
 			case <-ec.quitChannel:
 				return
 			}

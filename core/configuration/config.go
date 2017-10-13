@@ -75,7 +75,7 @@ type ClusterConfig struct {
 }
 type EvaluatorConfig struct {
 	ClassName     string `gcfg:"class-name"`
-	ExpireGroup   int64  `gcfg:"expire-group"`
+	ExpireCache   int64  `gcfg:"expire-cache"`
 }
 type NotifierConfig struct {
 	ClassName      string   `gcfg:"class-name"`

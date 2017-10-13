@@ -11,8 +11,6 @@
 package protocol
 
 import (
-	"encoding/json"
-
 	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
 
@@ -32,19 +30,6 @@ type ApplicationContext struct {
 	StorageChannel   chan *StorageRequest
 }
 
-func (c StatusConstant) String() string {
-	if (c >= 0) && (c < StatusConstant(len(StatusStrings))) {
-		return StatusStrings[c]
-	} else {
-		return "UNKNOWN"
-	}
-}
-func (c StatusConstant) MarshalText() ([]byte, error) {
-	return []byte(c.String()), nil
-}
-func (c StatusConstant) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.String())
-}
 
 /* The Module interface is used for all Burrow modules, including:
  *   - Consumer
