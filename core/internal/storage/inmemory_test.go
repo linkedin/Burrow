@@ -342,7 +342,6 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 		if i == 9 {
 			// The last offset in the ring is the one that got the min-distance update
 			offsetValue = 2000
-			timestampValue = 190001
 		}
 		lagValue := int64(4321) - offsetValue
 

@@ -298,6 +298,11 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 			// We have to change both pointers here, as we're essentially rewinding the ring one spot to add this commit
 			consumerPartitionRing = consumerPartitionRing.Prev()
 			consumerMap.topics[request.Topic][request.Partition] = consumerPartitionRing
+
+			// We also set the timestamp for the request to the STORED timestamp. The reason for this is that if we
+			// update the timestamp to the new timestamp, we may never create a new offset in the ring (consider the
+			// case where someone is auto-committing with a frequency lower than min-distance)
+			request.Timestamp = consumerPartitionRing.Value.(*protocol.ConsumerOffset).Timestamp
 		}
 	}
 	// Calculate the lag against the brokerOffset
