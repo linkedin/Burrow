@@ -33,6 +33,8 @@ func (e *CacheError) Error() string {
 }
 
 func (module *CachingEvaluator) Configure(name string) {
+	module.Log.Info("configuring")
+
 	module.name = name
 	module.RequestChannel = make(chan *protocol.EvaluatorRequest)
 	module.myConfiguration = module.App.Configuration.Evaluator[name]
@@ -61,11 +63,15 @@ func (module *CachingEvaluator) GetCommunicationChannel() chan *protocol.Evaluat
 }
 
 func (module *CachingEvaluator) Start() error {
+	module.Log.Info("starting")
+
 	go module.mainLoop()
 	return nil
 }
 
 func (module *CachingEvaluator) Stop() error {
+	module.Log.Info("stopping")
+
 	close(module.RequestChannel)
 	module.running.Wait()
 	return nil

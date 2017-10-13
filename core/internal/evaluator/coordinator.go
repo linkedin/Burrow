@@ -50,6 +50,8 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) proto
 }
 
 func (ec *Coordinator) Configure() {
+	ec.Log.Info("configuring")
+
 	ec.quitChannel = make(chan struct{})
 	ec.modules = make(map[string]protocol.Module)
 
@@ -65,6 +67,8 @@ func (ec *Coordinator) Configure() {
 }
 
 func (ec *Coordinator) Start() error {
+	ec.Log.Info("starting")
+
 	// Start Evaluator modules
 	err := helpers.StartCoordinatorModules(ec.modules)
 	if err != nil {
@@ -96,6 +100,8 @@ func (ec *Coordinator) Start() error {
 }
 
 func (ec *Coordinator) Stop() error {
+	ec.Log.Info("stopping")
+
 	close(ec.quitChannel)
 
 	// The individual storage modules can choose whether or not to implement a wait in the Stop routine
