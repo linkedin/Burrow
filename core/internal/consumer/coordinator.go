@@ -19,8 +19,6 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type OffsetMessage protocol.PartitionOffset
-
 type Coordinator struct {
 	App     *protocol.ApplicationContext
 	Log     *zap.Logger

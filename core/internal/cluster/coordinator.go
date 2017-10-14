@@ -19,8 +19,6 @@ import (
 	"github.com/linkedin/Burrow/core/internal/helpers"
 )
 
-type OffsetMessage protocol.PartitionOffset
-
 type Coordinator struct {
 	App     *protocol.ApplicationContext
 	Log     *zap.Logger
@@ -44,6 +42,8 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) proto
 }
 
 func (bc *Coordinator) Configure() {
+	bc.Log.Info("configuring")
+
 	bc.modules = make(map[string]protocol.Module)
 
 	// Create all configured cluster modules, add to list of clusters
@@ -58,6 +58,8 @@ func (bc *Coordinator) Configure() {
 }
 
 func (bc *Coordinator) Start() error {
+	bc.Log.Info("starting")
+
 	// Start Cluster modules
 	err := helpers.StartCoordinatorModules(bc.modules)
 	if err != nil {
@@ -67,6 +69,8 @@ func (bc *Coordinator) Start() error {
 }
 
 func (bc *Coordinator) Stop() error {
+	bc.Log.Info("stopping")
+
 	// The individual cluster modules can choose whether or not to implement a wait in the Stop routine
 	helpers.StopCoordinatorModules(bc.modules)
 	return nil

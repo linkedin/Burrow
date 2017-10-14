@@ -22,11 +22,16 @@ import (
 // Configuration definition
 type ClientProfile struct {
 	ClientID        string `gcfg:"client-id"`
+	KafkaVersion    string `gcfg:"kafka-version"`
 	TLS             bool   `gcfg:"tls"`
 	TLSNoVerify     bool   `gcfg:"tls-noverify"`
 	TLSCertFilePath string `gcfg:"tls-certfilepath"`
 	TLSKeyFilePath  string `gcfg:"tls-keyfilepath"`
 	TLSCAFilePath   string `gcfg:"tls-cafilepath"`
+	SASL            bool   `gcfg:"sasl"`
+	HandshakeFirst  bool   `gcfg:"handshake-first"`
+	Username        string `gcfg:"username"`
+	Password        string `gcfg:"password"`
 }
 type HttpNotifierProfile struct {
 	UrlOpen        string   `gcfg:"url-open"`
@@ -72,6 +77,7 @@ type ClusterConfig struct {
 	ClassName     string   `gcfg:"class-name"`
 	Servers       []string `gcfg:"server"`
 	ClientProfile string   `gcfg:"client-profile"`
+	TopicRefresh  int64    `gcfg:"topic-refresh"`
 	OffsetRefresh int64    `gcfg:"offset-refresh"`
 }
 type EvaluatorConfig struct {
@@ -112,8 +118,8 @@ type Configuration struct {
 		RootPath string   `gcfg:"root-path"`
 	}
 	HttpServer struct {
-		Enable bool `gcfg:"server"`
-		Port   int  `gcfg:"port"`
+		Enable bool     `gcfg:"server"`
+		Port   int      `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
 	}
 
@@ -179,9 +185,8 @@ func ValidateConfig(config *Configuration) error {
 	if len(config.Zookeeper.Hosts) == 0 {
 		errs = append(errs, "No Zookeeper hostnames specified")
 	} else {
-		hostlistError := CheckHostList(config.Zookeeper.Hosts, config.Zookeeper.Port, "Zookeeper")
-		if hostlistError != "" {
-			errs = append(errs, hostlistError)
+		if ! ValidateHostList(config.Zookeeper.Hosts) {
+			errs = append(errs, "Failed to validate Zookeeper servers")
 		}
 	}
 	if config.Zookeeper.Timeout == 0 {
@@ -207,6 +212,14 @@ func ValidateConfig(config *Configuration) error {
 			if config.HttpServer.Port != 0 {
 				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
 			}
+		}
+	}
+
+	// Assure we have a default ClientProfile and create it if not
+	if _, ok := config.ClientProfile[""]; !ok {
+		config.ClientProfile[""] = &ClientProfile{
+			ClientID:     "burrow-lagchecker",
+			KafkaVersion: "0.8.2",
 		}
 	}
 

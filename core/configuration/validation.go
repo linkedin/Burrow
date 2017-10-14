@@ -11,7 +11,6 @@
 package configuration
 
 import (
-	"fmt"
 	"net"
 	"net/url"
 	"regexp"
@@ -77,44 +76,36 @@ func ValidateUrl(rawUrl string) bool {
 	return err == nil
 }
 
-// Validate a list of ZK or Kafka hosts with optional ports
-func CheckHostList(hosts []string, defaultPort int, appName string) string {
-	for i, host := range hosts {
+// Validate a list of ZK or Kafka hosts of the form hostname:port
+func ValidateHostList(hosts []string) bool {
+	// Must be hostname:port, ipv4:port, or [ipv6]:port
+	for _, host := range hosts {
+		// Pop the last :XXX off as a port number
 		hostparts := strings.Split(host, ":")
-		hostport := defaultPort
-		hostname := hostparts[0]
+		if len(hostparts) < 2 {
+			return false
+		}
+		_, err := strconv.Atoi(hostparts[len(hostparts)-1])
+		if err != nil {
+			return false
+		}
+		hostname := strings.Join(hostparts[:len(hostparts)-1], ":")
 
 		if len(hostparts) == 2 {
-			// Must be a hostname or IPv4 address with a port
-			var err error
-			hostport, err = strconv.Atoi(hostparts[1])
-			if (err != nil) || (hostport == 0) {
-				return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
+			// Must be a hostname or IPv4 address
+			if ! (ValidateIP(hostname) || ValidateHostname(hostname)) {
+				return false
+			}
+		} else {
+			// Must be an IPv6 address, which must be enclosed in []
+			if (hostname[0] != 91) || (hostname[len(hostname)-1] != 93) {
+				return false
+			}
+			if ! ValidateIP(hostname[1:len(hostname)-2]) {
+				return false
 			}
 		}
-
-		if len(hostparts) > 2 {
-			// Must be an IPv6 address
-			// Try without popping off the last segment as a port number first
-			if ValidateIP(host) {
-				hostname = host
-			} else {
-				// The full host didn't validate as an IP, so let's pull off the last piece as a port number and try again
-				hostname = strings.Join(hostparts[:len(hostparts)-1], ":")
-
-				hostport, err := strconv.Atoi(hostparts[len(hostparts)-1])
-				if (err != nil) || (hostport == 0) {
-					return fmt.Sprintf("One or more %s hostnames have invalid port components", appName)
-				}
-			}
-		}
-
-		if !ValidateHostname(hostname) {
-			return fmt.Sprintf("One or more %s hostnames are invalid", appName)
-		}
-
-		hosts[i] = fmt.Sprintf("[%s]:%v", hostname, hostport)
 	}
 
-	return ""
+	return true
 }

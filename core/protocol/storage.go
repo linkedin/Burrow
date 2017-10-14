@@ -1,14 +1,5 @@
 package protocol
 
-type PartitionOffset struct {
-	Cluster             string
-	Topic               string
-	Partition           int32
-	Offset              int64
-	Timestamp           int64
-	Group               string
-}
-
 type StorageRequestConstant int
 const (
 	StorageSetBrokerOffset   StorageRequestConstant = 0
