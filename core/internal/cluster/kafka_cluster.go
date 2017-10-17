@@ -69,7 +69,7 @@ func (module *KafkaCluster) Start() error {
 	// Start main loop that has a timer for offset and topic fetches
 	module.offsetTicker = time.NewTicker(time.Duration(module.myConfiguration.OffsetRefresh) * time.Second)
 	module.metadataTicker = time.NewTicker(time.Duration(module.myConfiguration.TopicRefresh) * time.Second)
-	go module.mainLoop(client)
+	go module.mainLoop(&helpers.SaramaClient{client})
 
 	return nil
 }
@@ -85,7 +85,7 @@ func (module *KafkaCluster) Stop() error {
 	return nil
 }
 
-func (module *KafkaCluster) mainLoop(client sarama.Client) {
+func (module *KafkaCluster) mainLoop(client helpers.BurrowSaramaClient) {
 	module.running.Add(1)
 	defer module.running.Done()
 
@@ -102,7 +102,7 @@ func (module *KafkaCluster) mainLoop(client sarama.Client) {
 	}
 }
 
-func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client sarama.Client) {
+func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.BurrowSaramaClient) {
 	if module.fetchMetadata {
 		module.fetchMetadata = false
 		client.RefreshMetadata()
@@ -144,9 +144,9 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client sarama.Cli
 	}
 }
 
-func (module *KafkaCluster) generateOffsetRequests(client sarama.Client) (map[int32]*sarama.OffsetRequest, map[int32]*sarama.Broker) {
+func (module *KafkaCluster) generateOffsetRequests(client helpers.BurrowSaramaClient) (map[int32]*sarama.OffsetRequest, map[int32]helpers.BurrowSaramaBroker) {
 	requests := make(map[int32]*sarama.OffsetRequest)
-	brokers := make(map[int32]*sarama.Broker)
+	brokers := make(map[int32]helpers.BurrowSaramaBroker)
 
 	// Generate an OffsetRequest for each topic:partition and bucket it to the leader broker
 	for topic, partitions := range module.topicMap {
@@ -169,7 +169,7 @@ func (module *KafkaCluster) generateOffsetRequests(client sarama.Client) (map[in
 
 // This function performs massively parallel OffsetRequests, which is better than Sarama's internal implementation,
 // which does one at a time. Several orders of magnitude faster.
-func (module *KafkaCluster) getOffsets(client sarama.Client) {
+func (module *KafkaCluster) getOffsets(client helpers.BurrowSaramaClient) {
 	module.maybeUpdateMetadataAndDeleteTopics(client)
 	requests, brokers := module.generateOffsetRequests(client)
 
