@@ -74,7 +74,115 @@ func TimeoutSendStorageRequest(storageChannel chan *protocol.StorageRequest, req
 	}
 }
 
-// mock sarama.Client to use in tests
+// Sarama shim interface for Client and Broker
+// We need this because the Broker type in Sarama is not an interface. Therefore it's very difficult to mock and test
+// around it.
+
+// Shim interface for sarama.Client. This duplicates the sarama.Client interface, except it changes the Broker type
+// to BurrowSaramaBroker (our shim interface) to permit mocking
+type BurrowSaramaClient interface {
+	Config() *sarama.Config
+	Brokers() []BurrowSaramaBroker
+	Topics() ([]string, error)
+	Partitions(topic string) ([]int32, error)
+	WritablePartitions(topic string) ([]int32, error)
+	Leader(topic string, partitionID int32) (BurrowSaramaBroker, error)
+	Replicas(topic string, partitionID int32) ([]int32, error)
+	InSyncReplicas(topic string, partitionID int32) ([]int32, error)
+	RefreshMetadata(topics ...string) error
+	GetOffset(topic string, partitionID int32, time int64) (int64, error)
+	Coordinator(consumerGroup string) (BurrowSaramaBroker, error)
+	RefreshCoordinator(consumerGroup string) error
+	Close() error
+	Closed() bool
+}
+type SaramaClient struct {
+	Client sarama.Client
+}
+
+// Implementation of BurrowSaramaClient which calls through to sarama.Client methods, and then creates SaramaBroker for
+// each Broker returned
+func (c *SaramaClient) Config() *sarama.Config {
+	return c.Client.Config()
+}
+func (c *SaramaClient) Brokers() []BurrowSaramaBroker {
+	brokers := c.Client.Brokers()
+	shimBrokers := make([]BurrowSaramaBroker, len(brokers))
+	for i, broker := range brokers {
+		shimBrokers[i] = &SaramaBroker{broker}
+	}
+	return shimBrokers
+}
+func (c *SaramaClient) Topics() ([]string, error) {
+	return c.Client.Topics()
+}
+func (c *SaramaClient) Partitions(topic string) ([]int32, error) {
+	return c.Client.Partitions(topic)
+}
+func (c *SaramaClient) WritablePartitions(topic string) ([]int32, error) {
+	return c.Client.WritablePartitions(topic)
+}
+func (c *SaramaClient) Leader(topic string, partitionID int32) (BurrowSaramaBroker, error) {
+	broker, err := c.Client.Leader(topic, partitionID)
+	var shimBroker *SaramaBroker
+	if broker != nil {
+		shimBroker = &SaramaBroker{broker}
+	}
+	return shimBroker, err
+}
+func (c *SaramaClient) Replicas(topic string, partitionID int32) ([]int32, error) {
+	return c.Client.Replicas(topic, partitionID)
+}
+func (c *SaramaClient) InSyncReplicas(topic string, partitionID int32) ([]int32, error) {
+	return c.Client.InSyncReplicas(topic, partitionID)
+}
+func (c *SaramaClient) RefreshMetadata(topics ...string) error {
+	return c.Client.RefreshMetadata(topics...)
+}
+func (c *SaramaClient) GetOffset(topic string, partitionID int32, time int64) (int64, error) {
+	return c.Client.GetOffset(topic, partitionID, time)
+}
+func (c *SaramaClient) Coordinator(consumerGroup string) (BurrowSaramaBroker, error) {
+	broker, err := c.Client.Coordinator(consumerGroup)
+	var shimBroker *SaramaBroker
+	if broker != nil {
+		shimBroker = &SaramaBroker{broker}
+	}
+	return shimBroker, err
+}
+func (c *SaramaClient) RefreshCoordinator(consumerGroup string) error {
+	return c.Client.RefreshCoordinator(consumerGroup)
+}
+func (c *SaramaClient) Close() error {
+	return c.Client.Close()
+}
+func (c *SaramaClient) Closed() bool {
+	return c.Client.Closed()
+}
+
+// Right now, this interface only defines the methods that Burrow is using. It should not be considered a complete
+// interface for sarama.Broker
+type BurrowSaramaBroker interface {
+	ID() int32
+	Close() error
+	GetAvailableOffsets(*sarama.OffsetRequest) (*sarama.OffsetResponse, error)
+}
+type SaramaBroker struct {
+	broker *sarama.Broker
+}
+
+// Implementation of BurrowSaramaBroker which calls through to sarama.Broker methods
+func (b *SaramaBroker) ID() int32 {
+	return b.broker.ID()
+}
+func (b *SaramaBroker) Close() error {
+	return b.broker.Close()
+}
+func (b *SaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) (*sarama.OffsetResponse, error) {
+	return b.broker.GetAvailableOffsets(request)
+}
+
+// mock BurrowSaramaClient to use in tests
 type MockSaramaClient struct {
 	mock.Mock
 }
@@ -82,9 +190,9 @@ func (m *MockSaramaClient) Config() *sarama.Config {
 	args := m.Called()
 	return args.Get(0).(*sarama.Config)
 }
-func (m *MockSaramaClient) Brokers() []*sarama.Broker {
+func (m *MockSaramaClient) Brokers() []BurrowSaramaBroker {
 	args := m.Called()
-	return args.Get(0).([]*sarama.Broker)
+	return args.Get(0).([]BurrowSaramaBroker)
 }
 func (m *MockSaramaClient) Topics() ([]string, error) {
 	args := m.Called()
@@ -98,9 +206,9 @@ func (m *MockSaramaClient) WritablePartitions(topic string) ([]int32, error) {
 	args := m.Called(topic)
 	return args.Get(0).([]int32), args.Error(1)
 }
-func (m *MockSaramaClient) Leader(topic string, partitionID int32) (*sarama.Broker, error) {
+func (m *MockSaramaClient) Leader(topic string, partitionID int32) (BurrowSaramaBroker, error) {
 	args := m.Called(topic, partitionID)
-	return args.Get(0).(*sarama.Broker), args.Error(1)
+	return args.Get(0).(BurrowSaramaBroker), args.Error(1)
 }
 func (m *MockSaramaClient) Replicas(topic string, partitionID int32) ([]int32, error) {
 	args := m.Called(topic, partitionID)
@@ -112,7 +220,7 @@ func (m *MockSaramaClient) InSyncReplicas(topic string, partitionID int32) ([]in
 }
 func (m *MockSaramaClient) RefreshMetadata(topics ...string) error {
 	if len(topics) > 0 {
-		args := m.Called(topics)
+		args := m.Called([]interface{}{topics}...)
 		return args.Error(0)
 	} else {
 		args := m.Called()
@@ -123,9 +231,9 @@ func (m *MockSaramaClient) GetOffset(topic string, partitionID int32, time int64
 	args := m.Called(topic, partitionID, time)
 	return args.Get(0).(int64), args.Error(1)
 }
-func (m *MockSaramaClient) Coordinator(consumerGroup string) (*sarama.Broker, error) {
+func (m *MockSaramaClient) Coordinator(consumerGroup string) (BurrowSaramaBroker, error) {
 	args := m.Called(consumerGroup)
-	return args.Get(0).(*sarama.Broker), args.Error(1)
+	return args.Get(0).(BurrowSaramaBroker), args.Error(1)
 }
 func (m *MockSaramaClient) RefreshCoordinator(consumerGroup string) error {
 	args := m.Called(consumerGroup)
@@ -138,4 +246,21 @@ func (m *MockSaramaClient) Close() error {
 func (m *MockSaramaClient) Closed() bool {
 	args := m.Called()
 	return args.Bool(0)
+}
+
+// mock BurrowSaramaClient to use in tests
+type MockSaramaBroker struct {
+	mock.Mock
+}
+func (m *MockSaramaBroker) ID() int32 {
+	args := m.Called()
+	return args.Get(0).(int32)
+}
+func (m *MockSaramaBroker) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+func (m *MockSaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) (*sarama.OffsetResponse, error) {
+	args := m.Called(request)
+	return args.Get(0).(*sarama.OffsetResponse), args.Error(1)
 }
