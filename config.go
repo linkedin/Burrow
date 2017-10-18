@@ -79,6 +79,7 @@ type BurrowConfig struct {
 		Enable bool `gcfg:"server"`
 		Port   int  `gcfg:"port"`
 		Listen []string `gcfg:"listen"`
+		AccessControlAllowOrigin string `gcfg:"access-control-allow-origin"`
 	}
 	Notify struct {
 		Interval int64 `gcfg:"interval"`

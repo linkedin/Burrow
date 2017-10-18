@@ -95,7 +95,9 @@ func NewHttpServer(app *ApplicationContext) (*HttpServer, error) {
 
 func (ah appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if len(ah.app.Config.Httpserver.AccessControlAllowOrigin) > 0 {
+		w.Header().Set("Access-Control-Allow-Origin", ah.app.Config.Httpserver.AccessControlAllowOrigin)
+	}
 
 	switch {
 	case r.Method == "GET":
