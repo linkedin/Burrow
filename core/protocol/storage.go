@@ -2,15 +2,16 @@ package protocol
 
 type StorageRequestConstant int
 const (
-	StorageSetBrokerOffset   StorageRequestConstant = 0
-	StorageSetConsumerOffset StorageRequestConstant = 1
-	StorageSetDeleteTopic    StorageRequestConstant = 2
-	StorageSetDeleteGroup    StorageRequestConstant = 3
-	StorageFetchClusters     StorageRequestConstant = 4
-	StorageFetchConsumers    StorageRequestConstant = 5
-	StorageFetchTopics       StorageRequestConstant = 6
-	StorageFetchConsumer     StorageRequestConstant = 7
-	StorageFetchTopic        StorageRequestConstant = 8
+	StorageSetBrokerOffset     StorageRequestConstant = 0
+	StorageSetConsumerOffset   StorageRequestConstant = 1
+	StorageSetConsumerOwner    StorageRequestConstant = 2
+	StorageSetDeleteTopic      StorageRequestConstant = 3
+	StorageSetDeleteGroup      StorageRequestConstant = 4
+	StorageFetchClusters       StorageRequestConstant = 5
+	StorageFetchConsumers      StorageRequestConstant = 6
+	StorageFetchTopics         StorageRequestConstant = 7
+	StorageFetchConsumer       StorageRequestConstant = 8
+	StorageFetchTopic          StorageRequestConstant = 9
 )
 
 type StorageRequest struct {
@@ -23,10 +24,12 @@ type StorageRequest struct {
 	TopicPartitionCount int32
 	Offset              int64
 	Timestamp           int64
+	Owner               string
 }
 
 type ConsumerPartition struct {
 	Offsets    []*ConsumerOffset
+	Owner      string
 	CurrentLag int64
 }
 

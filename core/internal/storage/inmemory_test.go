@@ -252,10 +252,11 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 	partitions, ok := consumerMap.topics["testtopic"]
 	assert.True(t, ok, "Topic not created")
 	assert.Len(t, partitions, 1, "One partition not created")
-	assert.Equal(t, 10, partitions[0].Len(), "10 offset ring entries not created")
+	assert.Equal(t, 10, partitions[0].offsets.Len(), "10 offset ring entries not created")
+	assert.Equal(t, "", partitions[0].owner, "Expected owner to be empty")
 
 	// All the ring values should be not nil
-	r := partitions[0]
+	r := partitions[0].offsets
 	for i := 0; i < 10; i++ {
 		assert.NotNilf(t, r.Value, "Expected ring value to be NOT nil at position %v", i)
 		assert.IsType(t, new(protocol.ConsumerOffset), r.Value, "Expected ring value to be of type ConsumerOffset")
@@ -331,10 +332,10 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 	partitions, ok := consumerMap.topics["testtopic"]
 	assert.True(t, ok, "Topic not created")
 	assert.Len(t, partitions, 1, "One partition not created")
-	assert.Equal(t, 10, partitions[0].Len(), "10 offset ring entries not created")
+	assert.Equal(t, 10, partitions[0].offsets.Len(), "10 offset ring entries not created")
 
 	// All the ring values should be not nil
-	r := partitions[0]
+	r := partitions[0].offsets
 	for i := 0; i < 10; i++ {
 		assert.NotNilf(t, r.Value, "Expected ring value to be NOT nil at position %v", i)
 		assert.IsType(t, new(protocol.ConsumerOffset), r.Value, "Expected ring value to be of type ConsumerOffset")
@@ -392,6 +393,27 @@ func TestInMemoryStorage_addConsumerOffset_BadCluster(t *testing.T) {
 	assert.Len(t, module.offsets, 1, "Extra cluster exists")
 	_, ok := module.offsets["testcluster"].consumer["testgroup"]
 	assert.False(t, ok, "Group created in wrong cluster")
+}
+
+func TestInMemoryStorage_addConsumerOwner(t *testing.T) {
+	module := startWithTestConsumerOffsets("", 100000)
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOwner,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Owner:       "testhost.example.com",
+	}
+	module.addConsumerOwner(&request, module.Log)
+
+	consumerMap, ok := module.offsets["testcluster"].consumer["testgroup"]
+	assert.True(t, ok, "Group not created")
+	partitions, ok := consumerMap.topics["testtopic"]
+	assert.True(t, ok, "Topic not created")
+	assert.Len(t, partitions, 1, "One partition not created")
+	assert.Equal(t, "testhost.example.com", partitions[0].owner, "Expected owner to be testhost.example.com, not %v", partitions[0].owner)
 }
 
 func TestInMemoryStorage_deleteTopic(t *testing.T) {
@@ -648,7 +670,18 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
 	module := startWithTestConsumerOffsets("", startTime)
 
+	// Set the owner for the test partition
 	request := protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOwner,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Owner:       "testhost.example.com",
+	}
+	module.addConsumerOwner(&request, module.Log)
+
+	request = protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumer,
 		Cluster:     "testcluster",
 		Group:       "testgroup",
@@ -665,7 +698,8 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	_, ok := val["testtopic"]
 	assert.True(t, ok, "Expected response to contain topic testtopic")
 	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
-	assert.Equalf(t, val["testtopic"][0].CurrentLag, int64(2421), "Expected current lag to be 2421, not %v", val["testtopic"][0].CurrentLag)
+	assert.Equalf(t, int64(2421), val["testtopic"][0].CurrentLag, "Expected current lag to be 2421, not %v", val["testtopic"][0].CurrentLag)
+	assert.Equalf(t, "testhost.example.com", val["testtopic"][0].Owner, "Expected owner to be testhost.example.com, not %v", val["testtopic"][0].Owner)
 
 	offsets := val["testtopic"][0].Offsets
 	assert.Lenf(t, offsets, 10, "Expected to get 10 offsets for the partition, not %v", len(offsets))

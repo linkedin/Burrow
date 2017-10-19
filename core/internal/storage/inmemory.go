@@ -30,10 +30,15 @@ type BrokerOffset struct {
 	Timestamp int64
 }
 
+type ConsumerPartition struct {
+	offsets *ring.Ring
+	owner   string
+}
+
 type ConsumerGroup struct {
 	// This lock is held when using the individual group, either for read or write
 	lock       *sync.RWMutex
-	topics     map[string][]*ring.Ring
+	topics     map[string][]*ConsumerPartition
 	lastCommit int64
 }
 
@@ -125,6 +130,7 @@ func (module *InMemoryStorage) mainLoop() {
 				zap.Int32("topic_partition_count", r.TopicPartitionCount),
 				zap.Int64("offset", r.Offset),
 				zap.Int64("timestamp", r.Timestamp),
+				zap.String("owner", r.Owner),
 			)
 
 			switch r.RequestType {
@@ -132,6 +138,8 @@ func (module *InMemoryStorage) mainLoop() {
 				go module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
 			case protocol.StorageSetConsumerOffset:
 				go module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
+			case protocol.StorageSetConsumerOwner:
+				go module.addConsumerOwner(r, requestLogger.With(zap.String("request", "StorageSetConsumerOwner")))
 			case protocol.StorageSetDeleteTopic:
 				go module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
 			case protocol.StorageSetDeleteGroup:
@@ -204,7 +212,7 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *ClusterOffsets, topic
 	topicPartitionList, ok := clusterMap.broker[topic]
 	if !ok {
 		// We don't know about this topic from the brokers yet - skip consumer offsets for now
-		requestLogger.Debug("dropped offset", zap.String("reason", "no topic"))
+		requestLogger.Debug("dropped", zap.String("reason", "no topic"))
 		return 0, 0
 	}
 	if partition < 0 {
@@ -214,12 +222,12 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *ClusterOffsets, topic
 	}
 	if partition >= int32(len(topicPartitionList)) {
 		// We know about the topic, but partitions have been expanded and we haven't seen that from the broker yet
-		requestLogger.Debug("dropped offset", zap.String("reason", "no broker partition"))
+		requestLogger.Debug("dropped", zap.String("reason", "no broker partition"))
 		return 0, 0
 	}
 	if topicPartitionList[partition] == nil {
 		// We know about the topic and partition, but we haven't actually gotten the broker offset yet
-		requestLogger.Debug("dropped offset", zap.String("reason", "no broker offset"))
+		requestLogger.Debug("dropped", zap.String("reason", "no broker offset"))
 		return 0, 0
 	}
 	return topicPartitionList[partition].Offset, int32(len(topicPartitionList))
@@ -229,7 +237,7 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 	// Get or create the topic for the consumer
 	consumerTopicMap, ok := consumerMap.topics[topic]
 	if !ok {
-		consumerMap.topics[topic] = make([]*ring.Ring, partitionCount)
+		consumerMap.topics[topic] = make([]*ConsumerPartition, 0, partitionCount)
 		consumerTopicMap = consumerMap.topics[topic]
 	}
 
@@ -237,18 +245,17 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 	if int(partition) >= len(consumerTopicMap) {
 		// The partition count must have increased. Append enough extra partitions to our slice
 		for i := int32(len(consumerTopicMap)); i < partitionCount; i++ {
-			consumerTopicMap = append(consumerTopicMap, nil)
+			consumerTopicMap = append(consumerTopicMap, &ConsumerPartition{})
 		}
+		consumerMap.topics[topic] = consumerTopicMap
 	}
 
 	// Get or create the offsets ring for this partition
-	consumerPartitionRing := consumerTopicMap[partition]
-	if consumerPartitionRing == nil {
-		consumerTopicMap[partition] = ring.New(module.myConfiguration.Intervals)
-		consumerPartitionRing = consumerTopicMap[partition]
+	if consumerTopicMap[partition].offsets == nil {
+		consumerTopicMap[partition].offsets = ring.New(module.myConfiguration.Intervals)
 	}
 
-	return consumerPartitionRing
+	return consumerTopicMap[partition].offsets
 }
 
 func (module *InMemoryStorage) acceptConsumerGroup(group string) bool {
@@ -268,7 +275,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	}
 
 	if ! module.acceptConsumerGroup(request.Group) {
-		requestLogger.Debug("dropped offset", zap.String("reason", "group not whitelisted"))
+		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
 		return
 	}
 
@@ -285,7 +292,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	if !ok {
 		clusterMap.consumer[request.Group] = &ConsumerGroup{
 			lock: &sync.RWMutex{},
-			topics: make(map[string][]*ring.Ring),
+			topics: make(map[string][]*ConsumerPartition),
 		}
 		consumerMap = clusterMap.consumer[request.Group]
 	}
@@ -304,7 +311,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.myConfiguration.MinDistance * 1000) {
 			// We have to change both pointers here, as we're essentially rewinding the ring one spot to add this commit
 			consumerPartitionRing = consumerPartitionRing.Prev()
-			consumerMap.topics[request.Topic][request.Partition] = consumerPartitionRing
+			consumerMap.topics[request.Topic][request.Partition].offsets = consumerPartitionRing
 
 			// We also set the timestamp for the request to the STORED timestamp. The reason for this is that if we
 			// update the timestamp to the new timestamp, we may never create a new offset in the ring (consider the
@@ -337,7 +344,41 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 
 	// Advance the ring pointer
 	requestLogger.Debug("ok", zap.Int64("lag", partitionLag))
-	consumerMap.topics[request.Topic][request.Partition] = consumerMap.topics[request.Topic][request.Partition].Next()
+	consumerMap.topics[request.Topic][request.Partition].offsets = consumerMap.topics[request.Topic][request.Partition].offsets.Next()
+}
+
+func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest, requestLogger *zap.Logger) {
+	clusterMap, ok := module.offsets[request.Cluster]
+	if !ok {
+		// Ignore offsets for clusters that we don't know about - should never happen anyways
+		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	if ! module.acceptConsumerGroup(request.Group) {
+		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
+		return
+	}
+
+	// Make the consumer group if it does not yet exist
+	clusterMap.consumerLock.Lock()
+	consumerMap, ok := clusterMap.consumer[request.Group]
+	if !ok {
+		clusterMap.consumer[request.Group] = &ConsumerGroup{
+			lock: &sync.RWMutex{},
+			topics: make(map[string][]*ConsumerPartition),
+		}
+		consumerMap = clusterMap.consumer[request.Group]
+	}
+	clusterMap.consumerLock.Unlock()
+
+	// For the rest of this, we need the write lock for the consumer group
+	consumerMap.lock.Lock()
+	defer consumerMap.lock.Unlock()
+
+	// Write the owner for the given topic/partition
+	requestLogger.Debug("ok")
+	consumerMap.topics[request.Topic][request.Partition].owner = request.Owner
 }
 
 func (module *InMemoryStorage) deleteTopic(request *protocol.StorageRequest, requestLogger *zap.Logger) {
@@ -462,30 +503,32 @@ func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
 	defer consumerMap.lock.RUnlock()
 
 	for topic, partitions := range consumerMap.topics {
-		topicList[topic] = make(protocol.ConsumerPartitions, 0, len(partitions))
+		topicList[topic] = make(protocol.ConsumerPartitions, len(partitions))
 
-		for _, offsetRing := range partitions {
-			partition := &protocol.ConsumerPartition{
-				Offsets: make([]*protocol.ConsumerOffset, 0, offsetRing.Len()),
-			}
+		for partitionId, partition := range partitions {
+			consumerPartition := &protocol.ConsumerPartition{Owner: partition.owner}
+			if partition.offsets != nil {
+				offsetRing := partition.offsets
+				consumerPartition.Offsets = make([]*protocol.ConsumerOffset, offsetRing.Len())
 
-			ringPtr := offsetRing
-			for i := 0; i < offsetRing.Len(); i++ {
-				if ringPtr.Value == nil {
-					partition.Offsets = append(partition.Offsets, nil)
-				} else {
-					ringval, _ := ringPtr.Value.(*protocol.ConsumerOffset)
+				ringPtr := offsetRing
+				for i := 0; i < offsetRing.Len(); i++ {
+					if ringPtr.Value == nil {
+						consumerPartition.Offsets[i] = nil
+					} else {
+						ringval, _ := ringPtr.Value.(*protocol.ConsumerOffset)
 
-					// Make a copy so that we can release the lock and be safe
-					partition.Offsets = append(partition.Offsets, &protocol.ConsumerOffset{
-						Offset:    ringval.Offset,
-						Lag:       ringval.Lag,
-						Timestamp: ringval.Timestamp,
-					})
+						// Make a copy so that we can release the lock and be safe
+						consumerPartition.Offsets[i] = &protocol.ConsumerOffset{
+							Offset:    ringval.Offset,
+							Lag:       ringval.Lag,
+							Timestamp: ringval.Timestamp,
+						}
+					}
+					ringPtr = ringPtr.Next()
 				}
-				ringPtr = ringPtr.Next()
 			}
-			topicList[topic] = append(topicList[topic], partition)
+			topicList[topic][partitionId] = consumerPartition
 		}
 	}
 	return topicList
