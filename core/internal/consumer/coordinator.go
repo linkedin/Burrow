@@ -51,6 +51,8 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) proto
 }
 
 func (cc *Coordinator) Configure() {
+	cc.Log.Info("configuring")
+
 	cc.modules = make(map[string]protocol.Module)
 
 	// Create all configured consumer modules, add to list of consumers
@@ -68,6 +70,8 @@ func (cc *Coordinator) Configure() {
 }
 
 func (cc *Coordinator) Start() error {
+	cc.Log.Info("starting")
+
 	// Start Consumer modules
 	err := helpers.StartCoordinatorModules(cc.modules)
 	if err != nil {
@@ -77,6 +81,8 @@ func (cc *Coordinator) Start() error {
 }
 
 func (cc *Coordinator) Stop() error {
+	cc.Log.Info("stopping")
+
 	// The individual consumer modules can choose whether or not to implement a wait in the Stop routine
 	helpers.StopCoordinatorModules(cc.modules)
 	return nil
