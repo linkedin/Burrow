@@ -95,6 +95,9 @@ type BurrowSaramaClient interface {
 	RefreshCoordinator(consumerGroup string) error
 	Close() error
 	Closed() bool
+
+	// This is an extra, needed for the consumer modules
+	NewConsumerFromClient() (sarama.Consumer, error)
 }
 type SaramaClient struct {
 	Client sarama.Client
@@ -158,6 +161,9 @@ func (c *SaramaClient) Close() error {
 }
 func (c *SaramaClient) Closed() bool {
 	return c.Client.Closed()
+}
+func (c *SaramaClient) NewConsumerFromClient() (sarama.Consumer, error) {
+	return sarama.NewConsumerFromClient(c.Client)
 }
 
 // Right now, this interface only defines the methods that Burrow is using. It should not be considered a complete
@@ -247,6 +253,10 @@ func (m *MockSaramaClient) Closed() bool {
 	args := m.Called()
 	return args.Bool(0)
 }
+func (m *MockSaramaClient) NewConsumerFromClient() (sarama.Consumer, error) {
+	args := m.Called()
+	return args.Get(0).(sarama.Consumer), args.Error(1)
+}
 
 // mock BurrowSaramaClient to use in tests
 type MockSaramaBroker struct {
@@ -263,4 +273,53 @@ func (m *MockSaramaBroker) Close() error {
 func (m *MockSaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) (*sarama.OffsetResponse, error) {
 	args := m.Called(request)
 	return args.Get(0).(*sarama.OffsetResponse), args.Error(1)
+}
+
+// mock sarama.Consumer for testing kafka_client module
+type MockSaramaConsumer struct {
+	mock.Mock
+}
+func (m *MockSaramaConsumer) Topics() ([]string, error) {
+	args := m.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+func (m *MockSaramaConsumer) Partitions(topic string) ([]int32, error) {
+	args := m.Called(topic)
+	return args.Get(0).([]int32), args.Error(1)
+}
+func (m *MockSaramaConsumer) ConsumePartition(topic string, partition int32, offset int64) (sarama.PartitionConsumer, error) {
+	args := m.Called(topic, partition, offset)
+	return args.Get(0).(sarama.PartitionConsumer), args.Error(1)
+}
+func (m *MockSaramaConsumer) HighWaterMarks() map[string]map[int32]int64 {
+	args := m.Called()
+	return args.Get(0).(map[string]map[int32]int64)
+}
+func (m *MockSaramaConsumer) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// mock sarama.PartitionConsumer for testing kafka_client module
+type MockSaramaPartitionConsumer struct {
+	mock.Mock
+}
+func (m *MockSaramaPartitionConsumer) AsyncClose() {
+	m.Called()
+}
+func (m *MockSaramaPartitionConsumer) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+func (m *MockSaramaPartitionConsumer) Messages() <-chan *sarama.ConsumerMessage {
+	args := m.Called()
+	return args.Get(0).(<-chan *sarama.ConsumerMessage)
+}
+func (m *MockSaramaPartitionConsumer) Errors() <-chan *sarama.ConsumerError {
+	args := m.Called()
+	return args.Get(0).(<-chan *sarama.ConsumerError)
+}
+func (m *MockSaramaPartitionConsumer) HighWaterMarkOffset() int64 {
+	args := m.Called()
+	return args.Get(0).(int64)
 }

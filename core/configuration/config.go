@@ -72,6 +72,7 @@ type ConsumerConfig struct {
 	OffsetRefresh  int64    `gcfg:"offset-refresh"`
 	GroupWhitelist string   `gcfg:"group-whitelist"`
 	GroupRefresh   int64    `gcfg:"group-refresh"`
+	StartLatest    bool     `gcfg:"start-latest"`
 }
 type ClusterConfig struct {
 	ClassName     string   `gcfg:"class-name"`
