@@ -58,10 +58,9 @@ func ValidateTopic(topic string) bool {
 	return matches
 }
 
-// We don't match valid filenames, we match decent filenames
+// We don't match valid filenames, we match decent filenames (same as topics)
 func ValidateFilename(filename string) bool {
-	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\.-]+$`, filename)
-	return matches
+	return ValidateTopic(filename)
 }
 
 // Very simplistic email address validator - just looks for an @ and a .
@@ -92,9 +91,20 @@ func ValidateHostList(hosts []string) bool {
 		hostname := strings.Join(hostparts[:len(hostparts)-1], ":")
 
 		if len(hostparts) == 2 {
-			// Must be a hostname or IPv4 address
-			if ! (ValidateIP(hostname) || ValidateHostname(hostname)) {
-				return false
+			// If all the parts of the hostname are numbers, validate as IP. Otherwise, it's a hostname
+			hostnameParts := strings.Split(hostname, ".")
+			isIP := true
+			for _, section := range hostnameParts {
+				_, err := strconv.Atoi(section)
+				if err != nil {
+					isIP = false
+					break
+				}
+			}
+			if isIP {
+				return ValidateIP(hostname)
+			} else {
+				return ValidateHostname(hostname)
 			}
 		} else {
 			// Must be an IPv6 address, which must be enclosed in []
