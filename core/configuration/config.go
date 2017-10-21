@@ -63,16 +63,19 @@ type StorageConfig struct {
 	ExpireGroup    int64  `gcfg:"expire-group"`
 }
 type ConsumerConfig struct {
-	ClassName      string   `gcfg:"class-name"`
-	Cluster        string   `gcfg:"cluster"`
-	Servers        []string `gcfg:"server"`
-	ZookeeperPath  string   `gcfg:"zookeeper-path"`
-	OffsetsTopic   string   `gcfg:"offsets-topic"`
-	ClientProfile  string   `gcfg:"client-profile"`
-	OffsetRefresh  int64    `gcfg:"offset-refresh"`
-	GroupWhitelist string   `gcfg:"group-whitelist"`
-	GroupRefresh   int64    `gcfg:"group-refresh"`
-	StartLatest    bool     `gcfg:"start-latest"`
+	ClassName        string   `gcfg:"class-name"`
+	Cluster          string   `gcfg:"cluster"`
+	Servers          []string `gcfg:"server"`
+	GroupWhitelist   string   `gcfg:"group-whitelist"`
+
+	// kafka_zk options
+	ZookeeperPath    string   `gcfg:"zookeeper-path"`
+	ZookeeperTimeout int32    `gcfg:"zookeeper-timeout"`
+
+	// kafka_client options
+	ClientProfile    string   `gcfg:"client-profile"`
+	OffsetsTopic     string   `gcfg:"offsets-topic"`
+	StartLatest      bool     `gcfg:"start-latest"`
 }
 type ClusterConfig struct {
 	ClassName     string   `gcfg:"class-name"`
