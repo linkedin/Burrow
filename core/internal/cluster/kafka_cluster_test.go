@@ -152,7 +152,7 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 
 	// Set up the mock to return the leader broker for a test topic and partition
 	client := &helpers.MockSaramaClient{}
-	var nilBroker *helpers.SaramaBroker
+	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
 	client.On("Leader", "testtopic", int32(1)).Return(broker, nil)
 
@@ -185,7 +185,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 
 	// Set up the mock to return the leader broker for a test topic and partition
 	client := &helpers.MockSaramaClient{}
-	var nilBroker *helpers.SaramaBroker
+	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
 	client.On("Leader", "testtopic", int32(1)).Return(nilBroker, errors.New("no leader error"))
 

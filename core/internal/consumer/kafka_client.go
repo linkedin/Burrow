@@ -42,13 +42,16 @@ func (module *KafkaClient) Configure(name string) {
 	module.myConfiguration = module.App.Configuration.Consumer[name]
 	module.messageChannel = make(chan *sarama.ConsumerMessage)
 
+	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; ! ok {
+		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
+	}
 	if profile, ok := module.App.Configuration.ClientProfile[module.myConfiguration.ClientProfile]; ok {
 		module.saramaConfig = helpers.GetSaramaConfigFromClientProfile(profile)
 	} else {
 		panic("Consumer '" + name + "' references an unknown client-profile '" + module.myConfiguration.ClientProfile + "'")
 	}
 	if len(module.myConfiguration.Servers) == 0 {
-		panic("No Kafka brokers specified for cluster " + module.name)
+		panic("No Kafka brokers specified for consumer " + module.name)
 	} else if ! configuration.ValidateHostList(module.myConfiguration.Servers) {
 		panic("Consumer '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
@@ -68,7 +71,7 @@ func (module *KafkaClient) Start() error {
 		return err
 	}
 
-	err = module.startKafkaConsumer(&helpers.SaramaClient{ Client: client})
+	err = module.startKafkaConsumer(&helpers.BurrowSaramaClient{ Client: client})
 	if err != nil {
 		client.Close()
 		return err
@@ -128,7 +131,7 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) 
 	}
 }
 
-func (module *KafkaClient) startKafkaConsumer(client helpers.BurrowSaramaClient) error {
+func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error {
 	// Create the consumer from the client
 	consumer, err := client.NewConsumerFromClient()
 	if err != nil {
@@ -306,7 +309,7 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey OffsetKey, valueBuffer 
 		Timestamp:   int64(offsetValue.Timestamp),
 		Offset:      int64(offsetValue.Offset),
 	}
-	logger.Debug("broker offset",
+	logger.Debug("consumer offset",
 		zap.Uint64("offset", offsetValue.Offset),
 		zap.Uint64("timestamp", offsetValue.Timestamp),
 	)

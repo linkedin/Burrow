@@ -29,6 +29,9 @@ func fixtureModule() *KafkaClient {
 		ClientID: "testid",
 	}
 
+	module.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
+	module.App.Configuration.Cluster["test"] = &configuration.ClusterConfig{}
+
 	module.App.Configuration.Consumer = make(map[string]*configuration.ConsumerConfig)
 	module.App.Configuration.Consumer["test"] = &configuration.ConsumerConfig{
 		ClassName: "kafka",
@@ -63,6 +66,13 @@ func TestKafkaClient_Configure_DefaultTopic(t *testing.T) {
 	module.App.Configuration.Consumer["test"].OffsetsTopic = ""
 	module.Configure("test")
 	assert.Equal(t, "__consumer_offsets", module.myConfiguration.OffsetsTopic, "Default OffsetTopic value of __consumer_offsets did not get set")
+}
+
+func TestKafkaClient_Configure_BadCluster(t *testing.T) {
+	module := fixtureModule()
+	delete(module.App.Configuration.Cluster, "test")
+
+	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
 }
 
 func TestKafkaClient_partitionConsumer(t *testing.T) {
