@@ -38,8 +38,8 @@ type ApplicationContext struct {
  *   - Notifier
  *   - Storage
  *
- * Because it is common, we pass all of the main communication channels to each one, as well
- * as the master Zookeeper client (which can be used for coordination when needed).
+ * Module structs must have an App and Log literal, and should store their own name. The Log will get set up by
+ * the coordinator with the proper fields to start with.
  */
 type Module	interface {
 	Configure(name string)
