@@ -12,6 +12,7 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"regexp"
 )
 
 type KafkaClient struct {
@@ -25,6 +26,8 @@ type KafkaClient struct {
 	clientProfile       *configuration.ClientProfile
 	messageChannel      chan *sarama.ConsumerMessage
 	errorChannel        chan *sarama.ConsumerError
+	groupWhitelist      *regexp.Regexp
+
 	quitChannel	        chan struct{}
 	consumerQuitChannel	chan struct{}
 	running             sync.WaitGroup
@@ -59,6 +62,15 @@ func (module *KafkaClient) Configure(name string) {
 	// Set defaults for configs if needed
 	if module.App.Configuration.Consumer[module.name].OffsetsTopic == "" {
 		module.App.Configuration.Consumer[module.name].OffsetsTopic = "__consumer_offsets"
+	}
+
+	if module.App.Configuration.Consumer[module.name].GroupWhitelist != "" {
+		re, err := regexp.Compile(module.App.Configuration.Consumer[module.name].GroupWhitelist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group whitelist")
+			panic(err)
+		}
+		module.groupWhitelist = re
 	}
 }
 
@@ -247,6 +259,14 @@ type MetadataMember struct {
 	Assignment       map[string][]int32
 }
 
+func (module *KafkaClient) acceptConsumerGroup(group string) bool {
+	// No whitelist means everything passes
+	if module.groupWhitelist == nil {
+		return true
+	}
+	return module.groupWhitelist.MatchString(group)
+}
+
 func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {
 	// Version 0 and 1 keys are decoded the same way
 	offsetKey, errorAt := decodeOffsetKeyV0(keyBuffer)
@@ -267,6 +287,11 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 		zap.String("topic", offsetKey.Topic),
 		zap.Uint32("partition", offsetKey.Partition),
 	)
+
+	if ! module.acceptConsumerGroup(offsetKey.Group) {
+		offsetLogger.Debug("dropped", zap.String("reason", "whitelist"))
+		return
+	}
 
 	var valueVersion uint16
 	valueBuffer := bytes.NewBuffer(value)

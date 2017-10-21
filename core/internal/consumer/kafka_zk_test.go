@@ -54,6 +54,12 @@ func TestKafkaZkClient_Configure_Defaults(t *testing.T) {
 	assert.Equal(t, int32(30), module.myConfiguration.ZookeeperTimeout, "Default ZookeeperTimeout value of 30 did not get set")
 }
 
+func TestKafkaZkClient_Configure_BadRegexp(t *testing.T) {
+	module := fixtureModule()
+	module.App.Configuration.Consumer["test"].GroupWhitelist = "["
+	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+}
+
 func TestKafkaZkClient_Start(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{
 		EventChannel: make(chan zk.Event),
@@ -92,6 +98,7 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
+	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
 	module.Configure("test")
 	module.zk = &mockZookeeper
 
@@ -218,4 +225,29 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_BadPath(t *testing.T) {
 
 	module.resetGroupListWatchAndAdd(false)
 	mockZookeeper.AssertExpectations(t)
+}
+
+func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
+	mockZookeeper := helpers.MockZookeeperClient{}
+
+	module := fixtureKafkaZkModule()
+	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
+	module.Configure("test")
+	module.zk = &mockZookeeper
+
+	offsetStat := &zk.Stat{ Mtime: 894859 }
+	newGroupChan := make(chan zk.Event)
+	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{"dropthisgroup"}, offsetStat, func() <-chan zk.Event { return newGroupChan }(), nil)
+
+	module.resetGroupListWatchAndAdd(false)
+
+	newGroupChan <- zk.Event{
+		Type:  zk.EventNotWatching,
+		State: zk.StateConnected,
+		Path:  "/consumers/shouldntgetcalled",
+	}
+
+	mockZookeeper.AssertExpectations(t)
+	_, ok := module.groupList["dropthisgroup"]
+	assert.False(t, ok, "Expected group to be dropped due to whitelist")
 }

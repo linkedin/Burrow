@@ -11,6 +11,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 	"strconv"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"regexp"
 )
 
 type TopicList struct {
@@ -34,6 +35,7 @@ type KafkaZkClient struct {
 	areWatchesSet   bool
 	groupLock       *sync.Mutex
 	groupList       map[string]*TopicList
+	groupWhitelist  *regexp.Regexp
 }
 
 func (module *KafkaZkClient) Configure(name string) {
@@ -61,6 +63,15 @@ func (module *KafkaZkClient) Configure(name string) {
 	module.App.Configuration.Consumer[module.name].ZookeeperPath = module.App.Configuration.Consumer[module.name].ZookeeperPath + "/consumers"
 	if ! configuration.ValidateZookeeperPath(module.App.Configuration.Consumer[module.name].ZookeeperPath) {
 		panic("Consumer '" + name + "' has a bad zookeeper path configuration")
+	}
+
+	if module.App.Configuration.Consumer[module.name].GroupWhitelist != "" {
+		re, err := regexp.Compile(module.App.Configuration.Consumer[module.name].GroupWhitelist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group whitelist")
+			panic(err)
+		}
+		module.groupWhitelist = re
 	}
 }
 
@@ -119,6 +130,14 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 	}
 }
 
+func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
+	// No whitelist means everything passes
+	if module.groupWhitelist == nil {
+		return true
+	}
+	return module.groupWhitelist.MatchString(group)
+}
+
 func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
 	select {
 	case event, isOpen := <-eventChan:
@@ -145,11 +164,22 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 		module.groupLock.Lock()
 		defer module.groupLock.Unlock()
 		for _, group := range consumerGroups {
+			if ! module.acceptConsumerGroup(group) {
+				module.Log.Debug("skip group",
+					zap.String("group", group),
+					zap.String("reason", "whitelist"),
+				)
+				continue
+			}
+
 			if module.groupList[group] == nil {
 				module.groupList[group] = &TopicList{
 					topics: make(map[string]*PartitionCount),
 					lock:   &sync.Mutex{},
 				}
+				module.Log.Info("add group",
+					zap.String("group", group),
+				)
 				module.resetTopicListWatchAndAdd(group, false)
 			}
 		}
@@ -190,6 +220,10 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 					count: 0,
 					lock:  &sync.Mutex{},
 				}
+				module.Log.Debug("add topic",
+					zap.String("group", group),
+					zap.String("topic", topic),
+				)
 				module.resetPartitionListWatchAndAdd(group, topic, false)
 			}
 		}
@@ -227,6 +261,11 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 		defer module.groupList[group].topics[topic].lock.Unlock()
 		if int32(len(topicPartitions)) >= module.groupList[group].topics[topic].count {
 			for i := module.groupList[group].topics[topic].count; i < int32(len(topicPartitions)); i++ {
+				module.Log.Debug("add partition",
+					zap.String("group", group),
+					zap.String("topic", topic),
+					zap.Int32("partition", i),
+				)
 				module.resetOffsetWatchAndSend(group, topic, i, false)
 			}
 			module.groupList[group].topics[topic].count = int32(len(topicPartitions))
