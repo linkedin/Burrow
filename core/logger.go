@@ -20,17 +20,48 @@ import (
 
 	"github.com/linkedin/Burrow/core/configuration"
 	"time"
+	"io/ioutil"
+	"strconv"
+	"syscall"
 )
 
-func CreatePidFile(filename string) {
-	// Create a PID file, making sure it doesn't already exist
-	pidfile, err := os.OpenFile(filename, os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
+func CheckAndCreatePidFile(filename string) bool {
+	// Check if the PID file exists
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		// The file exists, so read it and check if the PID specified is running
+		pidString, err := ioutil.ReadFile(filename)
+		if err != nil {
+			fmt.Printf("Cannot read PID file: %v", err)
+			return false
+		}
+		pid, err := strconv.Atoi(string(pidString))
+		if err != nil {
+			fmt.Printf("Cannot interpret contents of PID file: %v", err)
+			return false
+		}
+
+		// Try sending a signal to the process to see if it is still running
+		process, err := os.FindProcess(int(pid))
+		if err == nil {
+			err = process.Signal(syscall.Signal(0))
+			if (err == nil) || (err == syscall.EPERM) {
+				// The process exists, so we're going to assume it's an old Burrow and we shouldn't start
+				fmt.Printf("Existing process running on PID %d. Exiting", pid)
+				return false
+			}
+		}
+
+	}
+
+	// Create a PID file, replacing any existing one (as we already checked it)
+	pidfile, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Cannot write PID file: %v", err)
-		os.Exit(1)
+		return false
 	}
 	fmt.Fprintf(pidfile, "%v", os.Getpid())
 	pidfile.Close()
+	return true
 }
 
 func RemovePidFile(filename string) {

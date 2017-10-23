@@ -57,7 +57,10 @@ func main() {
 		Configuration: configuration.ReadConfig(*cfgfile),
 	}
 	// Create the PID file to lock out other processes
-	core.CreatePidFile(appContext.Configuration.General.PIDFile)
+	if ! core.CheckAndCreatePidFile(appContext.Configuration.General.PIDFile) {
+		// Any error on checking or creating the PID file causes an immediate exit
+		panic(Exit{1})
+	}
 	defer core.RemovePidFile(appContext.Configuration.General.PIDFile)
 
 	// Set up stderr/stdout to go to a separate log file, if enabled
