@@ -29,9 +29,9 @@ type KafkaZkClient struct {
 
 	name            string
 	myConfiguration *configuration.ConsumerConfig
-	connectFunc     func([]string, time.Duration) (helpers.ZookeeperClient, <-chan zk.Event, error)
+	connectFunc     func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 
-	zk              helpers.ZookeeperClient
+	zk              protocol.ZookeeperClient
 	areWatchesSet   bool
 	groupLock       *sync.Mutex
 	groupList       map[string]*TopicList
@@ -78,7 +78,7 @@ func (module *KafkaZkClient) Configure(name string) {
 func (module *KafkaZkClient) Start() error {
 	module.Log.Info("starting")
 
-	zkconn, connEventChan, err := module.connectFunc(module.myConfiguration.Servers, time.Duration(module.myConfiguration.ZookeeperTimeout) * time.Second)
+	zkconn, connEventChan, err := module.connectFunc(module.myConfiguration.Servers, time.Duration(module.myConfiguration.ZookeeperTimeout) * time.Second, module.Log)
 	if err != nil {
 		return err
 	}

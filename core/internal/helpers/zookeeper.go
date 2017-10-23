@@ -5,21 +5,22 @@ import (
 
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/mock"
+	"github.com/linkedin/Burrow/core/protocol"
+	"go.uber.org/zap"
 )
 
-// Zookeeper client interface
-// Note that this is a minimal interface for what Burrow needs - add functions as necessary
-type ZookeeperClient interface {
-	Close()
-	ChildrenW(path string) ([]string, *zk.Stat, <-chan zk.Event, error)
-	GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error)
-}
+// Implementation of the ZookeeperClient interface
 type BurrowZookeeperClient struct {
 	Client *zk.Conn
 }
 
-func ZookeeperConnect(servers []string, sessionTimeout time.Duration) (ZookeeperClient, <-chan zk.Event, error) {
-	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout)
+func ZookeeperConnect(servers []string, sessionTimeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
+	// We need a function to set the logger for the ZK connection
+	zkSetLogger := func(c *zk.Conn) {
+		c.SetLogger(zap.NewStdLog(logger))
+	}
+
+	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout, zkSetLogger)
 	return &BurrowZookeeperClient{Client: zkconn}, connEventChan, err
 }
 
@@ -59,7 +60,7 @@ func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Eve
 }
 
 // This method allows us to prepopulate the mock with calls before feeding it into the connect call
-func (m *MockZookeeperClient) MockZookeeperConnect(servers []string, sessionTimeout time.Duration) (ZookeeperClient, <-chan zk.Event, error) {
+func (m *MockZookeeperClient) MockZookeeperConnect(servers []string, sessionTimeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
 	m.Servers = servers
 	m.SessionTimeout = sessionTimeout
 

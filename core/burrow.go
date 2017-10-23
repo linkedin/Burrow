@@ -13,11 +13,10 @@ package core
 import (
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/samuel/go-zookeeper/zk"
 	"go.uber.org/zap"
 
+	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/storage"
 	"github.com/linkedin/Burrow/core/internal/cluster"
@@ -25,43 +24,19 @@ import (
 	"github.com/linkedin/Burrow/core/internal/evaluator"
 	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/internal/notifier"
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/internal/zookeeper"
 )
 
-func NewZookeeperClient(app *protocol.ApplicationContext) (*zk.Conn, error) {
-	// We need a function to set the logger for the ZK connection
-	zkSetLogger := func(c *zk.Conn) {
-		logger := app.Logger.With(
-			zap.String("type", "coordinator"),
-			zap.String("name", "zookeeper"),
-		)
-		c.SetLogger(zap.NewStdLog(logger))
-
-	}
-
-	// Start a local Zookeeper client (used for application locks)
-	// NOTE - samuel/go-zookeeper does not support chroot, so we pass along the configured root path in config
-	app.Logger.Info("Starting module",
-		zap.String("type", "coordinator"),
-		zap.String("name", "zookeeper"))
-
-	zkConn, _, err := zk.Connect(app.Configuration.Zookeeper.Hosts,
-		time.Duration(app.Configuration.Zookeeper.Timeout)*time.Second,
-		zkSetLogger)
-
-	if err != nil {
-		app.Logger.Panic("Failure to start module",
-			zap.String("type", "coordinator"),
-			zap.String("name", "zookeeper"),
-			zap.String("error", err.Error()))
-		return nil, err
-	}
-	return zkConn, nil
-}
-
-func NewCoordinators(app *protocol.ApplicationContext) [6]protocol.Coordinator {
+func NewCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	// This order is important - it makes sure that the things taking requests start up before things sending requests
-	return [6]protocol.Coordinator{
+	return [7]protocol.Coordinator{
+		&zookeeper.Coordinator{
+			App: app,
+			Log: app.Logger.With(
+				zap.String("type", "coordinator"),
+				zap.String("name", "zookeeper"),
+			),
+		},
 		&storage.Coordinator{
 			App: app,
 			Log: app.Logger.With(
@@ -108,8 +83,6 @@ func NewCoordinators(app *protocol.ApplicationContext) [6]protocol.Coordinator {
 }
 
 func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
-	var err error
-
 	// Validate that the ApplicationContext is complete
 	if (app == nil) || (app.Logger == nil) || (app.LogLevel == nil) {
 		fmt.Fprintln(os.Stderr, "Burrow was called with an incomplete ApplicationContext")
@@ -124,14 +97,6 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 
 	// Set up a specific child logger for main
 	log := app.Logger.With(zap.String("type", "main"), zap.String("name", "burrow"))
-
-	// Start a local Zookeeper client (used for application locks)
-	app.Zookeeper, err = NewZookeeperClient(app)
-	if err != nil {
-		return 1
-	}
-	app.ZookeeperRoot = app.Configuration.Zookeeper.RootPath
-	defer app.Zookeeper.Close()
 
 	// Set up an array of coordinators in the order they are to be loaded (and closed)
 	coordinators := NewCoordinators(app)

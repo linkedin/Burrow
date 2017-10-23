@@ -24,7 +24,7 @@ type ApplicationContext struct {
 	LogLevel         *zap.AtomicLevel
 
 	// These fields will be created by Start after it is called
-	Zookeeper        *zk.Conn
+	Zookeeper        ZookeeperClient
 	ZookeeperRoot    string
 	EvaluatorChannel chan *EvaluatorRequest
 	StorageChannel   chan *StorageRequest
@@ -55,4 +55,12 @@ type Coordinator interface {
 	Configure()
 	Start() error
 	Stop() error
+}
+
+// Zookeeper client interface
+// Note that this is a minimal interface for what Burrow needs - add functions as necessary
+type ZookeeperClient interface {
+	Close()
+	ChildrenW(path string) ([]string, *zk.Stat, <-chan zk.Event, error)
+	GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error)
 }
