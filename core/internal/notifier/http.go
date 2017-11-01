@@ -20,22 +20,24 @@ import (
 )
 
 type HttpNotifier struct {
-	App               *protocol.ApplicationContext
-	Log               *zap.Logger
+	App                  *protocol.ApplicationContext
+	Log                  *zap.Logger
 
-	name              string
-	myConfiguration   *configuration.NotifierConfig
-	profile           *configuration.HttpNotifierProfile
-	extras            map[string]string
+	name                 string
+	myConfiguration      *configuration.NotifierConfig
+	profile              *configuration.HttpNotifierProfile
+	extras               map[string]string
 
-	groupIds          map[string]map[string]*Event
-	groupWhitelist    *regexp.Regexp
+	groupIds             map[string]map[string]*Event
+	groupWhitelist       *regexp.Regexp
 
-	templateParseFunc func (filenames ...string) (*template.Template, error)
-	templateOpen      *template.Template
-	templateClose     *template.Template
+	templateParseFunc    func (...string) (*template.Template, error)
+	sendNotificationFunc func (*protocol.ConsumerGroupStatus, *Event, bool, *zap.Logger)
 
-	HttpClient        *http.Client
+	templateOpen         *template.Template
+	templateClose        *template.Template
+
+	HttpClient           *http.Client
 }
 
 type Event struct {
@@ -47,10 +49,16 @@ type Event struct {
 func (module *HttpNotifier) Configure(name string) {
 	module.name = name
 	module.myConfiguration = module.App.Configuration.Notifier[name]
+	module.groupIds = make(map[string]map[string]*Event)
 
 	// Set the function for parsing templates (configurable to enable testing)
 	if module.templateParseFunc == nil {
 		module.templateParseFunc = template.New(name).Funcs(helperFunctionMap).ParseFiles
+	}
+
+	// Set the function for parsing templates (configurable to enable testing)
+	if module.sendNotificationFunc == nil {
+		module.sendNotificationFunc = module.sendNotification
 	}
 
 	// Set defaults for configs if needed
@@ -86,8 +94,8 @@ func (module *HttpNotifier) Configure(name string) {
 	}
 
 	// Compile the whitelist for the consumer groups to notify for
-	if module.App.Configuration.Consumer[module.name].GroupWhitelist != "" {
-		re, err := regexp.Compile(module.App.Configuration.Consumer[module.name].GroupWhitelist)
+	if module.App.Configuration.Notifier[module.name].GroupWhitelist != "" {
+		re, err := regexp.Compile(module.App.Configuration.Notifier[module.name].GroupWhitelist)
 		if err != nil {
 			module.Log.Panic("Failed to compile group whitelist")
 			panic(err)
@@ -178,7 +186,7 @@ func (module *HttpNotifier) Notify (status *protocol.ConsumerGroupStatus) {
 	)
 	if stateGood {
 		if module.myConfiguration.SendClose {
-			module.sendNotification(status, event, stateGood, logger)
+			module.sendNotificationFunc(status, event, stateGood, logger)
 		}
 
 		// Remove ID for group that is now clear
@@ -186,7 +194,7 @@ func (module *HttpNotifier) Notify (status *protocol.ConsumerGroupStatus) {
 	} else {
 		// Only send the notification if it's been at least our Interval since the last one for this group
 		if currentTime.Sub(event.Last) > (time.Duration(module.myConfiguration.Interval) * time.Second) {
-			module.sendNotification(status, event, stateGood, logger)
+			module.sendNotificationFunc(status, event, stateGood, logger)
 			event.Last = currentTime
 		}
 	}
