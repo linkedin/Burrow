@@ -5,25 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/linkedin/Burrow/core/protocol"
 )
-
-type MockModule struct {
-	mock.Mock
-}
-func (m *MockModule) Configure(name string) {
-	m.Called(name)
-}
-func (m *MockModule) Start() error {
-	args := m.Called()
-	return args.Error(0)
-}
-func (m *MockModule) Stop() error {
-	args := m.Called()
-	return args.Error(0)
-}
 
 func TestStartCoordinatorModules(t *testing.T) {
 	mock1 := &MockModule{}

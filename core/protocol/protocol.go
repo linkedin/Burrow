@@ -11,6 +11,8 @@
 package protocol
 
 import (
+	"sync"
+
 	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
 
@@ -19,15 +21,17 @@ import (
 
 type ApplicationContext struct {
 	// These fields need to be populated before Start is called
-	Configuration    *configuration.Configuration
-	Logger           *zap.Logger
-	LogLevel         *zap.AtomicLevel
+	Configuration      *configuration.Configuration
+	Logger             *zap.Logger
+	LogLevel           *zap.AtomicLevel
 
 	// These fields will be created by Start after it is called
-	Zookeeper        ZookeeperClient
-	ZookeeperRoot    string
-	EvaluatorChannel chan *EvaluatorRequest
-	StorageChannel   chan *StorageRequest
+	Zookeeper          ZookeeperClient
+	ZookeeperRoot      string
+	ZookeeperConnected bool
+	ZookeeperExpired   *sync.Cond
+	EvaluatorChannel   chan *EvaluatorRequest
+	StorageChannel     chan *StorageRequest
 }
 
 

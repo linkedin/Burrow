@@ -91,14 +91,17 @@ type EvaluatorConfig struct {
 type NotifierConfig struct {
 	ClassName      string   `gcfg:"class-name"`
 	GroupWhitelist string   `gcfg:"group-whitelist"`
-	Profile        string   `gcfg:"profile"`
 	Interval       int64    `gcfg:"interval"`
-	Extras         []string `gcfg:"extra"`
 	Threshold      int      `gcfg:"threshold"`
+
 	Timeout        int      `gcfg:"timeout"`
 	Keepalive      int      `gcfg:"keepalive"`
+
+	Profile        string   `gcfg:"profile"`
 	TemplateOpen   string   `gcfg:"template-open"`
 	TemplateClose  string   `gcfg:"template-close"`
+	Extras         []string `gcfg:"extra"`
+	SendClose      bool     `gcfg:"send-close"`
 }
 
 type Configuration struct {

@@ -5,10 +5,10 @@ import (
 
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/internal/helpers"
 
 	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -77,28 +77,12 @@ func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator.Configure()
 }
 
-// Use a mocked module for testing start/stop
-type MockModule struct {
-	mock.Mock
-}
-func (m *MockModule) Configure(name string) {
-	m.Called(name)
-}
-func (m *MockModule) Start() error {
-	args := m.Called()
-	return args.Error(0)
-}
-func (m *MockModule) Stop() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 func TestCoordinator_StartStop(t *testing.T) {
 	coordinator := fixtureCoordinator()
 	coordinator.Configure()
 
 	// Swap out the coordinator modules with a mock for testing
-	mockModule := &MockModule{}
+	mockModule := &helpers.MockModule{}
 	mockModule.On("Start").Return(nil)
 	mockModule.On("Stop").Return(nil)
 	coordinator.modules["test"] = mockModule
