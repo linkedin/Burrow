@@ -13,24 +13,25 @@ package notifier
 import (
 	"errors"
 	"math"
+	"regexp"
+	"strings"
 	"sync"
+	"text/template"
 	"time"
 
+	"github.com/pborman/uuid"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/pborman/uuid"
 	"github.com/linkedin/Burrow/core/configuration"
-	"regexp"
-	"text/template"
-	"strings"
 )
 
 type NotifierModule interface {
 	protocol.Module
 	GetName() string
 	GetConfig() *configuration.NotifierConfig
+	GetGroupWhitelist() *regexp.Regexp
 	GetLogger() *zap.Logger
 	AcceptConsumerGroup (*protocol.ConsumerGroupStatus) bool
 	Notify (*protocol.ConsumerGroupStatus, string, time.Time, bool)
@@ -290,6 +291,25 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 	nc.clusterLock.RUnlock()
 }
 
+func moduleAcceptConsumerGroup(module NotifierModule, status *protocol.ConsumerGroupStatus) bool {
+	moduleConfiguration := module.GetConfig()
+
+	if int(status.Status) < moduleConfiguration.Threshold {
+		return false
+	}
+
+	// No whitelist means everything passes
+	groupWhitelist := module.GetGroupWhitelist()
+	if groupWhitelist == nil {
+		return true
+	}
+	if groupWhitelist.MatchString(status.Group) {
+		return module.AcceptConsumerGroup(status)
+	} else {
+		return false
+	}
+}
+
 func (nc *Coordinator) responseLoop() {
 	for {
 		select {
@@ -311,7 +331,7 @@ func (nc *Coordinator) responseLoop() {
 
 				for _, genericModule := range nc.modules {
 					module := genericModule.(NotifierModule)
-					if module.AcceptConsumerGroup(response) {
+					if moduleAcceptConsumerGroup(module, response) {
 						go nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
 					}
 				}

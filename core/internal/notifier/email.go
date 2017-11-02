@@ -47,3 +47,24 @@ func (module *EmailNotifier) Stop() error {
 	module.running.Done()
 	return nil
 }
+
+func (module *EmailNotifier) GetName() string {
+	return module.name
+}
+
+func (module *EmailNotifier) GetConfig() *configuration.NotifierConfig {
+	return module.myConfiguration
+}
+
+func (module *EmailNotifier) GetGroupWhitelist() *regexp.Regexp {
+	return module.groupWhitelist
+}
+
+func (module *EmailNotifier) GetLogger() *zap.Logger {
+	return module.Log
+}
+
+// Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
+func (module *EmailNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
+	return true
+}

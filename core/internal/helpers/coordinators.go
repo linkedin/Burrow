@@ -1,11 +1,14 @@
 package helpers
 
 import (
-	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/stretchr/testify/mock"
-	"github.com/linkedin/Burrow/core/configuration"
-	"go.uber.org/zap"
+	"regexp"
 	"time"
+
+	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 func StartCoordinatorModules(modules map[string]protocol.Module) error {
@@ -48,6 +51,10 @@ func (m *MockModule) GetName() string {
 func (m *MockModule) GetConfig() *configuration.NotifierConfig {
 	args := m.Called()
 	return args.Get(0).(*configuration.NotifierConfig)
+}
+func (m *MockModule) GetGroupWhitelist() *regexp.Regexp {
+	args := m.Called()
+	return args.Get(0).(*regexp.Regexp)
 }
 func (m *MockModule) GetLogger() *zap.Logger {
 	args := m.Called()

@@ -82,20 +82,17 @@ func (module *HttpNotifier) GetConfig() *configuration.NotifierConfig {
 	return module.myConfiguration
 }
 
+func (module *HttpNotifier) GetGroupWhitelist() *regexp.Regexp {
+	return module.groupWhitelist
+}
+
 func (module *HttpNotifier) GetLogger() *zap.Logger {
 	return module.Log
 }
 
+// Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
 func (module *HttpNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
-	if int(status.Status) < module.myConfiguration.Threshold {
-		return false
-	}
-
-	// No whitelist means everything passes
-	if module.groupWhitelist == nil {
-		return true
-	}
-	return module.groupWhitelist.MatchString(status.Group)
+	return true
 }
 
 func (module *HttpNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {

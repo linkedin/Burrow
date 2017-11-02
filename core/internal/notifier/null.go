@@ -55,6 +55,10 @@ func (module *NullNotifier) GetConfig() *configuration.NotifierConfig {
 	return module.myConfiguration
 }
 
+func (module *NullNotifier) GetGroupWhitelist() *regexp.Regexp {
+	return module.groupWhitelist
+}
+
 func (module *NullNotifier) GetLogger() *zap.Logger {
 	return module.Log
 }

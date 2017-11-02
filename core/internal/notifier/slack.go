@@ -47,3 +47,24 @@ func (module *SlackNotifier) Stop() error {
 	module.running.Done()
 	return nil
 }
+
+func (module *SlackNotifier) GetName() string {
+	return module.name
+}
+
+func (module *SlackNotifier) GetConfig() *configuration.NotifierConfig {
+	return module.myConfiguration
+}
+
+func (module *SlackNotifier) GetGroupWhitelist() *regexp.Regexp {
+	return module.groupWhitelist
+}
+
+func (module *SlackNotifier) GetLogger() *zap.Logger {
+	return module.Log
+}
+
+// Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
+func (module *SlackNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
+	return true
+}

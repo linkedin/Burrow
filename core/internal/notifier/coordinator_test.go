@@ -15,6 +15,7 @@ import (
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"errors"
+	"regexp"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -688,4 +689,28 @@ func TestCoordinator_notifyModule_Warning(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.True(t, group.Last["test"].After(mockStartTime), "Expected group last time to be updated")
 	mockModule.AssertExpectations(t)
+}
+
+func TestCoordinator_AcceptConsumerGroup(t *testing.T) {
+	module := fixtureHttpNotifier()
+	module.App.Configuration.Notifier["test"].Threshold = 2
+	module.App.Configuration.Notifier["test"].GroupWhitelist = "test.*"
+	module.groupWhitelist, _ = regexp.Compile("test.*")
+	module.Configure("test")
+
+	status := &protocol.ConsumerGroupStatus{
+		Status: protocol.StatusOK,
+		Group:  "testgroup",
+	}
+
+	assert.False(t, moduleAcceptConsumerGroup(module, status), "Expected StatusOK,testgroup to return False")
+
+	status.Status = protocol.StatusWarning
+	assert.True(t, moduleAcceptConsumerGroup(module, status), "Expected StatusWarning,testgroup to return True")
+
+	status.Status = protocol.StatusError
+	assert.True(t, moduleAcceptConsumerGroup(module, status), "Expected StatusError,testgroup to return True")
+
+	status.Group = "notagroup"
+	assert.False(t, moduleAcceptConsumerGroup(module, status), "Expected StatusError,notagroup to return False")
 }

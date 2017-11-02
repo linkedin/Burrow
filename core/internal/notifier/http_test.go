@@ -14,7 +14,6 @@ import (
 
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
-	"regexp"
 )
 
 func fixtureHttpNotifier() *HttpNotifier {
@@ -83,26 +82,10 @@ func TestHttpNotifier_StartStop(t *testing.T) {
 
 func TestHttpNotifier_AcceptConsumerGroup(t *testing.T) {
 	module := fixtureHttpNotifier()
-	module.App.Configuration.Notifier["test"].Threshold = 2
-	module.App.Configuration.Notifier["test"].GroupWhitelist = "test.*"
-	module.groupWhitelist, _ = regexp.Compile("test.*")
 	module.Configure("test")
 
-	status := &protocol.ConsumerGroupStatus{
-		Status: protocol.StatusOK,
-		Group:  "testgroup",
-	}
-
-	assert.False(t, module.AcceptConsumerGroup(status), "Expected StatusOK,testgroup to return False")
-
-	status.Status = protocol.StatusWarning
-	assert.True(t, module.AcceptConsumerGroup(status), "Expected StatusWarning,testgroup to return True")
-
-	status.Status = protocol.StatusError
-	assert.True(t, module.AcceptConsumerGroup(status), "Expected StatusError,testgroup to return True")
-
-	status.Group = "notagroup"
-	assert.False(t, module.AcceptConsumerGroup(status), "Expected StatusError,notagroup to return False")
+	// Should always return true
+	assert.True(t, module.AcceptConsumerGroup(&protocol.ConsumerGroupStatus{}), "Expected any status to return True")
 }
 
 // Struct that will be used for sending HTTP requests for testing
@@ -197,7 +180,7 @@ func TestHttpNotifier_sendNotification_Close(t *testing.T) {
 	module.App.Configuration.HttpNotifierProfile["test_http_profile"].UrlClose = ts.URL
 
 	// Template sends the ID, cluster, and group
-	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.Id}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
+	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.Id}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
 
 	module.Configure("test")
 
