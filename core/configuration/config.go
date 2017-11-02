@@ -53,6 +53,7 @@ type EmailNotifierProfile struct {
 	Username string `gcfg:"username"`
 	Password string `gcfg:"password"`
 	From     string `gcfg:"from"`
+	To       string `gcfg:"to"`
 }
 
 type StorageConfig struct {

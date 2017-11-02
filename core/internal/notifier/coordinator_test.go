@@ -728,5 +728,5 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 	extras["foo"] = "bar"
 	bytesToSend, err := ExecuteTemplate(tmpl, extras, status, "testidstring", time.Now())
 	assert.Nil(t, err, "Expected no error to be returned")
-	assert.Equal(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
+	assert.Equalf(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
 }

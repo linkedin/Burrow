@@ -1,9 +1,14 @@
 package notifier
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"net/smtp"
 	"regexp"
-	"sync"
+	"strings"
 	"text/template"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -22,29 +27,66 @@ type EmailNotifier struct {
 
 	name            string
 	myConfiguration *configuration.NotifierConfig
-	requestChannel  chan interface{}
-	running         sync.WaitGroup
+	profile         *configuration.EmailNotifierProfile
+
+	auth            smtp.Auth
+	serverWithPort  string
+	sendMailFunc    func (string, smtp.Auth, string, []string, []byte) error
 }
 
 func (module *EmailNotifier) Configure(name string) {
 	module.name = name
 	module.myConfiguration = module.App.Configuration.Notifier[name]
-	module.requestChannel = make(chan interface{})
-	module.running = sync.WaitGroup{}
-}
 
-func (module *EmailNotifier) GetCommunicationChannel() chan interface{} {
-	return module.requestChannel
+	// Abstract the SendMail call so we can test
+	if module.sendMailFunc == nil {
+		module.sendMailFunc = smtp.SendMail
+	}
+
+	if profile, ok := module.App.Configuration.EmailNotifierProfile[module.myConfiguration.Profile]; ok {
+		module.profile = profile
+	} else {
+		module.Log.Panic("unknown Email notifier profile")
+		panic(errors.New("configuration error"))
+	}
+
+	module.serverWithPort = fmt.Sprintf("%s:%v", module.profile.Server, module.profile.Port)
+	if ! configuration.ValidateHostList([]string{module.serverWithPort}) {
+		module.Log.Panic("bad server or port")
+		panic(errors.New("configuration error"))
+	}
+
+	if module.profile.From == "" {
+		module.Log.Panic("missing from address")
+		panic(errors.New("configuration error"))
+	}
+
+	if module.profile.To == "" {
+		module.Log.Panic("missing to address")
+		panic(errors.New("configuration error"))
+	}
+
+	// Set up SMTP authentication
+	switch strings.ToLower(module.profile.AuthType) {
+	case "plain":
+		module.auth = smtp.PlainAuth("", module.profile.Username, module.profile.Password, module.profile.Server)
+	case "crammd5":
+		module.auth = smtp.CRAMMD5Auth(module.profile.Username, module.profile.Password)
+	case "":
+		module.auth = nil
+	default:
+		module.Log.Panic("unknown auth type")
+		panic(errors.New("configuration error"))
+	}
 }
 
 func (module *EmailNotifier) Start() error {
-	module.running.Add(1)
+	// Email notifier does not have a running component - no start needed
 	return nil
 }
 
 func (module *EmailNotifier) Stop() error {
-	close(module.requestChannel)
-	module.running.Done()
+	// Email notifier does not have a running component - no stop needed
 	return nil
 }
 
@@ -67,4 +109,34 @@ func (module *EmailNotifier) GetLogger() *zap.Logger {
 // Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
 func (module *EmailNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
 	return true
+}
+
+func (module *EmailNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+	logger := module.Log.With(
+		zap.String("cluster", status.Cluster),
+		zap.String("group", status.Group),
+		zap.String("id", eventId),
+		zap.String("status", status.Status.String()),
+	)
+
+	var tmpl *template.Template
+	if stateGood {
+		tmpl = module.templateClose
+	} else {
+		tmpl = module.templateOpen
+	}
+
+	// Put the from and to lines in without the template. Template should set the subject line, followed by a blank line
+	bytesToSend := bytes.NewBufferString("From: " + module.profile.From + "\nTo: " + module.profile.To + "\n")
+	messageBody, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
+	if err != nil {
+		logger.Error("failed to assemble", zap.Error(err))
+		return
+	}
+	bytesToSend.Write(messageBody.Bytes())
+
+	err = module.sendMailFunc(module.serverWithPort, module.auth, module.profile.From, []string{module.profile.To}, bytesToSend.Bytes())
+	if err != nil {
+		logger.Error("failed to send", zap.Error(err))
+	}
 }

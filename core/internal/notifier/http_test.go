@@ -144,7 +144,7 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 	module.Notify(status, "testidstring", time.Now(), false)
 }
 
-func TestHttpNotifier_sendNotification_Close(t *testing.T) {
+func TestHttpNotifier_Notify_Close(t *testing.T) {
 	// handler that validates that we get the right values
 	requestHandler := func( w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)

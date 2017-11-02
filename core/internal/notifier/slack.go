@@ -1,9 +1,10 @@
 package notifier
 
 import (
+	"errors"
 	"regexp"
-	"sync"
 	"text/template"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -22,29 +23,30 @@ type SlackNotifier struct {
 
 	name            string
 	myConfiguration *configuration.NotifierConfig
-	requestChannel  chan interface{}
-	running         sync.WaitGroup
+	profile         *configuration.SlackNotifierProfile
 }
 
 func (module *SlackNotifier) Configure(name string) {
 	module.name = name
 	module.myConfiguration = module.App.Configuration.Notifier[name]
-	module.requestChannel = make(chan interface{})
-	module.running = sync.WaitGroup{}
-}
 
-func (module *SlackNotifier) GetCommunicationChannel() chan interface{} {
-	return module.requestChannel
+	if profile, ok := module.App.Configuration.SlackNotifierProfile[module.myConfiguration.Profile]; ok {
+		module.profile = profile
+	} else {
+		module.Log.Panic("unknown Slack notifier profile")
+		panic(errors.New("configuration error"))
+	}
+
+	// Set defaults for module-specific configs if needed
 }
 
 func (module *SlackNotifier) Start() error {
-	module.running.Add(1)
+	// Slack notifier does not have a running component - no start needed
 	return nil
 }
 
 func (module *SlackNotifier) Stop() error {
-	close(module.requestChannel)
-	module.running.Done()
+	// Slack notifier does not have a running component - no start needed
 	return nil
 }
 
@@ -67,4 +69,7 @@ func (module *SlackNotifier) GetLogger() *zap.Logger {
 // Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
 func (module *SlackNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
 	return true
+}
+
+func (module *SlackNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 }
