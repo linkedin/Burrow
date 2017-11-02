@@ -3,6 +3,9 @@ package helpers
 import (
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/stretchr/testify/mock"
+	"github.com/linkedin/Burrow/core/configuration"
+	"go.uber.org/zap"
+	"time"
 )
 
 func StartCoordinatorModules(modules map[string]protocol.Module) error {
@@ -38,10 +41,22 @@ func (m *MockModule) Stop() error {
 	args := m.Called()
 	return args.Error(0)
 }
+func (m *MockModule) GetName() string {
+	args := m.Called()
+	return args.String(0)
+}
+func (m *MockModule) GetConfig() *configuration.NotifierConfig {
+	args := m.Called()
+	return args.Get(0).(*configuration.NotifierConfig)
+}
+func (m *MockModule) GetLogger() *zap.Logger {
+	args := m.Called()
+	return args.Get(0).(*zap.Logger)
+}
 func (m *MockModule) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
 	args := m.Called(status)
 	return args.Bool(0)
 }
-func (m *MockModule) Notify (status *protocol.ConsumerGroupStatus) {
-	m.Called(status)
+func (m *MockModule) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+	m.Called(status, eventId, startTime, stateGood)
 }

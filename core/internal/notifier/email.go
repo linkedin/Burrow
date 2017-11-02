@@ -1,7 +1,9 @@
 package notifier
 
 import (
+	"regexp"
 	"sync"
+	"text/template"
 
 	"go.uber.org/zap"
 
@@ -12,6 +14,11 @@ import (
 type EmailNotifier struct {
 	App             *protocol.ApplicationContext
 	Log             *zap.Logger
+
+	groupWhitelist  *regexp.Regexp
+	extras          map[string]string
+	templateOpen    *template.Template
+	templateClose   *template.Template
 
 	name            string
 	myConfiguration *configuration.NotifierConfig
