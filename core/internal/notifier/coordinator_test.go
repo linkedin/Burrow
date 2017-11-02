@@ -714,3 +714,19 @@ func TestCoordinator_AcceptConsumerGroup(t *testing.T) {
 	status.Group = "notagroup"
 	assert.False(t, moduleAcceptConsumerGroup(module, status), "Expected StatusError,notagroup to return False")
 }
+
+func TestCoordinator_ExecuteTemplate(t *testing.T) {
+	tmpl, _ := template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
+
+	status := &protocol.ConsumerGroupStatus{
+		Status: protocol.StatusOK,
+		Cluster: "testcluster",
+		Group:   "testgroup",
+	}
+
+	extras := make(map[string]string)
+	extras["foo"] = "bar"
+	bytesToSend, err := ExecuteTemplate(tmpl, extras, status, "testidstring", time.Now())
+	assert.Nil(t, err, "Expected no error to be returned")
+	assert.Equal(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
+}

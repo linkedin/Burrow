@@ -25,6 +25,7 @@ import (
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"bytes"
 )
 
 type NotifierModule interface {
@@ -438,4 +439,28 @@ func (nc *Coordinator) notifyModule(module NotifierModule, status *protocol.Cons
 			cgroup.Last[module.GetName()] = currentTime
 		}
 	}
+}
+
+// Common method for executing a template in modules
+func ExecuteTemplate(tmpl *template.Template, extras map[string]string, status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time) (*bytes.Buffer, error) {
+	bytesToSend := new(bytes.Buffer)
+	err := tmpl.Execute(bytesToSend, struct {
+		Cluster    string
+		Group      string
+		Id         string
+		Start      time.Time
+		Extras     map[string]string
+		Result     protocol.ConsumerGroupStatus
+	}{
+		Cluster:    status.Cluster,
+		Group:      status.Group,
+		Id:         eventId,
+		Start:      startTime,
+		Extras:     extras,
+		Result:     *status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return bytesToSend, nil
 }

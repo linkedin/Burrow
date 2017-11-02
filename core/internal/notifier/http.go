@@ -1,7 +1,6 @@
 package notifier
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -117,22 +116,7 @@ func (module *HttpNotifier) Notify (status *protocol.ConsumerGroupStatus, eventI
 		url = module.profile.UrlOpen
 	}
 
-	bytesToSend := new(bytes.Buffer)
-	err := tmpl.Execute(bytesToSend, struct {
-		Cluster    string
-		Group      string
-		Id         string
-		Start      time.Time
-		Extras     map[string]string
-		Result     protocol.ConsumerGroupStatus
-	}{
-		Cluster:    status.Cluster,
-		Group:      status.Group,
-		Id:         eventId,
-		Start:      startTime,
-		Extras:     module.extras,
-		Result:     *status,
-	})
+	bytesToSend, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
 	if err != nil {
 		logger.Error("failed to assemble message", zap.Error(err))
 		return
