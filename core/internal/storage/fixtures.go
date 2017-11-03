@@ -24,7 +24,7 @@ func StorageCoordinatorWithOffsets() *Coordinator {
 	coordinator.App.Configuration.Storage["test"] = &configuration.StorageConfig{
 		ClassName: "inmemory",
 		Intervals: 10,
-		MinDistance: 1,
+		MinDistance: 0,
 		GroupWhitelist: "",
 	}
 	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
