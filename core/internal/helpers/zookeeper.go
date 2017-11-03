@@ -36,6 +36,14 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 	return z.Client.GetW(path)
 }
 
+func (z *BurrowZookeeperClient) Create(path string, data []byte, flags int32, acl []zk.ACL) (string, error) {
+	return z.Client.Create(path, data ,flags, acl)
+}
+
+func (z *BurrowZookeeperClient) NewLock(path string) protocol.ZookeeperLock {
+	return zk.NewLock(z.Client, path, []zk.ACL{})
+}
+
 // Mock ZookeeperClient for testing
 type MockZookeeperClient struct {
 	mock.Mock
@@ -58,6 +66,14 @@ func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Eve
 	args := m.Called(path)
 	return args.Get(0).([]byte), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
 }
+func (m *MockZookeeperClient) Create(path string, data []byte, flags int32, acl []zk.ACL) (string, error) {
+	args := m.Called(path, data, flags, acl)
+	return args.String(0), args.Error(1)
+}
+func (m *MockZookeeperClient) NewLock(path string) protocol.ZookeeperLock {
+	args := m.Called(path)
+	return args.Get(0).(protocol.ZookeeperLock)
+}
 
 // This method allows us to prepopulate the mock with calls before feeding it into the connect call
 func (m *MockZookeeperClient) MockZookeeperConnect(servers []string, sessionTimeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
@@ -68,4 +84,16 @@ func (m *MockZookeeperClient) MockZookeeperConnect(servers []string, sessionTime
 		m.EventChannel = make(chan zk.Event)
 	}
 	return m, m.EventChannel, m.InitialError
+}
+
+type MockZookeeperLock struct {
+	mock.Mock
+}
+func (m *MockZookeeperLock) Lock() error {
+	args := m.Called()
+	return args.Error(0)
+}
+func (m *MockZookeeperLock) Unlock() error {
+	args := m.Called()
+	return args.Error(0)
 }

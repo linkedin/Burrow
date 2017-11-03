@@ -120,8 +120,7 @@ type Configuration struct {
 		Level          string `gcfg:"level"`
 	}
 	Zookeeper struct {
-		Hosts    []string `gcfg:"hostname"`
-		Port     int      `gcfg:"port"`
+		Server   []string `gcfg:"server"`
 		Timeout  int      `gcfg:"timeout"`
 		RootPath string   `gcfg:"root-path"`
 	}
@@ -187,13 +186,10 @@ func ValidateConfig(config *Configuration) error {
 	}
 
 	// Zookeeper
-	if config.Zookeeper.Port == 0 {
-		config.Zookeeper.Port = 2181
-	}
-	if len(config.Zookeeper.Hosts) == 0 {
-		errs = append(errs, "No Zookeeper hostnames specified")
+	if len(config.Zookeeper.Server) == 0 {
+		errs = append(errs, "No Zookeeper servers specified")
 	} else {
-		if ! ValidateHostList(config.Zookeeper.Hosts) {
+		if ! ValidateHostList(config.Zookeeper.Server) {
 			errs = append(errs, "Failed to validate Zookeeper servers")
 		}
 	}

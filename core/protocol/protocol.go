@@ -67,4 +67,11 @@ type ZookeeperClient interface {
 	Close()
 	ChildrenW(path string) ([]string, *zk.Stat, <-chan zk.Event, error)
 	GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error)
+	Create(string, []byte, int32, []zk.ACL) (string, error)
+	NewLock(path string) ZookeeperLock
+}
+
+type ZookeeperLock interface {
+	Lock() error
+	Unlock() error
 }
