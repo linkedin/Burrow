@@ -40,7 +40,7 @@ type HttpNotifierProfile struct {
 	MethodClose    string   `gcfg:"method-close"`
 }
 type SlackNotifierProfile struct {
-	Url       string   `gcfg:"url"`
+	Token     string   `gcfg:"token"`
 	Channel   string   `gcfg:"channel"`
 	Username  string   `gcfg:"username"`
 	IconUrl   string   `gcfg:"icon-url"`
