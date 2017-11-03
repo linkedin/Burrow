@@ -81,7 +81,7 @@ func TestInMemoryStorage_ImplementsModule(t *testing.T) {
 }
 
 func TestInMemoryStorage_ImplementsStorageModule(t *testing.T) {
-	assert.Implements(t, (*StorageModule)(nil), new(InMemoryStorage))
+	assert.Implements(t, (*Module)(nil), new(InMemoryStorage))
 }
 
 func TestInMemoryStorage_Configure(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 	"sync"
 )
 
-type StorageModule interface {
+type Module interface {
 	protocol.Module
 	GetCommunicationChannel() chan *protocol.StorageRequest
 }
@@ -49,7 +49,7 @@ type Coordinator struct {
 	running     sync.WaitGroup
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, className string) StorageModule {
+func GetModuleForClass(app *protocol.ApplicationContext, className string) Module {
 	switch className {
 	case "inmemory":
 		return &InMemoryStorage{
@@ -114,7 +114,7 @@ func (sc *Coordinator) mainLoop() {
 	// We only support 1 module right now, so only send to that module
 	var channel chan *protocol.StorageRequest
 	for _, module := range sc.modules {
-		channel = module.(StorageModule).GetCommunicationChannel()
+		channel = module.(Module).GetCommunicationChannel()
 	}
 
 	for {
