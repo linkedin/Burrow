@@ -47,7 +47,7 @@ func TestCachingEvaluator_ImplementsModule(t *testing.T) {
 }
 
 func TestCachingEvaluator_ImplementsEvaluatorModule(t *testing.T) {
-	assert.Implements(t, (*EvaluatorModule)(nil), new(CachingEvaluator))
+	assert.Implements(t, (*Module)(nil), new(CachingEvaluator))
 }
 
 func TestCachingEvaluator_Configure(t *testing.T) {

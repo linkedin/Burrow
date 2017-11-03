@@ -19,7 +19,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type EvaluatorModule interface {
+type Module interface {
 	protocol.Module
 	GetCommunicationChannel() chan *protocol.EvaluatorRequest
 }
@@ -80,7 +80,7 @@ func (ec *Coordinator) Start() error {
 		// We only support 1 module right now, so only send to that module
 		var channel chan *protocol.EvaluatorRequest
 		for _, module := range ec.modules {
-			channel = module.(EvaluatorModule).GetCommunicationChannel()
+			channel = module.(Module).GetCommunicationChannel()
 		}
 
 		for {
