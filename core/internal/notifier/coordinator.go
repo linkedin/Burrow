@@ -55,8 +55,8 @@ type Coordinator struct {
 	modules     map[string]protocol.Module
 
 	minInterval       int64
-	groupRefresh      *time.Ticker
-	evalInterval      *time.Ticker
+	groupRefresh      helpers.Ticker
+	evalInterval      helpers.Ticker
 	evaluatorResponse chan *protocol.ConsumerGroupStatus
 	running           sync.WaitGroup
 	quitChannel       chan struct{}
@@ -140,6 +140,7 @@ func (nc *Coordinator) Configure() {
 	nc.minInterval = math.MaxInt64
 
 	nc.quitChannel = make(chan struct{})
+	nc.running = sync.WaitGroup{}
 	nc.evaluatorResponse = make(chan *protocol.ConsumerGroupStatus)
 
 	// Set the function for parsing templates and calling module Notify (configurable to enable testing)
@@ -214,6 +215,11 @@ func (nc *Coordinator) Configure() {
 			nc.minInterval = moduleConfig.Interval
 		}
 	}
+
+	// Set up the tickers but do not start them
+	// TODO - should probably be configurable
+	nc.groupRefresh = helpers.NewPausableTicker(60 * time.Second)
+	nc.evalInterval = helpers.NewPausableTicker(time.Duration(nc.minInterval) * time.Second)
 }
 
 func (nc *Coordinator) Start() error {
@@ -226,9 +232,13 @@ func (nc *Coordinator) Start() error {
 		return errors.New("Error starting notifier module: " + err.Error())
 	}
 
-	// TODO - should probably be configurable
-	nc.groupRefresh = time.NewTicker(60 * time.Second)
-	nc.evalInterval = time.NewTicker(time.Duration(nc.minInterval) * time.Second)
+	// Run the group refresh regardless of whether or not we're sending notifications
+	nc.groupRefresh.Start()
+
+	// Run a goroutine to manage whether or not we're performing evaluations
+	go nc.manageEvalLoop()
+
+	// Run our main loop to watch tickers and take actions
 	go nc.tickerLoop()
 
 	return nil
@@ -245,13 +255,40 @@ func (nc *Coordinator) Stop() error {
 	return nil
 }
 
+func (nc *Coordinator) manageEvalLoop() {
+	lock := nc.App.Zookeeper.NewLock(nc.App.ZookeeperRoot + "/notifier")
+
+	for {
+		time.Sleep(100 * time.Millisecond)
+		err := lock.Lock()
+		if err != nil {
+			nc.Log.Warn("failed to get zk lock", zap.Error(err))
+			continue
+		}
+
+		// We've got the lock, start the evaluation ticker
+		nc.evalInterval.Start()
+
+		// Wait for ZK session expiration, and stop sending notifications if it happens
+		nc.App.ZookeeperExpired.L.Lock()
+		nc.App.ZookeeperExpired.Wait()
+		nc.App.ZookeeperExpired.L.Unlock()
+		nc.evalInterval.Stop()
+
+		// Wait for the ZK connection to come back before trying again
+		for ! nc.App.ZookeeperConnected {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
 // We keep this function trivial because tickers are not easy to mock/test in golang
 func (nc *Coordinator) tickerLoop() {
 	for {
 		select {
-		case <- nc.groupRefresh.C:
+		case <- nc.groupRefresh.GetChannel():
 			nc.sendClusterRequest()
-		case <- nc.evalInterval.C:
+		case <- nc.evalInterval.GetChannel():
 			nc.sendEvaluatorRequests()
 		case <- nc.quitChannel:
 			return

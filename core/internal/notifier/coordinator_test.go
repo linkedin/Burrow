@@ -23,10 +23,14 @@ func fixtureCoordinator() *Coordinator {
 		Log: zap.NewNop(),
 	}
 	coordinator.App = &protocol.ApplicationContext{
-		Logger:           zap.NewNop(),
-		Configuration:    &configuration.Configuration{},
-		StorageChannel:   make(chan *protocol.StorageRequest),
-		EvaluatorChannel: make(chan *protocol.EvaluatorRequest),
+		Logger:             zap.NewNop(),
+		Configuration:      &configuration.Configuration{},
+		StorageChannel:     make(chan *protocol.StorageRequest),
+		EvaluatorChannel:   make(chan *protocol.EvaluatorRequest),
+		Zookeeper:          &helpers.MockZookeeperClient{},
+		ZookeeperRoot:      "/burrow",
+		ZookeeperConnected: true,
+		ZookeeperExpired:   &sync.Cond{L: &sync.Mutex{}},
 	}
 
 	// Simple parser replacement that returns a blank template
@@ -167,6 +171,12 @@ func TestCoordinator_StartStop(t *testing.T) {
 	mockModule.On("Start").Return(nil)
 	mockModule.On("Stop").Return(nil)
 	coordinator.modules["test"] = mockModule
+
+	// Add mock calls for the Zookeeper client - We're not testing this part here, so just hang forever
+	mockLock := &helpers.MockZookeeperLock{}
+	mockLock.On("Lock").After(1 * time.Minute).Return(errors.New("neverworks"))
+	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
+	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
 
 	coordinator.Start()
 	mockModule.AssertCalled(t, "Start")
@@ -729,4 +739,83 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 	bytesToSend, err := ExecuteTemplate(tmpl, extras, status, "testidstring", time.Now())
 	assert.Nil(t, err, "Expected no error to be returned")
 	assert.Equalf(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
+}
+
+func TestCoordinator_manageEvalLoop_Start(t *testing.T) {
+	coordinator := fixtureCoordinator()
+
+	mockTicker := helpers.MockTicker{}
+	mockTicker.On("Start")
+
+	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
+	mockLock := &helpers.MockZookeeperLock{}
+	mockLock.On("Lock").Return(nil)
+	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
+	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
+
+	coordinator.evalInterval = &mockTicker
+	go coordinator.manageEvalLoop()
+	time.Sleep(200 * time.Millisecond)
+
+	mockTicker.AssertExpectations(t)
+	mockLock.AssertExpectations(t)
+	mockZk.AssertExpectations(t)
+}
+
+func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
+	coordinator := fixtureCoordinator()
+
+	mockTicker := helpers.MockTicker{}
+	mockTicker.On("Start").Once()
+	mockTicker.On("Stop").Once()
+
+	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
+	mockLock := &helpers.MockZookeeperLock{}
+	mockLock.On("Lock").Return(nil)
+	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
+	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
+
+	coordinator.evalInterval = &mockTicker
+	go coordinator.manageEvalLoop()
+	time.Sleep(200 * time.Millisecond)
+
+	// ZK gets disconnected and expired
+	coordinator.App.ZookeeperConnected = false
+	coordinator.App.ZookeeperExpired.Broadcast()
+	time.Sleep(300 * time.Millisecond)
+
+	mockTicker.AssertExpectations(t)
+	mockLock.AssertExpectations(t)
+	mockZk.AssertExpectations(t)
+}
+
+func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
+	coordinator := fixtureCoordinator()
+
+	mockTicker := helpers.MockTicker{}
+	mockTicker.On("Start").Twice()
+	mockTicker.On("Stop").Once()
+
+	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
+	mockLock := &helpers.MockZookeeperLock{}
+	mockLock.On("Lock").Return(nil)
+	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
+	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
+
+	coordinator.evalInterval = &mockTicker
+	go coordinator.manageEvalLoop()
+	time.Sleep(200 * time.Millisecond)
+
+	// ZK gets disconnected and expired
+	coordinator.App.ZookeeperConnected = false
+	coordinator.App.ZookeeperExpired.Broadcast()
+	time.Sleep(200 * time.Millisecond)
+
+	// ZK gets reconnected
+	coordinator.App.ZookeeperConnected = true
+	time.Sleep(300 * time.Millisecond)
+
+	mockTicker.AssertExpectations(t)
+	mockLock.AssertExpectations(t)
+	mockZk.AssertExpectations(t)
 }
