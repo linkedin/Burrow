@@ -99,27 +99,26 @@ type HttpRequest struct {
 func TestHttpNotifier_Notify_Open(t *testing.T) {
 	// handler that validates that we get the right values
 	requestHandler := func( w http.ResponseWriter, r *http.Request) {
+		// Must get an appropriate Content-Type header
+		headers, ok := r.Header["Content-Type"]
+		assert.True(t, ok, "Expected to receive Content-Type header")
+		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
+		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
+
 		decoder := json.NewDecoder(r.Body)
 		var req HttpRequest
 		err := decoder.Decode(&req)
 		if err != nil {
+			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// If there's any error, we're going to panic to stop everything
-		if req.Template != "template_open" {
-			panic("bad template name")
-		}
-		if req.Id != "testidstring" {
-			panic("bad id")
-		}
-		if req.Cluster != "testcluster" {
-			panic("bad cluster")
-		}
-		if req.Group != "testgroup" {
-			panic("bad group")
-		}
+		assert.Equalf(t, "template_open", req.Template, "Expected Template to be template_open, not %v", req.Template)
+		assert.Equalf(t, "testidstring", req.Id, "Expected Id to be testidstring, not %v", req.Id)
+		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
+		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+
 		fmt.Fprint(w, "ok")
 	}
 
@@ -147,27 +146,26 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 func TestHttpNotifier_Notify_Close(t *testing.T) {
 	// handler that validates that we get the right values
 	requestHandler := func( w http.ResponseWriter, r *http.Request) {
+		// Must get an appropriate Content-Type header
+		headers, ok := r.Header["Content-Type"]
+		assert.True(t, ok, "Expected to receive Content-Type header")
+		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
+		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
+
 		decoder := json.NewDecoder(r.Body)
 		var req HttpRequest
 		err := decoder.Decode(&req)
 		if err != nil {
+			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// If there's any error, we're going to panic to stop everything
-		if req.Template != "template_close" {
-			panic("bad template name")
-		}
-		if req.Id != "testidstring" {
-			panic("bad id")
-		}
-		if req.Cluster != "testcluster" {
-			panic("bad cluster")
-		}
-		if req.Group != "testgroup" {
-			panic("bad group")
-		}
+		assert.Equalf(t, "template_close", req.Template, "Expected Template to be template_close, not %v", req.Template)
+		assert.Equalf(t, "testidstring", req.Id, "Expected Id to be testidstring, not %v", req.Id)
+		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
+		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+
 		fmt.Fprint(w, "ok")
 	}
 
