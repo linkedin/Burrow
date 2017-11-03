@@ -43,6 +43,24 @@ func (module *HttpNotifier) Configure(name string) {
 		panic(errors.New("configuration error"))
 	}
 
+	// Validate and set defaults for profile configs
+	if module.profile.UrlOpen == "" {
+		module.Log.Panic("no url-open specified")
+		panic(errors.New("configuration error"))
+	}
+	if module.profile.MethodOpen == "" {
+		module.profile.MethodOpen = "POST"
+	}
+	if module.myConfiguration.SendClose {
+		if module.profile.UrlClose == "" {
+			module.Log.Panic("no url-close specified")
+			panic(errors.New("configuration error"))
+		}
+		if module.profile.MethodClose == "" {
+			module.profile.MethodClose = "POST"
+		}
+	}
+
 	// Set defaults for module-specific configs if needed
 	if module.App.Configuration.Notifier[module.name].Timeout == 0 {
 		module.App.Configuration.Notifier[module.name].Timeout = 5
