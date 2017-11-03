@@ -48,7 +48,7 @@ func fixtureHttpNotifier() *HttpNotifier {
 
 func TestHttpNotifier_ImplementsModule(t *testing.T) {
 	assert.Implements(t, (*protocol.Module)(nil), new(HttpNotifier))
-	assert.Implements(t, (*NotifierModule)(nil), new(HttpNotifier))
+	assert.Implements(t, (*Module)(nil), new(HttpNotifier))
 }
 
 func TestHttpNotifier_Configure(t *testing.T) {

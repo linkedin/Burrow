@@ -49,7 +49,7 @@ func fixtureSlackNotifier() *SlackNotifier {
 
 func TestSlackNotifier_ImplementsModule(t *testing.T) {
 	assert.Implements(t, (*protocol.Module)(nil), new(SlackNotifier))
-	assert.Implements(t, (*NotifierModule)(nil), new(SlackNotifier))
+	assert.Implements(t, (*Module)(nil), new(SlackNotifier))
 }
 
 func TestSlackNotifier_Configure(t *testing.T) {

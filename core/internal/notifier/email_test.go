@@ -48,7 +48,7 @@ func fixtureEmailNotifier() *EmailNotifier {
 
 func TestEmailNotifier_ImplementsModule(t *testing.T) {
 	assert.Implements(t, (*protocol.Module)(nil), new(EmailNotifier))
-	assert.Implements(t, (*NotifierModule)(nil), new(EmailNotifier))
+	assert.Implements(t, (*Module)(nil), new(EmailNotifier))
 }
 
 func TestEmailNotifier_Configure(t *testing.T) {

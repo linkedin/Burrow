@@ -28,7 +28,7 @@ import (
 	"bytes"
 )
 
-type NotifierModule interface {
+type Module interface {
 	protocol.Module
 	GetName() string
 	GetConfig() *configuration.NotifierConfig
@@ -62,7 +62,7 @@ type Coordinator struct {
 	quitChannel       chan struct{}
 
 	templateParseFunc func (...string) (*template.Template, error)
-	notifyModuleFunc  func (NotifierModule, *protocol.ConsumerGroupStatus, time.Time, string)
+	notifyModuleFunc  func (Module, *protocol.ConsumerGroupStatus, time.Time, string)
 
 	clusters          map[string]*ClusterGroups
 	clusterLock       *sync.RWMutex
@@ -292,7 +292,7 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 	nc.clusterLock.RUnlock()
 }
 
-func moduleAcceptConsumerGroup(module NotifierModule, status *protocol.ConsumerGroupStatus) bool {
+func moduleAcceptConsumerGroup(module Module, status *protocol.ConsumerGroupStatus) bool {
 	moduleConfiguration := module.GetConfig()
 
 	if int(status.Status) < moduleConfiguration.Threshold {
@@ -331,7 +331,7 @@ func (nc *Coordinator) responseLoop() {
 				}
 
 				for _, genericModule := range nc.modules {
-					module := genericModule.(NotifierModule)
+					module := genericModule.(Module)
 					if moduleAcceptConsumerGroup(module, response) {
 						go nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
 					}
@@ -409,7 +409,7 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 	}
 }
 
-func (nc *Coordinator) notifyModule(module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 	nc.running.Add(1)
 	defer nc.running.Done()
 

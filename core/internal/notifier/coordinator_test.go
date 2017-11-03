@@ -260,7 +260,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	coordinator := fixtureCoordinator()
 
 	// For NotFound, we expect the notifier will not be called at all
-	coordinator.notifyModuleFunc = func (module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Fail(t, "Expected notifyModule to not be called")
 	}
 
@@ -309,7 +309,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusOK,
 	}
-	coordinator.notifyModuleFunc = func (module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.True(t, startTime.IsZero(), "Expected to be called with zero value startTime")
@@ -360,7 +360,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusOK,
 	}
-	coordinator.notifyModuleFunc = func (module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
@@ -412,7 +412,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusError,
 	}
-	coordinator.notifyModuleFunc = func (module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.False(t, startTime.IsZero(), "Expected to be called with a valid startTime, not zero")
@@ -463,7 +463,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusError,
 	}
-	coordinator.notifyModuleFunc = func (module NotifierModule, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
