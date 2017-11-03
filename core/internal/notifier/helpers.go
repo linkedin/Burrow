@@ -106,6 +106,6 @@ func maxLagHelper(a *protocol.PartitionStatus) int64 {
 	if a == nil {
 		return 0
 	} else {
-		return a.End.Lag
+		return a.CurrentLag
 	}
 }
