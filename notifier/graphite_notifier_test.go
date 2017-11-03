@@ -29,7 +29,13 @@ func TestGraphiteNotification(t *testing.T) {
 			Topic:     "kafka.topic",
 			Partition: int32(i),
 			Status:    protocol.StatusOK,
-			End:       protocol.ConsumerOffset{100, 1234, 20, false},
+			End:       protocol.ConsumerOffset{
+				Offset:     100,
+				Timestamp:  1024,
+				Lag:        20,
+				Artificial: false,
+				MaxOffset:  100,
+			},
 		}
 	}
 	msg := Message{Cluster: "cluster", Group: "consumer.group", Status: protocol.StatusOK, Partitions: partitions}
