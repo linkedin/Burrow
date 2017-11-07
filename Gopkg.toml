@@ -25,3 +25,15 @@
 [[constraint]]
   name = "gopkg.in/gcfg.v1"
   version = "1.2.0"
+
+[[constraint]]
+  name = "github.com/julienschmidt/httprouter"
+  version = "1.1"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.1.4"
+
+[[constraint]]
+  name = "github.com/karrick/goswarm"
+  version = "1.4.7"
