@@ -61,7 +61,7 @@ func (cc *Coordinator) Configure() {
 	}
 	for name, config := range cc.App.Configuration.Consumer {
 		if _, ok := cc.App.Configuration.Cluster[cc.App.Configuration.Consumer[name].Cluster]; !ok {
-			panic("Consumer '" + name + "' references an unknown cluster '" + cc.App.Configuration.Consumer[name].Cluster +"'")
+			panic("Consumer '" + name + "' references an unknown cluster '" + cc.App.Configuration.Consumer[name].Cluster + "'")
 		}
 		module := GetModuleForClass(cc.App, config.ClassName)
 		module.Configure(name)

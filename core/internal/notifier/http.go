@@ -27,19 +27,19 @@ import (
 )
 
 type HttpNotifier struct {
-	App                  *protocol.ApplicationContext
-	Log                  *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
-	name                 string
-	myConfiguration      *configuration.NotifierConfig
-	profile              *configuration.HttpNotifierProfile
+	name            string
+	myConfiguration *configuration.NotifierConfig
+	profile         *configuration.HttpNotifierProfile
 
-	groupWhitelist       *regexp.Regexp
-	extras               map[string]string
-	templateOpen         *template.Template
-	templateClose        *template.Template
+	groupWhitelist *regexp.Regexp
+	extras         map[string]string
+	templateOpen   *template.Template
+	templateClose  *template.Template
 
-	HttpClient           *http.Client
+	HttpClient *http.Client
 }
 
 func (module *HttpNotifier) Configure(name string) {
@@ -122,7 +122,7 @@ func (module *HttpNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupSt
 	return true
 }
 
-func (module *HttpNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
 		zap.String("group", status.Group),

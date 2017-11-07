@@ -59,10 +59,10 @@ type HTTPResponseClusterList struct {
 }
 
 type HTTPResponseTopicList struct {
-	Error    bool                    `json:"error"`
-	Message  string                  `json:"message"`
-	Topics   []string                `json:"topics"`
-	Request  HTTPResponseRequestInfo `json:"request"`
+	Error   bool                    `json:"error"`
+	Message string                  `json:"message"`
+	Topics  []string                `json:"topics"`
+	Request HTTPResponseRequestInfo `json:"request"`
 }
 
 type HTTPResponseTopicDetail struct {
@@ -94,8 +94,8 @@ type HTTPResponseConsumerStatus struct {
 }
 
 type HTTPResponseConfigGeneral struct {
-	PIDFile        string `json:"pidfile"`
-	StdoutLogfile  string `json:"stdout-logfile"`
+	PIDFile       string `json:"pidfile"`
+	StdoutLogfile string `json:"stdout-logfile"`
 }
 type HTTPResponseConfigLogging struct {
 	Filename       string `json:"filename"`
@@ -137,10 +137,10 @@ type HTTPResponseConfigModuleList struct {
 	Modules     []string                `json:"modules"`
 }
 type HTTPResponseConfigModuleDetail struct {
-	Error    bool                    `json:"error"`
-	Message  string                  `json:"message"`
-	Module   interface{}             `json:"module"`
-	Request  HTTPResponseRequestInfo `json:"request"`
+	Error   bool                    `json:"error"`
+	Message string                  `json:"message"`
+	Module  interface{}             `json:"module"`
+	Request HTTPResponseRequestInfo `json:"request"`
 }
 
 type HTTPResponseConfigModuleStorage struct {
@@ -172,8 +172,8 @@ type HTTPResponseConfigModuleConsumer struct {
 }
 
 type HTTPResponseConfigModuleEvaluator struct {
-	ClassName     string `json:"class-name"`
-	ExpireCache   int64  `json:"expire-cache"`
+	ClassName   string `json:"class-name"`
+	ExpireCache int64  `json:"expire-cache"`
 }
 
 type HTTPResponseConfigHttpNotifierProfile struct {

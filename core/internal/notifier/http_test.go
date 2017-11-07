@@ -13,8 +13,8 @@ package notifier
 import (
 	"encoding/json"
 	"fmt"
-	"net/http/httptest"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"text/template"
 	"time"
@@ -22,8 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureHttpNotifier() *HttpNotifier {
@@ -31,7 +31,7 @@ func fixtureHttpNotifier() *HttpNotifier {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
+		Configuration: &configuration.Configuration{},
 	}
 
 	module.App.Configuration.HttpNotifierProfile = make(map[string]*configuration.HttpNotifierProfile)
@@ -44,13 +44,13 @@ func fixtureHttpNotifier() *HttpNotifier {
 
 	module.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
 	module.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:      "http",
-		Profile:        "test_http_profile",
-		Timeout:        2,
-		Keepalive:      10,
-		TemplateOpen:   "template_open",
-		TemplateClose:  "template_close",
-		SendClose:      false,
+		ClassName:     "http",
+		Profile:       "test_http_profile",
+		Timeout:       2,
+		Keepalive:     10,
+		TemplateOpen:  "template_open",
+		TemplateClose: "template_close",
+		SendClose:     false,
 	}
 
 	return &module
@@ -100,15 +100,15 @@ func TestHttpNotifier_AcceptConsumerGroup(t *testing.T) {
 
 // Struct that will be used for sending HTTP requests for testing
 type HttpRequest struct {
-	Template  string
-	Id        string
-	Cluster   string
-	Group     string
+	Template string
+	Id       string
+	Cluster  string
+	Group    string
 }
 
 func TestHttpNotifier_Notify_Open(t *testing.T) {
 	// handler that validates that we get the right values
-	requestHandler := func( w http.ResponseWriter, r *http.Request) {
+	requestHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Must get an appropriate Content-Type header
 		headers, ok := r.Header["Content-Type"]
 		assert.True(t, ok, "Expected to receive Content-Type header")
@@ -155,7 +155,7 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 
 func TestHttpNotifier_Notify_Close(t *testing.T) {
 	// handler that validates that we get the right values
-	requestHandler := func( w http.ResponseWriter, r *http.Request) {
+	requestHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Must get an appropriate Content-Type header
 		headers, ok := r.Header["Content-Type"]
 		assert.True(t, ok, "Expected to receive Content-Type header")

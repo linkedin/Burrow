@@ -13,8 +13,8 @@ package protocol
 import (
 	"sync"
 
-	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
 )
@@ -35,7 +35,6 @@ type ApplicationContext struct {
 	StorageChannel     chan *StorageRequest
 }
 
-
 /* The Module interface is used for all Burrow modules, including:
  *   - Consumer
  *   - Broker (cluster)
@@ -46,7 +45,7 @@ type ApplicationContext struct {
  * Module structs must have an App and Log literal, and should store their own name. The Log will get set up by
  * the coordinator with the proper fields to start with.
  */
-type Module	interface {
+type Module interface {
 	Configure(name string)
 	Start() error
 	Stop() error

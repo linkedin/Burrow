@@ -18,7 +18,6 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 )
 
-
 func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Build JSON structs for config
 	configGeneral := HTTPResponseConfigGeneral{
@@ -132,7 +131,7 @@ func (hc *Coordinator) configStorageDetail(w http.ResponseWriter, r *http.Reques
 		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "storage module detail returned",
-			Module:  HTTPResponseConfigModuleStorage{
+			Module: HTTPResponseConfigModuleStorage{
 				ClassName:      cfg.ClassName,
 				Intervals:      cfg.Intervals,
 				MinDistance:    cfg.MinDistance,
@@ -152,7 +151,7 @@ func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Reque
 		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "consumer module detail returned",
-			Module:  HTTPResponseConfigModuleConsumer{
+			Module: HTTPResponseConfigModuleConsumer{
 				ClassName:        cfg.ClassName,
 				Cluster:          cfg.Cluster,
 				Servers:          cfg.Servers,
@@ -176,7 +175,7 @@ func (hc *Coordinator) configEvaluatorDetail(w http.ResponseWriter, r *http.Requ
 		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "evaluator module detail returned",
-			Module:  HTTPResponseConfigModuleEvaluator{
+			Module: HTTPResponseConfigModuleEvaluator{
 				ClassName:   cfg.ClassName,
 				ExpireCache: cfg.ExpireCache,
 			},
@@ -235,7 +234,7 @@ func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Reque
 		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "notifier module detail returned",
-			Module:  HTTPResponseConfigModuleNotifier{
+			Module: HTTPResponseConfigModuleNotifier{
 				ClassName:      cfg.ClassName,
 				GroupWhitelist: cfg.GroupWhitelist,
 				Interval:       cfg.Interval,
@@ -252,4 +251,3 @@ func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Reque
 		})
 	}
 }
-

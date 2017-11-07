@@ -11,9 +11,9 @@
 package helpers
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/linkedin/Burrow/core/protocol"
 )
@@ -26,7 +26,7 @@ func TestTimeoutSendStorageRequest(t *testing.T) {
 
 	// Sleep for 0.5 seconds before reading. There should be a storage request waiting
 	time.Sleep(500 * time.Millisecond)
-	readRequest := <- storageChannel
+	readRequest := <-storageChannel
 
 	assert.Equal(t, storageRequest, readRequest, "Expected to receive the same storage request")
 }
@@ -41,7 +41,7 @@ func TestTimeoutSendStorageRequest_Timeout(t *testing.T) {
 	time.Sleep(1500 * time.Millisecond)
 
 	select {
-	case <- storageChannel:
+	case <-storageChannel:
 		assert.Fail(t, "Expected to not receive storage request after timeout")
 	default:
 	}

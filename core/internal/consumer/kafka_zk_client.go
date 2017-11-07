@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
-	"strconv"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 	"regexp"
+	"strconv"
 )
 
 type TopicList struct {
@@ -34,18 +34,18 @@ type PartitionCount struct {
 }
 
 type KafkaZkClient struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
 	name            string
 	myConfiguration *configuration.ConsumerConfig
 	connectFunc     func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 
-	zk              protocol.ZookeeperClient
-	areWatchesSet   bool
-	groupLock       *sync.Mutex
-	groupList       map[string]*TopicList
-	groupWhitelist  *regexp.Regexp
+	zk             protocol.ZookeeperClient
+	areWatchesSet  bool
+	groupLock      *sync.Mutex
+	groupList      map[string]*TopicList
+	groupWhitelist *regexp.Regexp
 }
 
 func (module *KafkaZkClient) Configure(name string) {
@@ -57,12 +57,12 @@ func (module *KafkaZkClient) Configure(name string) {
 	module.groupList = make(map[string]*TopicList)
 	module.connectFunc = helpers.ZookeeperConnect
 
-	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; ! ok {
+	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; !ok {
 		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
 	}
 	if len(module.myConfiguration.Servers) == 0 {
 		panic("No Zookeeper servers specified for consumer " + module.name)
-	} else if ! configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
 		panic("Consumer '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
@@ -71,7 +71,7 @@ func (module *KafkaZkClient) Configure(name string) {
 		module.App.Configuration.Consumer[module.name].ZookeeperTimeout = 30
 	}
 	module.App.Configuration.Consumer[module.name].ZookeeperPath = module.App.Configuration.Consumer[module.name].ZookeeperPath + "/consumers"
-	if ! configuration.ValidateZookeeperPath(module.App.Configuration.Consumer[module.name].ZookeeperPath) {
+	if !configuration.ValidateZookeeperPath(module.App.Configuration.Consumer[module.name].ZookeeperPath) {
 		panic("Consumer '" + name + "' has a bad zookeeper path configuration")
 	}
 
@@ -88,7 +88,7 @@ func (module *KafkaZkClient) Configure(name string) {
 func (module *KafkaZkClient) Start() error {
 	module.Log.Info("starting")
 
-	zkconn, connEventChan, err := module.connectFunc(module.myConfiguration.Servers, time.Duration(module.myConfiguration.ZookeeperTimeout) * time.Second, module.Log)
+	zkconn, connEventChan, err := module.connectFunc(module.myConfiguration.Servers, time.Duration(module.myConfiguration.ZookeeperTimeout)*time.Second, module.Log)
 	if err != nil {
 		return err
 	}
@@ -116,8 +116,8 @@ func (module *KafkaZkClient) Stop() error {
 func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 	for {
 		select {
-		case event, isOpen := <- eventChan:
-			if ! isOpen {
+		case event, isOpen := <-eventChan:
+			if !isOpen {
 				// All done here
 				return
 			}
@@ -127,7 +127,7 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 					module.Log.Error("session expired")
 					module.areWatchesSet = false
 				case zk.StateConnected:
-					if ! module.areWatchesSet {
+					if !module.areWatchesSet {
 						module.Log.Info("reinitializing watches")
 						module.groupLock.Lock()
 						module.groupList = make(map[string]*TopicList)
@@ -151,7 +151,7 @@ func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
 func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
 	select {
 	case event, isOpen := <-eventChan:
-		if (! isOpen) || (event.Type == zk.EventNotWatching) {
+		if (!isOpen) || (event.Type == zk.EventNotWatching) {
 			// We're done here
 			return
 		}
@@ -169,12 +169,12 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 	}
 	go module.watchGroupList(groupListEventChan)
 
-	if ! resetOnly {
+	if !resetOnly {
 		// Check for any new groups and create the watches for them
 		module.groupLock.Lock()
 		defer module.groupLock.Unlock()
 		for _, group := range consumerGroups {
-			if ! module.acceptConsumerGroup(group) {
+			if !module.acceptConsumerGroup(group) {
 				module.Log.Debug("skip group",
 					zap.String("group", group),
 					zap.String("reason", "whitelist"),
@@ -199,7 +199,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 func (module *KafkaZkClient) watchTopicList(group string, eventChan <-chan zk.Event) {
 	select {
 	case event, isOpen := <-eventChan:
-		if (! isOpen) || (event.Type == zk.EventNotWatching) {
+		if (!isOpen) || (event.Type == zk.EventNotWatching) {
 			// We're done here
 			return
 		}
@@ -220,7 +220,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	}
 	go module.watchTopicList(group, topicListEventChan)
 
-	if ! resetOnly {
+	if !resetOnly {
 		// Check for any new topics and create the watches for them
 		module.groupList[group].lock.Lock()
 		defer module.groupList[group].lock.Unlock()
@@ -243,7 +243,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 func (module *KafkaZkClient) watchPartitionList(group string, topic string, eventChan <-chan zk.Event) {
 	select {
 	case event, isOpen := <-eventChan:
-		if (! isOpen) || (event.Type == zk.EventNotWatching) {
+		if (!isOpen) || (event.Type == zk.EventNotWatching) {
 			// We're done here
 			return
 		}
@@ -265,7 +265,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 	}
 	go module.watchPartitionList(group, topic, partitionListEventChan)
 
-	if ! resetOnly {
+	if !resetOnly {
 		// Check for any new partitions and create the watches for them
 		module.groupList[group].topics[topic].lock.Lock()
 		defer module.groupList[group].topics[topic].lock.Unlock()
@@ -286,7 +286,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 func (module *KafkaZkClient) watchOffset(group string, topic string, partition int32, eventChan <-chan zk.Event) {
 	select {
 	case event, isOpen := <-eventChan:
-		if (! isOpen) || (event.Type == zk.EventNotWatching) {
+		if (!isOpen) || (event.Type == zk.EventNotWatching) {
 			// We're done here
 			return
 		}
@@ -309,7 +309,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 	}
 	go module.watchOffset(group, topic, partition, offsetEventChan)
 
-	if ! resetOnly {
+	if !resetOnly {
 		offset, err := strconv.ParseInt(string(offsetString), 10, 64)
 		if err != nil {
 			// Badly formatted offset

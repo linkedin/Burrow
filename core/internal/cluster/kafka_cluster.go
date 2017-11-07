@@ -13,30 +13,30 @@ package cluster
 import (
 	"sync"
 
-	"go.uber.org/zap"
 	"github.com/Shopify/sarama"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 	"time"
 )
 
 type KafkaCluster struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
 	name            string
 	myConfiguration *configuration.ClusterConfig
 	saramaConfig    *sarama.Config
 
-	offsetTicker    *time.Ticker
-	metadataTicker  *time.Ticker
-	quitChannel	    chan struct{}
-	running         sync.WaitGroup
+	offsetTicker   *time.Ticker
+	metadataTicker *time.Ticker
+	quitChannel    chan struct{}
+	running        sync.WaitGroup
 
-	fetchMetadata   bool
-	topicMap        map[string]int
+	fetchMetadata bool
+	topicMap      map[string]int
 }
 
 func (module *KafkaCluster) Configure(name string) {
@@ -54,7 +54,7 @@ func (module *KafkaCluster) Configure(name string) {
 	}
 	if len(module.myConfiguration.Servers) == 0 {
 		panic("No Kafka brokers specified for cluster " + module.name)
-	} else if ! configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
 		panic("Cluster '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
@@ -141,9 +141,9 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.Sa
 				if _, ok := topicMap[topic]; !ok {
 					// Topic no longer exists - tell storage to delete it
 					module.App.StorageChannel <- &protocol.StorageRequest{
-						RequestType:         protocol.StorageSetDeleteTopic,
-						Cluster:             module.name,
-						Topic:               topic,
+						RequestType: protocol.StorageSetDeleteTopic,
+						Cluster:     module.name,
+						Topic:       topic,
 					}
 				}
 			}

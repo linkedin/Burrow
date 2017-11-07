@@ -13,18 +13,18 @@ package evaluator
 import (
 	"sync"
 
-	"go.uber.org/zap"
 	"github.com/karrick/goswarm"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"time"
 	"strings"
+	"time"
 )
 
 type CachingEvaluator struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
 	name            string
 	myConfiguration *configuration.EvaluatorConfig
@@ -94,7 +94,7 @@ func (module *CachingEvaluator) mainLoop() {
 	for {
 		select {
 		case request, isOpen := <-module.RequestChannel:
-			if ! isOpen {
+			if !isOpen {
 				return
 			}
 
@@ -130,7 +130,7 @@ func (module *CachingEvaluator) getConsumerStatus(request *protocol.EvaluatorReq
 	} else {
 		status := result.(*protocol.ConsumerGroupStatus)
 
-		if ! request.ShowAll {
+		if !request.ShowAll {
 			// The requestor only wants partitions that are not StatusOK, so we need to filter the result before
 			// returning it. However, we can't modify the original, so we need to make a new copy
 			cachedStatus := status
@@ -180,7 +180,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 		Reply:       make(chan interface{}),
 	}
 	module.App.StorageChannel <- storageRequest
-	response := <- storageRequest.Reply
+	response := <-storageRequest.Reply
 
 	if response == nil {
 		// Either the cluster or the consumer doesn't exist. In either case, return an error
@@ -276,7 +276,7 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.Pa
 		return status
 	}
 	status.Start = offsets[0]
-	status.End = offsets[len(offsets) - 1]
+	status.End = offsets[len(offsets)-1]
 
 	status.Status = calculatePartitionStatus(offsets, partition.CurrentLag, time.Now().Unix())
 	return status
@@ -326,7 +326,7 @@ func checkIfOffsetsRewind(offsets []*protocol.ConsumerOffset) bool {
 //          and first offset timestamps, the consumer has stopped committing offsets for that partition (error)
 func checkIfOffsetsStopped(offsets []*protocol.ConsumerOffset, timeNow int64) bool {
 	firstTimestamp := offsets[0].Timestamp
-	lastTimestamp := offsets[len(offsets) - 1].Timestamp
+	lastTimestamp := offsets[len(offsets)-1].Timestamp
 	if ((timeNow * 1000) - lastTimestamp) > (lastTimestamp - firstTimestamp) {
 		return true
 	}

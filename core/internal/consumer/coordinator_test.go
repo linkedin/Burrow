@@ -14,11 +14,11 @@ import (
 	"testing"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func fixtureCoordinator() *Coordinator {

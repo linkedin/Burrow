@@ -11,16 +11,16 @@
 package zookeeper
 
 import (
-	"go.uber.org/zap"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"time"
-	"github.com/samuel/go-zookeeper/zk"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/samuel/go-zookeeper/zk"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 	"sync"
+	"testing"
+	"time"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -28,8 +28,8 @@ func fixtureCoordinator() *Coordinator {
 		Log: zap.NewNop(),
 	}
 	coordinator.App = &protocol.ApplicationContext{
-		Logger:           zap.NewNop(),
-		Configuration:    &configuration.Configuration{},
+		Logger:        zap.NewNop(),
+		Configuration: &configuration.Configuration{},
 	}
 
 	coordinator.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
@@ -57,14 +57,14 @@ func TestCoordinator_StartStop(t *testing.T) {
 	// mock the connectFunc to return a mock client
 	mockClient := helpers.MockZookeeperClient{}
 	eventChan := make(chan zk.Event)
-	coordinator.connectFunc = func (servers []string, timeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
+	coordinator.connectFunc = func(servers []string, timeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
 		return &mockClient, eventChan, nil
 	}
 
 	mockClient.On("Create", "/test", []byte{}, int32(0), []zk.ACL{}).Return("", zk.ErrNodeExists)
 	mockClient.On("Create", "/test/path", []byte{}, int32(0), []zk.ACL{}).Return("", zk.ErrNodeExists)
 	mockClient.On("Create", "/test/path/burrow", []byte{}, int32(0), []zk.ACL{}).Return("", nil)
-	mockClient.On("Close").Run(func (args mock.Arguments) { close(eventChan) }).Return()
+	mockClient.On("Close").Run(func(args mock.Arguments) { close(eventChan) }).Return()
 
 	err := coordinator.Start()
 	assert.Nil(t, err, "Expected Start to not return an error")

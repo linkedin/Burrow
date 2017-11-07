@@ -19,10 +19,10 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"time"
 	"io/ioutil"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 func CheckAndCreatePidFile(filename string) bool {

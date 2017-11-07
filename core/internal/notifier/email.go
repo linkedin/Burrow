@@ -27,21 +27,21 @@ import (
 )
 
 type EmailNotifier struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
-	groupWhitelist  *regexp.Regexp
-	extras          map[string]string
-	templateOpen    *template.Template
-	templateClose   *template.Template
+	groupWhitelist *regexp.Regexp
+	extras         map[string]string
+	templateOpen   *template.Template
+	templateClose  *template.Template
 
 	name            string
 	myConfiguration *configuration.NotifierConfig
 	profile         *configuration.EmailNotifierProfile
 
-	auth            smtp.Auth
-	serverWithPort  string
-	sendMailFunc    func (string, smtp.Auth, string, []string, []byte) error
+	auth           smtp.Auth
+	serverWithPort string
+	sendMailFunc   func(string, smtp.Auth, string, []string, []byte) error
 }
 
 func (module *EmailNotifier) Configure(name string) {
@@ -61,7 +61,7 @@ func (module *EmailNotifier) Configure(name string) {
 	}
 
 	module.serverWithPort = fmt.Sprintf("%s:%v", module.profile.Server, module.profile.Port)
-	if ! configuration.ValidateHostList([]string{module.serverWithPort}) {
+	if !configuration.ValidateHostList([]string{module.serverWithPort}) {
 		module.Log.Panic("bad server or port")
 		panic(errors.New("configuration error"))
 	}
@@ -121,7 +121,7 @@ func (module *EmailNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupS
 	return true
 }
 
-func (module *EmailNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
 		zap.String("group", status.Group),

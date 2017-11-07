@@ -15,12 +15,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
-	"github.com/stretchr/testify/assert"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func TestHttpServer_handleClusterList(t *testing.T) {
@@ -28,7 +28,7 @@ func TestHttpServer_handleClusterList(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request of type StorageFetchClusters, not %v", request.RequestType)
 		request.Reply <- []string{"testcluster"}
 		close(request.Reply)
@@ -59,7 +59,7 @@ func TestHttpServer_handleClusterDetail(t *testing.T) {
 	coordinator.App.Configuration.ClientProfile["test"] = &configuration.ClientProfile{}
 	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
 	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{
-		ClassName: "kafka",
+		ClassName:     "kafka",
 		ClientProfile: "test",
 	}
 
@@ -75,10 +75,10 @@ func TestHttpServer_handleClusterDetail(t *testing.T) {
 
 	// Need a specialized version of this for decoding
 	type ResponseType struct {
-		Error    bool                            `json:"error"`
-		Message  string                          `json:"message"`
-		Module   HTTPResponseConfigModuleCluster `json:"module"`
-		Request  HTTPResponseRequestInfo         `json:"request"`
+		Error   bool                            `json:"error"`
+		Message string                          `json:"message"`
+		Module  HTTPResponseConfigModuleCluster `json:"module"`
+		Request HTTPResponseRequestInfo         `json:"request"`
 	}
 
 	// Parse response body
@@ -102,14 +102,14 @@ func TestHttpServer_handleTopicList(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchTopics, request.RequestType, "Expected request of type StorageFetchTopics, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		request.Reply <- []string{"testtopic"}
 		close(request.Reply)
 
 		// Second request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchTopics, request.RequestType, "Expected request of type StorageFetchTopics, not %v", request.RequestType)
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		close(request.Reply)
@@ -146,14 +146,14 @@ func TestHttpServer_handleConsumerList(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request of type StorageFetchConsumers, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		request.Reply <- []string{"testgroup"}
 		close(request.Reply)
 
 		// Second request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request of type StorageFetchConsumers, not %v", request.RequestType)
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		close(request.Reply)
@@ -190,7 +190,7 @@ func TestHttpServer_handleTopicDetail(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchTopic, request.RequestType, "Expected request of type StorageFetchTopic, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "testtopic", request.Topic, "Expected request Topic to be testtopic, not %v", request.Topic)
@@ -198,14 +198,14 @@ func TestHttpServer_handleTopicDetail(t *testing.T) {
 		close(request.Reply)
 
 		// Second request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchTopic, request.RequestType, "Expected request of type StorageFetchTopic, not %v", request.RequestType)
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		assert.Equalf(t, "testtopic", request.Topic, "Expected request Topic to be testtopic, not %v", request.Topic)
 		close(request.Reply)
 
 		// Third request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchTopic, request.RequestType, "Expected request of type StorageFetchTopic, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "notopic", request.Topic, "Expected request Topic to be notopic, not %v", request.Topic)
@@ -250,7 +250,7 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchConsumer, request.RequestType, "Expected request of type StorageFetchConsumer, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
@@ -270,14 +270,14 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 		close(request.Reply)
 
 		// Second request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchConsumer, request.RequestType, "Expected request of type StorageFetchConsumer, not %v", request.RequestType)
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
 		close(request.Reply)
 
 		// Third request is a 404
-		request = <- coordinator.App.StorageChannel
+		request = <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchConsumer, request.RequestType, "Expected request of type StorageFetchConsumer, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "nogroup", request.Group, "Expected request Group to be nogroup, not %v", request.Group)
@@ -358,7 +358,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 
 	// Respond to the expected evaluator request
 	go func() {
-		request := <- coordinator.App.EvaluatorChannel
+		request := <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
 		assert.False(t, request.ShowAll, "Expected request ShowAll to be False")
@@ -369,11 +369,11 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Complete:        true,
 			Partitions:      make([]*protocol.PartitionStatus, 0),
 			TotalPartitions: 2134,
-			Maxlag:          &protocol.PartitionStatus{
+			Maxlag: &protocol.PartitionStatus{
 				Topic:     "testtopic",
 				Partition: 0,
 				Status:    protocol.StatusOK,
-				Start:     &protocol.ConsumerOffset{
+				Start: &protocol.ConsumerOffset{
 					Offset:    9836458,
 					Timestamp: 12836487,
 					Lag:       3254,
@@ -384,13 +384,13 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 					Lag:       2355,
 				},
 			},
-			TotalLag:        2345,
+			TotalLag: 2345,
 		}
 		request.Reply <- response
 		close(request.Reply)
 
 		// Second request is a 404
-		request = <- coordinator.App.EvaluatorChannel
+		request = <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
 		assert.False(t, request.ShowAll, "Expected request ShowAll to be False")
@@ -406,7 +406,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 		close(request.Reply)
 
 		// Third request is a 404
-		request = <- coordinator.App.EvaluatorChannel
+		request = <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "nogroup", request.Group, "Expected request Group to be nogroup, not %v", request.Group)
 		assert.False(t, request.ShowAll, "Expected request ShowAll to be False")
@@ -422,7 +422,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 		close(request.Reply)
 
 		// Now we switch to expecting /lag requests
-		request = <- coordinator.App.EvaluatorChannel
+		request = <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
 		assert.True(t, request.ShowAll, "Expected request ShowAll to be True")
@@ -432,7 +432,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 		close(request.Reply)
 
 		// Fifth request is a 404
-		request = <- coordinator.App.EvaluatorChannel
+		request = <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "nocluster", request.Cluster, "Expected request Cluster to be nocluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)
 		assert.True(t, request.ShowAll, "Expected request ShowAll to be True")
@@ -448,7 +448,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 		close(request.Reply)
 
 		// Sixth request is a 404
-		request = <- coordinator.App.EvaluatorChannel
+		request = <-coordinator.App.EvaluatorChannel
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "nogroup", request.Group, "Expected request Group to be nogroup, not %v", request.Group)
 		assert.True(t, request.ShowAll, "Expected request ShowAll to be True")
@@ -538,7 +538,7 @@ func TestHttpServer_handleConsumerDelete(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageSetDeleteGroup, request.RequestType, "Expected request of type StorageFetchConsumer, not %v", request.RequestType)
 		assert.Equalf(t, "testcluster", request.Cluster, "Expected request Cluster to be testcluster, not %v", request.Cluster)
 		assert.Equalf(t, "testgroup", request.Group, "Expected request Group to be testgroup, not %v", request.Group)

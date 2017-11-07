@@ -13,10 +13,10 @@ package protocol
 import "encoding/json"
 
 type EvaluatorRequest struct {
-	Reply           chan *ConsumerGroupStatus
-	Cluster         string
-	Group           string
-	ShowAll         bool
+	Reply   chan *ConsumerGroupStatus
+	Cluster string
+	Group   string
+	ShowAll bool
 }
 
 type PartitionStatus struct {
@@ -41,7 +41,9 @@ type ConsumerGroupStatus struct {
 }
 
 var StatusStrings = [...]string{"NOTFOUND", "OK", "WARN", "ERR", "STOP", "STALL", "REWIND"}
+
 type StatusConstant int
+
 const (
 	StatusNotFound StatusConstant = 0
 	StatusOK       StatusConstant = 1

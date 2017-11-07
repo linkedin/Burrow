@@ -14,17 +14,17 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
+	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 	"strings"
 )
 
 type Coordinator struct {
-	App         *protocol.ApplicationContext
-	Log         *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
 	connectFunc func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 	running     sync.WaitGroup
@@ -101,8 +101,8 @@ func (zc *Coordinator) mainLoop(eventChan <-chan zk.Event) {
 
 	for {
 		select {
-		case event, isOpen := <- eventChan:
-			if ! isOpen {
+		case event, isOpen := <-eventChan:
+			if !isOpen {
 				// All done here
 				return
 			}
@@ -113,7 +113,7 @@ func (zc *Coordinator) mainLoop(eventChan <-chan zk.Event) {
 					zc.App.ZookeeperConnected = false
 					zc.App.ZookeeperExpired.Broadcast()
 				case zk.StateConnected:
-					if ! zc.App.ZookeeperConnected {
+					if !zc.App.ZookeeperConnected {
 						zc.Log.Info("starting session")
 						zc.App.ZookeeperConnected = true
 					}

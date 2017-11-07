@@ -16,14 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
-	"github.com/stretchr/testify/assert"
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureConfiguredCoordinator() *Coordinator {
@@ -32,9 +32,9 @@ func fixtureConfiguredCoordinator() *Coordinator {
 	coordinator := Coordinator{
 		Log: zap.NewNop(),
 		App: &protocol.ApplicationContext{
-			Logger:           zap.NewNop(),
-			LogLevel:         &logLevel,
-			Configuration:    &configuration.Configuration{
+			Logger:   zap.NewNop(),
+			LogLevel: &logLevel,
+			Configuration: &configuration.Configuration{
 				HttpServer: make(map[string]*configuration.HttpServerConfig),
 			},
 			StorageChannel:   make(chan *protocol.StorageRequest),
@@ -66,7 +66,7 @@ func TestHttpServer_getClusterList(t *testing.T) {
 
 	// Respond to the expected storage request
 	go func() {
-		request := <- coordinator.App.StorageChannel
+		request := <-coordinator.App.StorageChannel
 		assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request of type StorageFetchClusters, not %v", request.RequestType)
 		request.Reply <- []string{"testcluster"}
 		close(request.Reply)

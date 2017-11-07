@@ -14,13 +14,13 @@ import (
 	"errors"
 	"testing"
 
-	"go.uber.org/zap"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 	"time"
 )
 
@@ -92,7 +92,7 @@ func TestKafkaZkClient_Start(t *testing.T) {
 
 	assert.Nil(t, err, "Expected Start to return no error")
 	assert.Equal(t, module.myConfiguration.Servers, mockZookeeper.Servers, "Expected ZookeeperConnect to be called with server list")
-	assert.Equal(t, time.Duration(module.myConfiguration.ZookeeperTimeout) * time.Second, mockZookeeper.SessionTimeout, "Expected ZookeeperConnect to be called with session timeout")
+	assert.Equal(t, time.Duration(module.myConfiguration.ZookeeperTimeout)*time.Second, mockZookeeper.SessionTimeout, "Expected ZookeeperConnect to be called with session timeout")
 
 	watchEventChan <- zk.Event{
 		Type:  zk.EventNotWatching,
@@ -112,7 +112,7 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	module.Configure("test")
 	module.zk = &mockZookeeper
 
-	offsetStat := &zk.Stat{ Mtime: 894859 }
+	offsetStat := &zk.Stat{Mtime: 894859}
 	newGroupChan := make(chan zk.Event)
 	newTopicChan := make(chan zk.Event)
 	newPartitionChan := make(chan zk.Event)
@@ -130,7 +130,7 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 		Path:  "/consumers",
 	}
 
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
 	assert.Equalf(t, "testtopic", request.Topic, "Expected request sent with topic testtopic, not %v", request.Topic)
@@ -164,7 +164,6 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	assert.Equalf(t, int32(1), module.groupList["testgroup"].topics["testtopic"].count, "Expected partition count to be 1, not %v", module.groupList["testgroup"].topics["testtopic"].count)
 }
 
-
 func TestKafkaZkClient_resetOffsetWatchAndSend_BadPath(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
@@ -184,7 +183,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadOffset(t *testing.T) {
 	module.Configure("test")
 	module.zk = &mockZookeeper
 
-	offsetStat := &zk.Stat{ Mtime: 894859 }
+	offsetStat := &zk.Stat{Mtime: 894859}
 	newWatchEventChan := make(chan zk.Event)
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("notanumber"), offsetStat, func() <-chan zk.Event { return newWatchEventChan }(), nil)
 
@@ -245,7 +244,7 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
 	module.Configure("test")
 	module.zk = &mockZookeeper
 
-	offsetStat := &zk.Stat{ Mtime: 894859 }
+	offsetStat := &zk.Stat{Mtime: 894859}
 	newGroupChan := make(chan zk.Event)
 	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{"dropthisgroup"}, offsetStat, func() <-chan zk.Event { return newGroupChan }(), nil)
 

@@ -15,24 +15,24 @@ import (
 
 	"go.uber.org/zap"
 
+	"container/ring"
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"container/ring"
 	"regexp"
 	"time"
 )
 
 type InMemoryStorage struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
 	name            string
 	myConfiguration *configuration.StorageConfig
 	RequestChannel  chan *protocol.StorageRequest
 	running         sync.WaitGroup
 
-	offsets         map[string]ClusterOffsets
-	groupWhitelist  *regexp.Regexp
+	offsets        map[string]ClusterOffsets
+	groupWhitelist *regexp.Regexp
 }
 
 type BrokerOffset struct {
@@ -53,11 +53,11 @@ type ConsumerGroup struct {
 }
 
 type ClusterOffsets struct {
-	broker       map[string][]*BrokerOffset
-	consumer     map[string]*ConsumerGroup
+	broker   map[string][]*BrokerOffset
+	consumer map[string]*ConsumerGroup
 
 	// This lock is used when modifying broker topics or offsets
-	brokerLock   *sync.RWMutex
+	brokerLock *sync.RWMutex
 
 	// This lock is used when modifying the overall consumer list
 	// It does not need to be held for modifying an individual group
@@ -100,7 +100,7 @@ func (module *InMemoryStorage) Start() error {
 
 	for cluster := range module.App.Configuration.Cluster {
 		module.
-		offsets[cluster] = ClusterOffsets{
+			offsets[cluster] = ClusterOffsets{
 			broker:       make(map[string][]*BrokerOffset),
 			consumer:     make(map[string]*ConsumerGroup),
 			brokerLock:   &sync.RWMutex{},
@@ -127,7 +127,7 @@ func (module *InMemoryStorage) mainLoop() {
 	for {
 		select {
 		case r, isOpen := <-module.RequestChannel:
-			if ! isOpen {
+			if !isOpen {
 				return
 			}
 
@@ -284,7 +284,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		return
 	}
 
-	if ! module.acceptConsumerGroup(request.Group) {
+	if !module.acceptConsumerGroup(request.Group) {
 		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
 		return
 	}
@@ -301,7 +301,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	consumerMap, ok := clusterMap.consumer[request.Group]
 	if !ok {
 		clusterMap.consumer[request.Group] = &ConsumerGroup{
-			lock: &sync.RWMutex{},
+			lock:   &sync.RWMutex{},
 			topics: make(map[string][]*ConsumerPartition),
 		}
 		consumerMap = clusterMap.consumer[request.Group]
@@ -340,9 +340,9 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	// Update or create the ring value at the current pointer
 	if consumerPartitionRing.Value == nil {
 		consumerPartitionRing.Value = &protocol.ConsumerOffset{
-			Offset:     request.Offset,
-			Timestamp:  request.Timestamp,
-			Lag:        partitionLag,
+			Offset:    request.Offset,
+			Timestamp: request.Timestamp,
+			Lag:       partitionLag,
 		}
 	} else {
 		ringval, _ := consumerPartitionRing.Value.(*protocol.ConsumerOffset)
@@ -365,7 +365,7 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 		return
 	}
 
-	if ! module.acceptConsumerGroup(request.Group) {
+	if !module.acceptConsumerGroup(request.Group) {
 		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
 		return
 	}
@@ -375,7 +375,7 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	consumerMap, ok := clusterMap.consumer[request.Group]
 	if !ok {
 		clusterMap.consumer[request.Group] = &ConsumerGroup{
-			lock: &sync.RWMutex{},
+			lock:   &sync.RWMutex{},
 			topics: make(map[string][]*ConsumerPartition),
 		}
 		consumerMap = clusterMap.consumer[request.Group]
@@ -587,7 +587,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		}
 
 		for p, partition := range partitions {
-			partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets) - 1].Offset
+			partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets)-1].Offset
 		}
 	}
 	clusterMap.brokerLock.RUnlock()

@@ -17,11 +17,11 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
-	"github.com/stretchr/testify/assert"
+	"bytes"
 	"github.com/Shopify/sarama"
 	"github.com/linkedin/Burrow/core/internal/helpers"
-	"bytes"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -360,7 +360,7 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
 	go module.decodeKeyAndOffset(keyBuf, valueBytes, zap.NewNop())
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
@@ -422,7 +422,7 @@ func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	valueBytes := []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b")
 
 	go module.decodeGroupMetadata(keyBuf, valueBytes, zap.NewNop())
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOwner, request.RequestType, "Expected request sent with type StorageSetConsumerOwner, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
@@ -480,7 +480,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 	}
 
 	go module.processConsumerOffsetsMessage(msg)
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOwner, request.RequestType, "Expected request sent with type StorageSetConsumerOwner, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
@@ -504,7 +504,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Metadata(t *testing.T) {
 	}
 
 	go module.processConsumerOffsetsMessage(msg)
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)

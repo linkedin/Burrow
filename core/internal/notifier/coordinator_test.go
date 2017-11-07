@@ -19,13 +19,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"regexp"
+	"testing"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -44,13 +44,13 @@ func fixtureCoordinator() *Coordinator {
 	}
 
 	// Simple parser replacement that returns a blank template
-	coordinator.templateParseFunc = func (filenames ...string) (*template.Template, error) {
+	coordinator.templateParseFunc = func(filenames ...string) (*template.Template, error) {
 		return template.New("test").Parse("")
 	}
 
 	coordinator.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
 	coordinator.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName: "null",
+		ClassName:      "null",
 		GroupWhitelist: ".*",
 		Interval:       123,
 		Threshold:      1,
@@ -141,7 +141,7 @@ func TestCoordinator_Configure_BadTemplate(t *testing.T) {
 	coordinator := fixtureCoordinator()
 
 	// Simple parser replacement that returns an error
-	coordinator.templateParseFunc = func (filenames ...string) (*template.Template, error) {
+	coordinator.templateParseFunc = func(filenames ...string) (*template.Template, error) {
 		return nil, errors.New("bad template")
 	}
 
@@ -160,7 +160,7 @@ func TestCoordinator_Configure_SendClose(t *testing.T) {
 	coordinator.App.Configuration.Notifier["test"].SendClose = true
 
 	// Simple parser replacement that returns an empty template using a string, or throws an error on unexpected use for this test
-	coordinator.templateParseFunc = func (filenames ...string) (*template.Template, error) {
+	coordinator.templateParseFunc = func(filenames ...string) (*template.Template, error) {
 		if len(filenames) != 1 {
 			return nil, errors.New("expected exactly 1 filename")
 		}
@@ -204,12 +204,12 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 	coordinator.clusters["deleteme"] = &ClusterGroups{}
 
 	go coordinator.sendClusterRequest()
-	request := <- coordinator.App.StorageChannel
+	request := <-coordinator.App.StorageChannel
 	assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request type to be StorageFetchClusters, not %v", request.RequestType)
 
 	// Send a response back with a cluster list, which will trigger another storage request
 	request.Reply <- []string{"testcluster"}
-	request = <- coordinator.App.StorageChannel
+	request = <-coordinator.App.StorageChannel
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request type to be StorageFetchConsumers, not %v", request.RequestType)
@@ -252,7 +252,7 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 
 	// We expect to get 2 requests
 	for i := 0; i < 2; i++ {
-		request := <- coordinator.App.EvaluatorChannel
+		request := <-coordinator.App.EvaluatorChannel
 		switch request.Cluster {
 		case "testcluster":
 			assert.Equalf(t, "testcluster", request.Cluster, "Expected request cluster to be testcluster, not %v", request.Cluster)
@@ -268,7 +268,7 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 	}
 
 	select {
-	case <- coordinator.App.EvaluatorChannel:
+	case <-coordinator.App.EvaluatorChannel:
 		assert.Fail(t, "Received extra request on the evaluator channel")
 	default:
 		// All is good - we didn't expect to find another request
@@ -280,7 +280,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	coordinator := fixtureCoordinator()
 
 	// For NotFound, we expect the notifier will not be called at all
-	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Fail(t, "Expected notifyModule to not be called")
 	}
 
@@ -329,7 +329,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusOK,
 	}
-	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.True(t, startTime.IsZero(), "Expected to be called with zero value startTime")
@@ -380,7 +380,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusOK,
 	}
-	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
@@ -432,7 +432,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusError,
 	}
-	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.False(t, startTime.IsZero(), "Expected to be called with a valid startTime, not zero")
@@ -483,7 +483,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 		Group:   "testgroup",
 		Status:  protocol.StatusError,
 	}
-	coordinator.notifyModuleFunc = func (module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
@@ -536,7 +536,7 @@ func TestCoordinator_notifyModule_NoIncidentOK(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last:  make(map[string]time.Time),
+		Last: make(map[string]time.Time),
 	}
 
 	responseOK := &protocol.ConsumerGroupStatus{
@@ -739,7 +739,7 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 	tmpl, _ := template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
 	status := &protocol.ConsumerGroupStatus{
-		Status: protocol.StatusOK,
+		Status:  protocol.StatusOK,
 		Cluster: "testcluster",
 		Group:   "testgroup",
 	}

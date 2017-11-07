@@ -11,9 +11,9 @@
 package helpers
 
 import (
-	"io/ioutil"
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/mock"
@@ -25,15 +25,24 @@ func GetSaramaConfigFromClientProfile(profile *configuration.ClientProfile) *sar
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = profile.ClientID
 	switch profile.KafkaVersion {
-	case "0.8", "0.8.0": saramaConfig.Version = sarama.V0_8_2_0
-	case "0.8.1": saramaConfig.Version = sarama.V0_8_2_1
-	case "0.8.2": saramaConfig.Version = sarama.V0_8_2_2
-	case "0.9", "0.9.0", "0.9.0.0": saramaConfig.Version = sarama.V0_9_0_0
-	case "0.9.0.1": saramaConfig.Version = sarama.V0_9_0_1
-	case "0.10", "0.10.0", "0.10.0.0": saramaConfig.Version = sarama.V0_10_0_0
-	case "0.10.0.1": saramaConfig.Version = sarama.V0_10_0_1
-	case "0.10.1", "0.10.1.0": saramaConfig.Version = sarama.V0_10_1_0
-	case "", "0.10.2", "0.10.2.0": saramaConfig.Version = sarama.V0_10_2_0
+	case "0.8", "0.8.0":
+		saramaConfig.Version = sarama.V0_8_2_0
+	case "0.8.1":
+		saramaConfig.Version = sarama.V0_8_2_1
+	case "0.8.2":
+		saramaConfig.Version = sarama.V0_8_2_2
+	case "0.9", "0.9.0", "0.9.0.0":
+		saramaConfig.Version = sarama.V0_9_0_0
+	case "0.9.0.1":
+		saramaConfig.Version = sarama.V0_9_0_1
+	case "0.10", "0.10.0", "0.10.0.0":
+		saramaConfig.Version = sarama.V0_10_0_0
+	case "0.10.0.1":
+		saramaConfig.Version = sarama.V0_10_0_1
+	case "0.10.1", "0.10.1.0":
+		saramaConfig.Version = sarama.V0_10_1_0
+	case "", "0.10.2", "0.10.2.0":
+		saramaConfig.Version = sarama.V0_10_2_0
 	default:
 		panic("Unknown Kafka Version: " + profile.KafkaVersion)
 	}
@@ -56,7 +65,7 @@ func GetSaramaConfigFromClientProfile(profile *configuration.ClientProfile) *sar
 			caCertPool.AppendCertsFromPEM(caCert)
 			saramaConfig.Net.TLS.Config = &tls.Config{
 				Certificates: []tls.Certificate{cert},
-				RootCAs: caCertPool,
+				RootCAs:      caCertPool,
 			}
 			saramaConfig.Net.TLS.Config.BuildNameToCertificate()
 		}
@@ -192,6 +201,7 @@ func (b *BurrowSaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) 
 type MockSaramaClient struct {
 	mock.Mock
 }
+
 func (m *MockSaramaClient) Config() *sarama.Config {
 	args := m.Called()
 	return args.Get(0).(*sarama.Config)
@@ -262,6 +272,7 @@ func (m *MockSaramaClient) NewConsumerFromClient() (sarama.Consumer, error) {
 type MockSaramaBroker struct {
 	mock.Mock
 }
+
 func (m *MockSaramaBroker) ID() int32 {
 	args := m.Called()
 	return args.Get(0).(int32)
@@ -279,6 +290,7 @@ func (m *MockSaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) (*
 type MockSaramaConsumer struct {
 	mock.Mock
 }
+
 func (m *MockSaramaConsumer) Topics() ([]string, error) {
 	args := m.Called()
 	return args.Get(0).([]string), args.Error(1)
@@ -304,6 +316,7 @@ func (m *MockSaramaConsumer) Close() error {
 type MockSaramaPartitionConsumer struct {
 	mock.Mock
 }
+
 func (m *MockSaramaPartitionConsumer) AsyncClose() {
 	m.Called()
 }

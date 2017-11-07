@@ -22,10 +22,10 @@ import (
 	"github.com/pborman/uuid"
 	"go.uber.org/zap"
 
+	"bytes"
+	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/linkedin/Burrow/core/configuration"
-	"bytes"
 )
 
 type Module interface {
@@ -34,8 +34,8 @@ type Module interface {
 	GetConfig() *configuration.NotifierConfig
 	GetGroupWhitelist() *regexp.Regexp
 	GetLogger() *zap.Logger
-	AcceptConsumerGroup (*protocol.ConsumerGroupStatus) bool
-	Notify (*protocol.ConsumerGroupStatus, string, time.Time, bool)
+	AcceptConsumerGroup(*protocol.ConsumerGroupStatus) bool
+	Notify(*protocol.ConsumerGroupStatus, string, time.Time, bool)
 }
 
 type ConsumerGroup struct {
@@ -50,9 +50,9 @@ type ClusterGroups struct {
 }
 
 type Coordinator struct {
-	App         *protocol.ApplicationContext
-	Log         *zap.Logger
-	modules     map[string]protocol.Module
+	App     *protocol.ApplicationContext
+	Log     *zap.Logger
+	modules map[string]protocol.Module
 
 	minInterval       int64
 	groupRefresh      helpers.Ticker
@@ -61,28 +61,28 @@ type Coordinator struct {
 	running           sync.WaitGroup
 	quitChannel       chan struct{}
 
-	templateParseFunc func (...string) (*template.Template, error)
-	notifyModuleFunc  func (Module, *protocol.ConsumerGroupStatus, time.Time, string)
+	templateParseFunc func(...string) (*template.Template, error)
+	notifyModuleFunc  func(Module, *protocol.ConsumerGroupStatus, time.Time, string)
 
-	clusters          map[string]*ClusterGroups
-	clusterLock       *sync.RWMutex
+	clusters    map[string]*ClusterGroups
+	clusterLock *sync.RWMutex
 }
 
 func GetModuleForClass(app *protocol.ApplicationContext,
-	                   className string,
-	                   groupWhitelist *regexp.Regexp,
-	                   extras map[string]string,
-	                   templateOpen *template.Template,
-	                   templateClose *template.Template) protocol.Module {
+	className string,
+	groupWhitelist *regexp.Regexp,
+	extras map[string]string,
+	templateOpen *template.Template,
+	templateClose *template.Template) protocol.Module {
 	switch className {
 	case "http":
 		return &HttpNotifier{
-			App:            app,
-			Log:            app.Logger.With(
-				                zap.String("type", "module"),
-								zap.String("coordinator", "notifier"),
-								zap.String("name", "http"),
-							),
+			App: app,
+			Log: app.Logger.With(
+				zap.String("type", "module"),
+				zap.String("coordinator", "notifier"),
+				zap.String("name", "http"),
+			),
 			groupWhitelist: groupWhitelist,
 			extras:         extras,
 			templateOpen:   templateOpen,
@@ -90,8 +90,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "email":
 		return &EmailNotifier{
-			App:            app,
-			Log:            app.Logger.With(
+			App: app,
+			Log: app.Logger.With(
 				zap.String("type", "module"),
 				zap.String("coordinator", "notifier"),
 				zap.String("name", "email"),
@@ -103,8 +103,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "slack":
 		return &SlackNotifier{
-			App:            app,
-			Log:            app.Logger.With(
+			App: app,
+			Log: app.Logger.With(
 				zap.String("type", "module"),
 				zap.String("coordinator", "notifier"),
 				zap.String("name", "slack"),
@@ -116,8 +116,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "null":
 		return &NullNotifier{
-			App:            app,
-			Log:            app.Logger.With(
+			App: app,
+			Log: app.Logger.With(
 				zap.String("type", "module"),
 				zap.String("coordinator", "notifier"),
 				zap.String("name", "null"),
@@ -276,7 +276,7 @@ func (nc *Coordinator) manageEvalLoop() {
 		nc.evalInterval.Stop()
 
 		// Wait for the ZK connection to come back before trying again
-		for ! nc.App.ZookeeperConnected {
+		for !nc.App.ZookeeperConnected {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
@@ -286,11 +286,11 @@ func (nc *Coordinator) manageEvalLoop() {
 func (nc *Coordinator) tickerLoop() {
 	for {
 		select {
-		case <- nc.groupRefresh.GetChannel():
+		case <-nc.groupRefresh.GetChannel():
 			nc.sendClusterRequest()
-		case <- nc.evalInterval.GetChannel():
+		case <-nc.evalInterval.GetChannel():
 			nc.sendEvaluatorRequests()
-		case <- nc.quitChannel:
+		case <-nc.quitChannel:
 			return
 		}
 	}
@@ -380,14 +380,14 @@ func (nc *Coordinator) responseLoop() {
 					cgroup.Start = time.Time{}
 				}
 			}
-		case <- nc.quitChannel:
+		case <-nc.quitChannel:
 			return
 		}
 	}
 }
 
 func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
-	response := <- replyChan
+	response := <-replyChan
 	switch response.(type) {
 	case []string:
 		clusterList, _ := response.([]string)
@@ -428,7 +428,7 @@ func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
 }
 
 func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interface{}) {
-	response := <- replyChan
+	response := <-replyChan
 	switch response.(type) {
 	case []string:
 		consumerList, _ := response.([]string)
@@ -482,19 +482,19 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 func ExecuteTemplate(tmpl *template.Template, extras map[string]string, status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time) (*bytes.Buffer, error) {
 	bytesToSend := new(bytes.Buffer)
 	err := tmpl.Execute(bytesToSend, struct {
-		Cluster    string
-		Group      string
-		Id         string
-		Start      time.Time
-		Extras     map[string]string
-		Result     protocol.ConsumerGroupStatus
+		Cluster string
+		Group   string
+		Id      string
+		Start   time.Time
+		Extras  map[string]string
+		Result  protocol.ConsumerGroupStatus
 	}{
-		Cluster:    status.Cluster,
-		Group:      status.Group,
-		Id:         eventId,
-		Start:      startTime,
-		Extras:     extras,
-		Result:     *status,
+		Cluster: status.Cluster,
+		Group:   status.Group,
+		Id:      eventId,
+		Start:   startTime,
+		Extras:  extras,
+		Result:  *status,
 	})
 	if err != nil {
 		return nil, err

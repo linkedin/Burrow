@@ -15,8 +15,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -26,7 +26,7 @@ func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request,
 		Reply:       make(chan interface{}),
 	}
 	hc.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	requestInfo := makeRequestInfo(r)
 	writeResponse(w, r, http.StatusOK, HTTPResponseClusterList{
@@ -63,12 +63,12 @@ func (hc *Coordinator) handleClusterDetail(w http.ResponseWriter, r *http.Reques
 		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "cluster module detail returned",
-			Module:  HTTPResponseConfigModuleCluster{
-				ClassName:       cfg.ClassName,
-				Servers:         cfg.Servers,
-				ClientProfile:   getClientProfile(cfg.ClientProfile, hc.App.Configuration.ClientProfile[cfg.ClientProfile]),
-				TopicRefresh:    cfg.TopicRefresh,
-				OffsetRefresh:   cfg.OffsetRefresh,
+			Module: HTTPResponseConfigModuleCluster{
+				ClassName:     cfg.ClassName,
+				Servers:       cfg.Servers,
+				ClientProfile: getClientProfile(cfg.ClientProfile, hc.App.Configuration.ClientProfile[cfg.ClientProfile]),
+				TopicRefresh:  cfg.TopicRefresh,
+				OffsetRefresh: cfg.OffsetRefresh,
 			},
 			Request: requestInfo,
 		})
@@ -83,17 +83,17 @@ func (hc *Coordinator) handleTopicList(w http.ResponseWriter, r *http.Request, p
 		Reply:       make(chan interface{}),
 	}
 	hc.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	if response == nil {
 		writeErrorResponse(w, r, http.StatusNotFound, "cluster not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
 		writeResponse(w, r, http.StatusOK, HTTPResponseTopicList{
-			Error:    false,
-			Message:  "topic list returned",
-			Topics:   response.([]string),
-			Request:  requestInfo,
+			Error:   false,
+			Message: "topic list returned",
+			Topics:  response.([]string),
+			Request: requestInfo,
 		})
 	}
 }
@@ -107,17 +107,17 @@ func (hc *Coordinator) handleTopicDetail(w http.ResponseWriter, r *http.Request,
 		Reply:       make(chan interface{}),
 	}
 	hc.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	if response == nil {
 		writeErrorResponse(w, r, http.StatusNotFound, "cluster or topic not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
 		writeResponse(w, r, http.StatusOK, HTTPResponseTopicDetail{
-			Error:    false,
-			Message:  "topic offsets returned",
-			Offsets:  response.([]int64),
-			Request:  requestInfo,
+			Error:   false,
+			Message: "topic offsets returned",
+			Offsets: response.([]int64),
+			Request: requestInfo,
 		})
 	}
 }
@@ -130,7 +130,7 @@ func (hc *Coordinator) handleConsumerList(w http.ResponseWriter, r *http.Request
 		Reply:       make(chan interface{}),
 	}
 	hc.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	if response == nil {
 		writeErrorResponse(w, r, http.StatusNotFound, "cluster not found")
@@ -154,17 +154,17 @@ func (hc *Coordinator) handleConsumerDetail(w http.ResponseWriter, r *http.Reque
 		Reply:       make(chan interface{}),
 	}
 	hc.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	if response == nil {
 		writeErrorResponse(w, r, http.StatusNotFound, "cluster or consumer not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
 		writeResponse(w, r, http.StatusOK, HTTPResponseConsumerDetail{
-			Error:    false,
-			Message:  "consumer list returned",
-			Topics:   response.(protocol.ConsumerTopics),
-			Request:  requestInfo,
+			Error:   false,
+			Message: "consumer list returned",
+			Topics:  response.(protocol.ConsumerTopics),
+			Request: requestInfo,
 		})
 	}
 }
@@ -178,7 +178,7 @@ func (hc *Coordinator) handleConsumerStatus(w http.ResponseWriter, r *http.Reque
 		Reply:   make(chan *protocol.ConsumerGroupStatus),
 	}
 	hc.App.EvaluatorChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	responseCode := http.StatusOK
 	if response.Status == protocol.StatusNotFound {
@@ -187,10 +187,10 @@ func (hc *Coordinator) handleConsumerStatus(w http.ResponseWriter, r *http.Reque
 
 	requestInfo := makeRequestInfo(r)
 	writeResponse(w, r, responseCode, HTTPResponseConsumerStatus{
-		Error:    false,
-		Message:  "consumer status returned",
-		Status:   *response,
-		Request:  requestInfo,
+		Error:   false,
+		Message: "consumer status returned",
+		Status:  *response,
+		Request: requestInfo,
 	})
 }
 
@@ -203,7 +203,7 @@ func (hc *Coordinator) handleConsumerStatusComplete(w http.ResponseWriter, r *ht
 		Reply:   make(chan *protocol.ConsumerGroupStatus),
 	}
 	hc.App.EvaluatorChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	responseCode := http.StatusOK
 	if response.Status == protocol.StatusNotFound {
@@ -212,10 +212,10 @@ func (hc *Coordinator) handleConsumerStatusComplete(w http.ResponseWriter, r *ht
 
 	requestInfo := makeRequestInfo(r)
 	writeResponse(w, r, responseCode, HTTPResponseConsumerStatus{
-		Error:    false,
-		Message:  "consumer status returned",
-		Status:   *response,
-		Request:  requestInfo,
+		Error:   false,
+		Message: "consumer status returned",
+		Status:  *response,
+		Request: requestInfo,
 	})
 }
 
@@ -230,8 +230,8 @@ func (hc *Coordinator) handleConsumerDelete(w http.ResponseWriter, r *http.Reque
 
 	requestInfo := makeRequestInfo(r)
 	writeResponse(w, r, http.StatusOK, HTTPResponseError{
-		Error:    false,
-		Message:  "consumer group removed",
-		Request:  requestInfo,
+		Error:   false,
+		Message: "consumer group removed",
+		Request: requestInfo,
 	})
 }

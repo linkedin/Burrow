@@ -29,20 +29,20 @@ import (
 )
 
 type SlackNotifier struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
-	groupWhitelist  *regexp.Regexp
-	extras          map[string]string
-	templateOpen    *template.Template
-	templateClose   *template.Template
+	groupWhitelist *regexp.Regexp
+	extras         map[string]string
+	templateOpen   *template.Template
+	templateClose  *template.Template
 
 	name            string
 	myConfiguration *configuration.NotifierConfig
 	profile         *configuration.SlackNotifierProfile
 
-	HttpClient      *http.Client
-	postURL         string
+	HttpClient *http.Client
+	postURL    string
 }
 
 func (module *SlackNotifier) Configure(name string) {
@@ -122,14 +122,14 @@ func (module *SlackNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupS
 }
 
 type SlackMessage struct {
-	Channel     string `json:"channel"`
-	Username    string `json:"username,omitempty"`
-	IconUrl     string `json:"icon-url,omitempty"`
-	IconEmoji   string `json:"icon-emoji,omitempty"`
-	Text        string `json:"text,omitempty"`
+	Channel   string `json:"channel"`
+	Username  string `json:"username,omitempty"`
+	IconUrl   string `json:"icon-url,omitempty"`
+	IconEmoji string `json:"icon-emoji,omitempty"`
+	Text      string `json:"text,omitempty"`
 }
 
-func (module *SlackNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
 		zap.String("group", status.Group),
@@ -167,7 +167,7 @@ func (module *SlackNotifier) Notify (status *protocol.ConsumerGroupStatus, event
 	// Send POST to HTTP endpoint
 	req, err := http.NewRequest("POST", module.postURL, bytes.NewBuffer(data))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer " + module.profile.Token)
+	req.Header.Set("Authorization", "Bearer "+module.profile.Token)
 
 	resp, err := module.HttpClient.Do(req)
 	if err != nil {

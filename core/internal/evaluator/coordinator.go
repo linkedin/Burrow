@@ -29,7 +29,7 @@ type RequestMessage protocol.EvaluatorRequest
 type Coordinator struct {
 	App         *protocol.ApplicationContext
 	Log         *zap.Logger
-	quitChannel	chan struct{}
+	quitChannel chan struct{}
 	modules     map[string]protocol.Module
 }
 

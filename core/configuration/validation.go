@@ -104,7 +104,7 @@ func ValidateHostPort(host string, allowBlankHost bool) bool {
 	}
 
 	// Only IPv6 can contain :
-	if strings.Contains(hostname, ":") && (! ValidateIP(hostname)) {
+	if strings.Contains(hostname, ":") && (!ValidateIP(hostname)) {
 		return false
 	}
 

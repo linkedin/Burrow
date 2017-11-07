@@ -13,8 +13,8 @@ package notifier
 import (
 	"encoding/json"
 	"fmt"
-	"net/http/httptest"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"text/template"
 	"time"
@@ -22,8 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureSlackNotifier() *SlackNotifier {
@@ -31,7 +31,7 @@ func fixtureSlackNotifier() *SlackNotifier {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
+		Configuration: &configuration.Configuration{},
 	}
 
 	module.App.Configuration.SlackNotifierProfile = make(map[string]*configuration.SlackNotifierProfile)
@@ -44,13 +44,13 @@ func fixtureSlackNotifier() *SlackNotifier {
 
 	module.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
 	module.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:      "slack",
-		Profile:        "test_slack_profile",
-		Timeout:        2,
-		Keepalive:      10,
-		TemplateOpen:   "template_open",
-		TemplateClose:  "template_close",
-		SendClose:      false,
+		ClassName:     "slack",
+		Profile:       "test_slack_profile",
+		Timeout:       2,
+		Keepalive:     10,
+		TemplateOpen:  "template_open",
+		TemplateClose: "template_close",
+		SendClose:     false,
 	}
 
 	return &module

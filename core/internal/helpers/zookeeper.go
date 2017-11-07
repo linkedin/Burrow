@@ -13,9 +13,9 @@ package helpers
 import (
 	"time"
 
+	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/mock"
-	"github.com/linkedin/Burrow/core/protocol"
 	"go.uber.org/zap"
 )
 
@@ -47,7 +47,7 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 }
 
 func (z *BurrowZookeeperClient) Create(path string, data []byte, flags int32, acl []zk.ACL) (string, error) {
-	return z.Client.Create(path, data ,flags, acl)
+	return z.Client.Create(path, data, flags, acl)
 }
 
 func (z *BurrowZookeeperClient) NewLock(path string) protocol.ZookeeperLock {
@@ -62,9 +62,10 @@ type MockZookeeperClient struct {
 	Servers        []string
 	SessionTimeout time.Duration
 }
+
 func (m *MockZookeeperClient) Close() {
 	m.Called()
-	if (m.EventChannel != nil) {
+	if m.EventChannel != nil {
 		close(m.EventChannel)
 	}
 }
@@ -99,6 +100,7 @@ func (m *MockZookeeperClient) MockZookeeperConnect(servers []string, sessionTime
 type MockZookeeperLock struct {
 	mock.Mock
 }
+
 func (m *MockZookeeperLock) Lock() error {
 	args := m.Called()
 	return args.Error(0)

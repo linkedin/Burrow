@@ -11,15 +11,15 @@
 package helpers
 
 import (
-	"time"
 	"github.com/stretchr/testify/mock"
+	"time"
 )
 
 // This is an interface for a ticker. It's very simple, with just a start and stop method
 type Ticker interface {
 	Start()
 	Stop()
-	GetChannel() <- chan time.Time
+	GetChannel() <-chan time.Time
 }
 
 type PausableTicker struct {
@@ -33,9 +33,9 @@ type PausableTicker struct {
 // stopped multiple times without needing to swap the ticker channel
 func NewPausableTicker(d time.Duration) Ticker {
 	return &PausableTicker{
-		channel:     make(chan time.Time),
-		duration:    d,
-		ticker:      nil,
+		channel:  make(chan time.Time),
+		duration: d,
+		ticker:   nil,
 	}
 }
 
@@ -46,18 +46,18 @@ func (ticker *PausableTicker) Start() {
 	}
 
 	// Channel to be able to close the goroutine
-	ticker.quitChannel = make(chan struct {})
+	ticker.quitChannel = make(chan struct{})
 
 	// Start the ticker
 	ticker.ticker = time.NewTicker(ticker.duration)
 
 	// This goroutine will forward the ticker ticks to our exposed channel
-	go func (tickerChan <- chan time.Time, quitChan chan struct {}) {
+	go func(tickerChan <-chan time.Time, quitChan chan struct{}) {
 		for {
 			select {
-			case tick := <- tickerChan:
+			case tick := <-tickerChan:
 				ticker.channel <- tick
-			case <- quitChan:
+			case <-quitChan:
 				return
 			}
 		}
@@ -79,7 +79,7 @@ func (ticker *PausableTicker) Stop() {
 	close(ticker.quitChannel)
 }
 
-func (ticker *PausableTicker) GetChannel() <- chan time.Time {
+func (ticker *PausableTicker) GetChannel() <-chan time.Time {
 	return ticker.channel
 }
 
@@ -87,13 +87,14 @@ func (ticker *PausableTicker) GetChannel() <- chan time.Time {
 type MockTicker struct {
 	mock.Mock
 }
+
 func (m *MockTicker) Start() {
 	m.Called()
 }
 func (m *MockTicker) Stop() {
 	m.Called()
 }
-func (m *MockTicker) GetChannel() <- chan time.Time {
+func (m *MockTicker) GetChannel() <-chan time.Time {
 	args := m.Called()
-	return args.Get(0).(<- chan time.Time)
+	return args.Get(0).(<-chan time.Time)
 }

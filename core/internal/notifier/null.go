@@ -16,29 +16,29 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 	"time"
 )
 
 // This notifier is only used for testing. It is used in place of a mock when testing the coordinator so that there is
 // no template loading code in the way.
 type NullNotifier struct {
-	App                        *protocol.ApplicationContext
-	Log                        *zap.Logger
-	name                       string
-	myConfiguration            *configuration.NotifierConfig
+	App             *protocol.ApplicationContext
+	Log             *zap.Logger
+	name            string
+	myConfiguration *configuration.NotifierConfig
 
-	groupWhitelist             *regexp.Regexp
-	extras                     map[string]string
-	templateOpen               *template.Template
-	templateClose              *template.Template
+	groupWhitelist *regexp.Regexp
+	extras         map[string]string
+	templateOpen   *template.Template
+	templateClose  *template.Template
 
-	CalledConfigure            bool
-	CalledStart                bool
-	CalledStop                 bool
-	CalledNotify               bool
-	CalledAcceptConsumerGroup  bool
+	CalledConfigure           bool
+	CalledStart               bool
+	CalledStop                bool
+	CalledNotify              bool
+	CalledAcceptConsumerGroup bool
 }
 
 func (module *NullNotifier) Configure(name string) {
@@ -78,6 +78,6 @@ func (module *NullNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupSt
 	return true
 }
 
-func (module *NullNotifier) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+func (module *NullNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	module.CalledNotify = true
 }

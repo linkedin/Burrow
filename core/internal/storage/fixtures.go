@@ -11,9 +11,9 @@
 package storage
 
 import (
-	"go.uber.org/zap"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -32,9 +32,9 @@ func StorageCoordinatorWithOffsets() *Coordinator {
 
 	coordinator.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
 	coordinator.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName: "inmemory",
-		Intervals: 10,
-		MinDistance: 0,
+		ClassName:      "inmemory",
+		Intervals:      10,
+		MinDistance:    0,
 		GroupWhitelist: "",
 	}
 	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)

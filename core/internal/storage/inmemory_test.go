@@ -16,8 +16,8 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -32,9 +32,9 @@ func fixtureModule(whitelist string) *InMemoryStorage {
 
 	module.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
 	module.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName: "inmemory",
-		Intervals: 10,
-		MinDistance: 1,
+		ClassName:      "inmemory",
+		Intervals:      10,
+		MinDistance:    1,
 		GroupWhitelist: whitelist,
 	}
 
@@ -80,7 +80,7 @@ func startWithTestConsumerOffsets(whitelist string, startTime int64) *InMemorySt
 	}
 	for i := 0; i < 10; i++ {
 		request.Offset = int64(1000 + (i * 100))
-		request.Timestamp = startTime + int64(i * 10000)
+		request.Timestamp = startTime + int64(i*10000)
 		module.addConsumerOffset(&request, module.Log)
 	}
 	return module
@@ -273,7 +273,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1100 + (i * 100))
-		timestampValue := startTime + 10000 + int64(i * 10000)
+		timestampValue := startTime + 10000 + int64(i*10000)
 		lagValue := int64(4321) - offsetValue
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
@@ -352,7 +352,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1000 + (i * 100))
-		timestampValue := startTime + int64(i * 10000)
+		timestampValue := startTime + int64(i*10000)
 		if i == 9 {
 			// The last offset in the ring is the one that got the min-distance update
 			offsetValue = 2000
@@ -371,13 +371,13 @@ func TestInMemoryStorage_addConsumerOffset_BadBrokerOffset(t *testing.T) {
 	module := startWithTestBrokerOffsets("")
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetConsumerOffset,
-		Cluster:             "testcluster",
-		Topic:               "notopic",
-		Group:               "testgroup",
-		Partition:           0,
-		Offset:              3434,
-		Timestamp:           5677,
+		RequestType: protocol.StorageSetConsumerOffset,
+		Cluster:     "testcluster",
+		Topic:       "notopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Offset:      3434,
+		Timestamp:   5677,
 	}
 	module.addConsumerOffset(&request, module.Log)
 
@@ -390,13 +390,13 @@ func TestInMemoryStorage_addConsumerOffset_BadCluster(t *testing.T) {
 	module := startWithTestBrokerOffsets("")
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetConsumerOffset,
-		Cluster:             "nocluster",
-		Topic:               "testtopic",
-		Group:               "testgroup",
-		Partition:           0,
-		Offset:              3434,
-		Timestamp:           5677,
+		RequestType: protocol.StorageSetConsumerOffset,
+		Cluster:     "nocluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Offset:      3434,
+		Timestamp:   5677,
 	}
 	module.addConsumerOffset(&request, module.Log)
 
@@ -430,9 +430,9 @@ func TestInMemoryStorage_deleteTopic(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteTopic,
-		Cluster:             "testcluster",
-		Topic:               "testtopic",
+		RequestType: protocol.StorageSetDeleteTopic,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
 	}
 	module.deleteTopic(&request, module.Log)
 
@@ -447,9 +447,9 @@ func TestInMemoryStorage_deleteTopic_BadCluster(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteTopic,
-		Cluster:             "nocluster",
-		Topic:               "testtopic",
+		RequestType: protocol.StorageSetDeleteTopic,
+		Cluster:     "nocluster",
+		Topic:       "testtopic",
 	}
 	module.deleteTopic(&request, module.Log)
 
@@ -462,9 +462,9 @@ func TestInMemoryStorage_deleteTopic_NoTopic(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteTopic,
-		Cluster:             "testcluster",
-		Topic:               "notopic",
+		RequestType: protocol.StorageSetDeleteTopic,
+		Cluster:     "testcluster",
+		Topic:       "notopic",
 	}
 	module.deleteTopic(&request, module.Log)
 
@@ -479,9 +479,9 @@ func TestInMemoryStorage_deleteGroup(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteGroup,
-		Cluster:             "testcluster",
-		Group:               "testgroup",
+		RequestType: protocol.StorageSetDeleteGroup,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
 	}
 	module.deleteGroup(&request, module.Log)
 
@@ -493,9 +493,9 @@ func TestInMemoryStorage_deleteGroup_BadCluster(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteGroup,
-		Cluster:             "nocluster",
-		Group:               "testgroup",
+		RequestType: protocol.StorageSetDeleteGroup,
+		Cluster:     "nocluster",
+		Group:       "testgroup",
 	}
 	module.deleteGroup(&request, module.Log)
 
@@ -508,9 +508,9 @@ func TestInMemoryStorage_deleteGroup_NoGroup(t *testing.T) {
 	module := startWithTestConsumerOffsets("", 100000)
 
 	request := protocol.StorageRequest{
-		RequestType:         protocol.StorageSetDeleteGroup,
-		Cluster:             "testcluster",
-		Group:               "nogroup",
+		RequestType: protocol.StorageSetDeleteGroup,
+		Cluster:     "testcluster",
+		Group:       "nogroup",
 	}
 	module.deleteGroup(&request, module.Log)
 
@@ -528,14 +528,14 @@ func TestInMemoryStorage_fetchClusterList(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchClusterList(&request, module.Log)
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testcluster", "Expected return value to be 'testcluster', not %v", val[0])
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -550,14 +550,14 @@ func TestInMemoryStorage_fetchTopicList(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopicList(&request, module.Log)
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testtopic", "Expected return value to be 'testtopic', not %v", val[0])
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -572,7 +572,7 @@ func TestInMemoryStorage_fetchTopicList_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopicList(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -589,14 +589,14 @@ func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumerList(&request, module.Log)
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %v", val[0])
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -611,7 +611,7 @@ func TestInMemoryStorage_fetchConsumerList_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumerList(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -629,14 +629,14 @@ func TestInMemoryStorage_fetchTopic(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopic(&request, module.Log)
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, []int64{}, response, "Expected response to be of type []int64")
 	val := response.([]int64)
 	assert.Len(t, val, 1, "One partition not returned")
 	assert.Equalf(t, val[0], int64(4321), "Expected return value to be 4321, not %v", val[0])
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -652,7 +652,7 @@ func TestInMemoryStorage_fetchTopic_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopic(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -670,7 +670,7 @@ func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchTopic(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -700,7 +700,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type map[string][]*protocol.ConsumerPartition")
 	val := response.(protocol.ConsumerTopics)
@@ -717,7 +717,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.NotNilf(t, offsets[0], "Expected offset to be NOT nil at position %v", i)
 
 		offsetValue := int64(1000 + (i * 100))
-		timestampValue := startTime + int64(i * 10000)
+		timestampValue := startTime + int64(i*10000)
 		lagValue := int64(4321) - offsetValue
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
@@ -725,7 +725,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.Equalf(t, lagValue, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
 
-	response, ok = <- request.Reply
+	response, ok = <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -741,7 +741,7 @@ func TestInMemoryStorage_fetchConsumer_BadCluster(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -759,7 +759,7 @@ func TestInMemoryStorage_fetchConsumer_BadGroup(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
@@ -777,7 +777,7 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")

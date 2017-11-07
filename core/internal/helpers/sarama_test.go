@@ -13,8 +13,8 @@ package helpers
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/Shopify/sarama"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBurrowSaramaClient_ImplementsSaramaClient(t *testing.T) {

@@ -11,8 +11,8 @@
 package helpers
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 	"time"
 )
 
@@ -29,9 +29,9 @@ func TestPausableTicker_New(t *testing.T) {
 	channel := ticker.GetChannel()
 	go func() {
 		select {
-		case <- channel:
+		case <-channel:
 			assert.Fail(t, "Expected to receive no event on ticker channel")
-		case <- quitChan:
+		case <-quitChan:
 			break
 		}
 	}()

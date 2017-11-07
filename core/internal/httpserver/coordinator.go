@@ -22,20 +22,20 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
 	"github.com/julienschmidt/httprouter"
+	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 	"go.uber.org/zap/zapcore"
 )
 
 type Coordinator struct {
-	App         *protocol.ApplicationContext
-	Log         *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
-	router      *httprouter.Router
-	servers     map[string]*http.Server
+	router  *httprouter.Router
+	servers map[string]*http.Server
 }
 
 func (hc *Coordinator) Configure() {
@@ -44,9 +44,9 @@ func (hc *Coordinator) Configure() {
 	// If no HTTP server configured, add a default HTTP server that listens on a random port
 	if len(hc.App.Configuration.HttpServer) == 0 {
 		hc.App.Configuration.HttpServer["default"] = &configuration.HttpServerConfig{
-			Address:   ":0",
-			TLS:       false,
-			Timeout:   300,
+			Address: ":0",
+			TLS:     false,
+			Timeout: 300,
 		}
 	}
 
@@ -55,7 +55,7 @@ func (hc *Coordinator) Configure() {
 	for name, cfg := range hc.App.Configuration.HttpServer {
 		server := &http.Server{}
 
-		if ! configuration.ValidateHostPort(cfg.Address, true) {
+		if !configuration.ValidateHostPort(cfg.Address, true) {
 			panic("invalid HTTP server listener address")
 		}
 		server.Addr = cfg.Address
@@ -93,7 +93,7 @@ func (hc *Coordinator) Configure() {
 		hc.servers[name] = server
 	}
 
-    // Configure URL routes here
+	// Configure URL routes here
 
 	// This is a catchall for undefined URLs
 	hc.router.NotFound = &DefaultHandler{}
@@ -185,8 +185,9 @@ func (hc *Coordinator) Stop() error {
 // ListenAndServeTLS so dead TCP connections (e.g. closing laptop mid-download) eventually go away.
 type tcpKeepAliveListener struct {
 	*net.TCPListener
-	Keepalive   time.Duration
+	Keepalive time.Duration
 }
+
 func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	tc, err := ln.AcceptTCP()
 	if err != nil {
@@ -236,7 +237,8 @@ func writeErrorResponse(w http.ResponseWriter, r *http.Request, errValue int, me
 }
 
 // This is a catch-all handler for unknown URLs. It should return a 404
-type DefaultHandler struct {}
+type DefaultHandler struct{}
+
 func (handler *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "{\"error\":true,\"message\":\"invalid request type\",\"result\":{}}", http.StatusNotFound)
 }
@@ -286,8 +288,8 @@ func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ htt
 
 	requestInfo := makeRequestInfo(r)
 	writeResponse(w, r, http.StatusOK, HTTPResponseError{
-		Error:    false,
-		Message:  "set log level",
-		Request:  requestInfo,
+		Error:   false,
+		Message: "set log level",
+		Request: requestInfo,
 	})
 }

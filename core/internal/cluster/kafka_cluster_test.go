@@ -17,11 +17,11 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
-	"github.com/stretchr/testify/assert"
-	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/Shopify/sarama"
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -72,8 +72,8 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoUpdate(t *testing.T) 
 	module.Configure("test")
 	client := &helpers.MockSaramaClient{}
 
-    module.maybeUpdateMetadataAndDeleteTopics(client)
-    client.AssertNotCalled(t, "RefreshMetadata")
+	module.maybeUpdateMetadataAndDeleteTopics(client)
+	client.AssertNotCalled(t, "RefreshMetadata")
 }
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoDelete(t *testing.T) {
@@ -111,7 +111,7 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 	module.topicMap = make(map[string]int)
 	module.topicMap["topictodelete"] = 10
 	go module.maybeUpdateMetadataAndDeleteTopics(client)
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	client.AssertExpectations(t)
 	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
@@ -200,7 +200,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	client.On("Leader", "testtopic", int32(1)).Return(nilBroker, errors.New("no leader error"))
 
 	go module.getOffsets(client)
-	request := <- module.App.StorageChannel
+	request := <-module.App.StorageChannel
 
 	broker.AssertExpectations(t)
 	client.AssertExpectations(t)
@@ -214,7 +214,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	// Make sure there is nothing else on the channel
 	time.Sleep(100 * time.Millisecond)
 	select {
-	case <- module.App.StorageChannel:
+	case <-module.App.StorageChannel:
 		t.Fatal("Expected no additional value waiting on storage channel")
 	default:
 		break

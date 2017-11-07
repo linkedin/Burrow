@@ -16,8 +16,8 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -78,10 +78,9 @@ func TestCoordinator_Start(t *testing.T) {
 		Cluster: "testcluster",
 		Group:   "testgroup",
 		ShowAll: true,
-
 	}
 	evaluatorCoordinator.App.EvaluatorChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.Equalf(t, protocol.StatusOK, response.Status, "Expected status to be OK, not %v", response.Status.String())
 	assert.True(t, response.Complete, "Expected complete to be true")
@@ -91,7 +90,7 @@ func TestCoordinator_Start(t *testing.T) {
 	assert.Equalf(t, "testgroup", response.Group, "Expected group to be testgroup, not %v", response.Group)
 	assert.Lenf(t, response.Partitions, 1, "Expected 1 partition status objects, not %v", len(response.Partitions))
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 
 	evaluatorCoordinator.Stop()
@@ -102,16 +101,15 @@ func TestCoordinator_MultipleRequests(t *testing.T) {
 	evaluatorCoordinator, storageCoordinator := StorageAndEvaluatorCoordinatorsWithOffsets()
 
 	// This test is really just to check and make sure the evaluator can handle multiple requests without deadlock
-	for i:= 0; i < 10; i++ {
+	for i := 0; i < 10; i++ {
 		request := &protocol.EvaluatorRequest{
 			Reply:   make(chan *protocol.ConsumerGroupStatus),
 			Cluster: "testcluster",
 			Group:   "testgroup",
 			ShowAll: true,
-
 		}
 		evaluatorCoordinator.App.EvaluatorChannel <- request
-		response := <- request.Reply
+		response := <-request.Reply
 
 		assert.Equalf(t, protocol.StatusOK, response.Status, "Expected status to be OK, not %v", response.Status.String())
 	}

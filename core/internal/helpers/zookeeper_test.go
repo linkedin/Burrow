@@ -11,9 +11,9 @@
 package helpers
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestBurrowZookeeperClient_ImplementsZookeeperClient(t *testing.T) {

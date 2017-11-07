@@ -34,17 +34,17 @@ type ClientProfile struct {
 	Password        string `gcfg:"password"`
 }
 type HttpNotifierProfile struct {
-	UrlOpen        string   `gcfg:"url-open"`
-	UrlClose       string   `gcfg:"url-close"`
-	MethodOpen     string   `gcfg:"method-open"`
-	MethodClose    string   `gcfg:"method-close"`
+	UrlOpen     string `gcfg:"url-open"`
+	UrlClose    string `gcfg:"url-close"`
+	MethodOpen  string `gcfg:"method-open"`
+	MethodClose string `gcfg:"method-close"`
 }
 type SlackNotifierProfile struct {
-	Token     string   `gcfg:"token"`
-	Channel   string   `gcfg:"channel"`
-	Username  string   `gcfg:"username"`
-	IconUrl   string   `gcfg:"icon-url"`
-	IconEmoji string   `gfcg:"icon-emoji"`
+	Token     string `gcfg:"token"`
+	Channel   string `gcfg:"channel"`
+	Username  string `gcfg:"username"`
+	IconUrl   string `gcfg:"icon-url"`
+	IconEmoji string `gfcg:"icon-emoji"`
 }
 type EmailNotifierProfile struct {
 	Server   string `gcfg:"server"`
@@ -64,19 +64,19 @@ type StorageConfig struct {
 	ExpireGroup    int64  `gcfg:"expire-group"`
 }
 type ConsumerConfig struct {
-	ClassName        string   `gcfg:"class-name"`
-	Cluster          string   `gcfg:"cluster"`
-	Servers          []string `gcfg:"server"`
-	GroupWhitelist   string   `gcfg:"group-whitelist"`
+	ClassName      string   `gcfg:"class-name"`
+	Cluster        string   `gcfg:"cluster"`
+	Servers        []string `gcfg:"server"`
+	GroupWhitelist string   `gcfg:"group-whitelist"`
 
 	// kafka_zk options
-	ZookeeperPath    string   `gcfg:"zookeeper-path"`
-	ZookeeperTimeout int32    `gcfg:"zookeeper-timeout"`
+	ZookeeperPath    string `gcfg:"zookeeper-path"`
+	ZookeeperTimeout int32  `gcfg:"zookeeper-timeout"`
 
 	// kafka_client options
-	ClientProfile    string   `gcfg:"client-profile"`
-	OffsetsTopic     string   `gcfg:"offsets-topic"`
-	StartLatest      bool     `gcfg:"start-latest"`
+	ClientProfile string `gcfg:"client-profile"`
+	OffsetsTopic  string `gcfg:"offsets-topic"`
+	StartLatest   bool   `gcfg:"start-latest"`
 }
 type ClusterConfig struct {
 	ClassName     string   `gcfg:"class-name"`
@@ -86,23 +86,23 @@ type ClusterConfig struct {
 	OffsetRefresh int64    `gcfg:"offset-refresh"`
 }
 type EvaluatorConfig struct {
-	ClassName     string `gcfg:"class-name"`
-	ExpireCache   int64  `gcfg:"expire-cache"`
+	ClassName   string `gcfg:"class-name"`
+	ExpireCache int64  `gcfg:"expire-cache"`
 }
 type NotifierConfig struct {
-	ClassName      string   `gcfg:"class-name"`
-	GroupWhitelist string   `gcfg:"group-whitelist"`
-	Interval       int64    `gcfg:"interval"`
-	Threshold      int      `gcfg:"threshold"`
+	ClassName      string `gcfg:"class-name"`
+	GroupWhitelist string `gcfg:"group-whitelist"`
+	Interval       int64  `gcfg:"interval"`
+	Threshold      int    `gcfg:"threshold"`
 
-	Timeout        int      `gcfg:"timeout"`
-	Keepalive      int      `gcfg:"keepalive"`
+	Timeout   int `gcfg:"timeout"`
+	Keepalive int `gcfg:"keepalive"`
 
-	Profile        string   `gcfg:"profile"`
-	TemplateOpen   string   `gcfg:"template-open"`
-	TemplateClose  string   `gcfg:"template-close"`
-	Extras         []string `gcfg:"extra"`
-	SendClose      bool     `gcfg:"send-close"`
+	Profile       string   `gcfg:"profile"`
+	TemplateOpen  string   `gcfg:"template-open"`
+	TemplateClose string   `gcfg:"template-close"`
+	Extras        []string `gcfg:"extra"`
+	SendClose     bool     `gcfg:"send-close"`
 }
 
 type HttpServerConfig struct {
@@ -116,8 +116,8 @@ type HttpServerConfig struct {
 
 type Configuration struct {
 	General struct {
-		PIDFile        string `gcfg:"pidfile"`
-		StdoutLogfile  string `gcfg:"stdout-logfile"`
+		PIDFile       string `gcfg:"pidfile"`
+		StdoutLogfile string `gcfg:"stdout-logfile"`
 	}
 	Logging struct {
 		Filename       string `gcfg:"filename"`
@@ -142,11 +142,11 @@ type Configuration struct {
 	EmailNotifierProfile map[string]*EmailNotifierProfile
 
 	// These are the module configurations. They're broken out so we can use them in the modules separately
-	Storage             map[string]*StorageConfig
-	Consumer            map[string]*ConsumerConfig
-	Cluster             map[string]*ClusterConfig
-	Evaluator           map[string]*EvaluatorConfig
-	Notifier            map[string]*NotifierConfig
+	Storage   map[string]*StorageConfig
+	Consumer  map[string]*ConsumerConfig
+	Cluster   map[string]*ClusterConfig
+	Evaluator map[string]*EvaluatorConfig
+	Notifier  map[string]*NotifierConfig
 }
 
 func ReadConfig(cfgFile string) *Configuration {
@@ -194,7 +194,7 @@ func ValidateConfig(config *Configuration) error {
 	if len(config.Zookeeper.Server) == 0 {
 		errs = append(errs, "No Zookeeper servers specified")
 	} else {
-		if ! ValidateHostList(config.Zookeeper.Server) {
+		if !ValidateHostList(config.Zookeeper.Server) {
 			errs = append(errs, "Failed to validate Zookeeper servers")
 		}
 	}

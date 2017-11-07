@@ -20,12 +20,13 @@ import (
 	"time"
 
 	"github.com/linkedin/Burrow/core"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // exit code handler
 type Exit struct{ Code int }
+
 func handleExit() {
 	if e := recover(); e != nil {
 		if exit, ok := e.(Exit); ok == true {
@@ -57,7 +58,7 @@ func main() {
 		Configuration: configuration.ReadConfig(*cfgfile),
 	}
 	// Create the PID file to lock out other processes
-	if ! core.CheckAndCreatePidFile(appContext.Configuration.General.PIDFile) {
+	if !core.CheckAndCreatePidFile(appContext.Configuration.General.PIDFile) {
 		// Any error on checking or creating the PID file causes an immediate exit
 		panic(Exit{1})
 	}

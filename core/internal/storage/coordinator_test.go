@@ -16,8 +16,8 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 
-	"go.uber.org/zap"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -32,9 +32,9 @@ func fixtureCoordinator() *Coordinator {
 
 	coordinator.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
 	coordinator.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName: "inmemory",
-		Intervals: 10,
-		MinDistance: 1,
+		ClassName:      "inmemory",
+		Intervals:      10,
+		MinDistance:    1,
 		GroupWhitelist: "",
 	}
 	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
@@ -64,9 +64,9 @@ func TestCoordinator_Configure_NoModules(t *testing.T) {
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
 	coordinator.App.Configuration.Storage["anothertest"] = &configuration.StorageConfig{
-		ClassName: "inmemory",
-		Intervals: 10,
-		MinDistance: 1,
+		ClassName:      "inmemory",
+		Intervals:      10,
+		MinDistance:    1,
 		GroupWhitelist: "",
 	}
 
@@ -84,14 +84,14 @@ func TestCoordinator_Start(t *testing.T) {
 		Reply:       make(chan interface{}),
 	}
 	coordinator.App.StorageChannel <- request
-	response := <- request.Reply
+	response := <-request.Reply
 
 	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
 	val := response.([]string)
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testcluster", "Expected return value to be 'testcluster', not %v", val[0])
 
-	response, ok := <- request.Reply
+	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 
 	coordinator.Stop()

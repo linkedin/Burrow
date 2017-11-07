@@ -11,10 +11,10 @@
 package evaluator
 
 import (
-	"go.uber.org/zap"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/storage"
+	"github.com/linkedin/Burrow/core/protocol"
+	"go.uber.org/zap"
 )
 
 // This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot
@@ -40,4 +40,3 @@ func StorageAndEvaluatorCoordinatorsWithOffsets() (*Coordinator, *storage.Coordi
 
 	return &evaluatorCoordinator, storageCoordinator
 }
-

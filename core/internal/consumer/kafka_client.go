@@ -16,30 +16,30 @@ import (
 	"errors"
 	"sync"
 
-	"go.uber.org/zap"
 	"github.com/Shopify/sarama"
+	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 	"regexp"
 )
 
 type KafkaClient struct {
-	App                 *protocol.ApplicationContext
-	Log                 *zap.Logger
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
-	name                string
-	myConfiguration     *configuration.ConsumerConfig
+	name            string
+	myConfiguration *configuration.ConsumerConfig
 
-	saramaConfig        *sarama.Config
-	clientProfile       *configuration.ClientProfile
-	messageChannel      chan *sarama.ConsumerMessage
-	errorChannel        chan *sarama.ConsumerError
-	groupWhitelist      *regexp.Regexp
+	saramaConfig   *sarama.Config
+	clientProfile  *configuration.ClientProfile
+	messageChannel chan *sarama.ConsumerMessage
+	errorChannel   chan *sarama.ConsumerError
+	groupWhitelist *regexp.Regexp
 
-	quitChannel	        chan struct{}
-	consumerQuitChannel	chan struct{}
+	quitChannel         chan struct{}
+	consumerQuitChannel chan struct{}
 	running             sync.WaitGroup
 	consumerRunning     sync.WaitGroup
 }
@@ -55,7 +55,7 @@ func (module *KafkaClient) Configure(name string) {
 	module.myConfiguration = module.App.Configuration.Consumer[name]
 	module.messageChannel = make(chan *sarama.ConsumerMessage)
 
-	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; ! ok {
+	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; !ok {
 		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
 	}
 	if profile, ok := module.App.Configuration.ClientProfile[module.myConfiguration.ClientProfile]; ok {
@@ -65,7 +65,7 @@ func (module *KafkaClient) Configure(name string) {
 	}
 	if len(module.myConfiguration.Servers) == 0 {
 		panic("No Kafka brokers specified for consumer " + module.name)
-	} else if ! configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
 		panic("Consumer '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
@@ -93,7 +93,7 @@ func (module *KafkaClient) Start() error {
 		return err
 	}
 
-	err = module.startKafkaConsumer(&helpers.BurrowSaramaClient{ Client: client})
+	err = module.startKafkaConsumer(&helpers.BurrowSaramaClient{Client: client})
 	if err != nil {
 		client.Close()
 		return err
@@ -124,7 +124,7 @@ func (module *KafkaClient) mainLoop() {
 
 	for {
 		select {
-		case msg := <- module.messageChannel:
+		case msg := <-module.messageChannel:
 			go module.processConsumerOffsetsMessage(msg)
 		case <-module.quitChannel:
 			return
@@ -139,9 +139,9 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) 
 
 	for {
 		select {
-		case msg := <- consumer.Messages():
+		case msg := <-consumer.Messages():
 			module.messageChannel <- msg
-		case err := <- consumer.Errors():
+		case err := <-consumer.Errors():
 			module.Log.Error("consume error",
 				zap.String("topic", err.Topic),
 				zap.Int32("partition", err.Partition),
@@ -298,7 +298,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 		zap.Uint32("partition", offsetKey.Partition),
 	)
 
-	if ! module.acceptConsumerGroup(offsetKey.Group) {
+	if !module.acceptConsumerGroup(offsetKey.Group) {
 		offsetLogger.Debug("dropped", zap.String("reason", "whitelist"))
 		return
 	}
@@ -438,7 +438,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion uint16, group
 	}
 }
 
-func decodeMetadataValueHeader (buf *bytes.Buffer) (MetadataHeader, string) {
+func decodeMetadataValueHeader(buf *bytes.Buffer) (MetadataHeader, string) {
 	var err error
 	metadataHeader := MetadataHeader{}
 
@@ -461,7 +461,7 @@ func decodeMetadataValueHeader (buf *bytes.Buffer) (MetadataHeader, string) {
 	return metadataHeader, ""
 }
 
-func decodeMetadataMember (buf *bytes.Buffer, memberVersion uint16) (MetadataMember, string) {
+func decodeMetadataMember(buf *bytes.Buffer, memberVersion uint16) (MetadataMember, string) {
 	var err error
 	memberMetadata := MetadataMember{}
 
@@ -519,7 +519,7 @@ func decodeMetadataMember (buf *bytes.Buffer, memberVersion uint16) (MetadataMem
 	return memberMetadata, ""
 }
 
-func decodeMemberAssignmentV0 (buf *bytes.Buffer) (map[string][]int32, string) {
+func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 	var err error
 	var topics map[string][]int32
 	var numTopics, numPartitions, partitionId uint32
@@ -555,7 +555,7 @@ func decodeMemberAssignmentV0 (buf *bytes.Buffer) (map[string][]int32, string) {
 	return topics, ""
 }
 
-func decodeOffsetKeyV0 (buf *bytes.Buffer) (OffsetKey, string) {
+func decodeOffsetKeyV0(buf *bytes.Buffer) (OffsetKey, string) {
 	var err error
 	offsetKey := OffsetKey{}
 
@@ -574,7 +574,7 @@ func decodeOffsetKeyV0 (buf *bytes.Buffer) (OffsetKey, string) {
 	return offsetKey, ""
 }
 
-func decodeOffsetValueV0 (valueBuffer *bytes.Buffer) (OffsetValue, string) {
+func decodeOffsetValueV0(valueBuffer *bytes.Buffer) (OffsetValue, string) {
 	var err error
 	offsetValue := OffsetValue{}
 

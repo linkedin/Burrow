@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func StartCoordinatorModules(modules map[string]protocol.Module) error {
@@ -43,6 +43,7 @@ func StopCoordinatorModules(modules map[string]protocol.Module) {
 type MockModule struct {
 	mock.Mock
 }
+
 func (m *MockModule) Configure(name string) {
 	m.Called(name)
 }
@@ -74,6 +75,6 @@ func (m *MockModule) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) b
 	args := m.Called(status)
 	return args.Bool(0)
 }
-func (m *MockModule) Notify (status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+func (m *MockModule) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	m.Called(status, eventId, startTime, stateGood)
 }

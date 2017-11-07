@@ -14,9 +14,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/linkedin/Burrow/core/configuration"
 )
@@ -211,10 +211,10 @@ func TestHttpServer_configStorageDetail(t *testing.T) {
 
 	// Need a custom type for the test, due to variations in the response for different module types
 	type ResponseType struct {
-		Error    bool                            `json:"error"`
-		Message  string                          `json:"message"`
-		Module   HTTPResponseConfigModuleStorage `json:"module"`
-		Request  HTTPResponseRequestInfo         `json:"request"`
+		Error   bool                            `json:"error"`
+		Message string                          `json:"message"`
+		Module  HTTPResponseConfigModuleStorage `json:"module"`
+		Request HTTPResponseRequestInfo         `json:"request"`
 	}
 
 	// Parse response body
@@ -249,10 +249,10 @@ func TestHttpServer_configConsumerDetail(t *testing.T) {
 
 	// Need a custom type for the test, due to variations in the response for different module types
 	type ResponseType struct {
-		Error    bool                             `json:"error"`
-		Message  string                           `json:"message"`
-		Module   HTTPResponseConfigModuleConsumer `json:"module"`
-		Request  HTTPResponseRequestInfo          `json:"request"`
+		Error   bool                             `json:"error"`
+		Message string                           `json:"message"`
+		Module  HTTPResponseConfigModuleConsumer `json:"module"`
+		Request HTTPResponseRequestInfo          `json:"request"`
 	}
 
 	// Parse response body
@@ -287,10 +287,10 @@ func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 
 	// Need a custom type for the test, due to variations in the response for different module types
 	type ResponseType struct {
-		Error    bool                              `json:"error"`
-		Message  string                            `json:"message"`
-		Module   HTTPResponseConfigModuleEvaluator `json:"module"`
-		Request  HTTPResponseRequestInfo           `json:"request"`
+		Error   bool                              `json:"error"`
+		Message string                            `json:"message"`
+		Module  HTTPResponseConfigModuleEvaluator `json:"module"`
+		Request HTTPResponseRequestInfo           `json:"request"`
 	}
 
 	// Parse response body
@@ -325,10 +325,10 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 
 	// Need a custom type for the test, due to variations in the response for different module types
 	type ResponseType struct {
-		Error    bool                            `json:"error"`
-		Message  string                          `json:"message"`
-		Module   HTTPResponseConfigModuleStorage `json:"module"`
-		Request  HTTPResponseRequestInfo         `json:"request"`
+		Error   bool                            `json:"error"`
+		Message string                          `json:"message"`
+		Module  HTTPResponseConfigModuleStorage `json:"module"`
+		Request HTTPResponseRequestInfo         `json:"request"`
 	}
 
 	// Parse response body
@@ -346,4 +346,3 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
-

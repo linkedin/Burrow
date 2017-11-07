@@ -17,14 +17,14 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/linkedin/Burrow/core/internal/storage"
 	"github.com/linkedin/Burrow/core/internal/cluster"
 	"github.com/linkedin/Burrow/core/internal/consumer"
 	"github.com/linkedin/Burrow/core/internal/evaluator"
 	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/internal/notifier"
+	"github.com/linkedin/Burrow/core/internal/storage"
 	"github.com/linkedin/Burrow/core/internal/zookeeper"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func NewCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
@@ -141,7 +141,7 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	log.Info("Shutdown triggered")
 
 	// Stop the coordinators in the reverse order. This assures that request senders are stopped before request servers
-	for i := len(coordinators)-1; i >= 0; i-- {
+	for i := len(coordinators) - 1; i >= 0; i-- {
 		coordinators[i].Stop()
 	}
 

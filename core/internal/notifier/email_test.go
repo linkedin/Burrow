@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/protocol"
 	"net/smtp"
 )
 
@@ -28,7 +28,7 @@ func fixtureEmailNotifier() *EmailNotifier {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
+		Configuration: &configuration.Configuration{},
 	}
 
 	module.App.Configuration.EmailNotifierProfile = make(map[string]*configuration.EmailNotifierProfile)
@@ -44,13 +44,13 @@ func fixtureEmailNotifier() *EmailNotifier {
 
 	module.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
 	module.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:      "email",
-		Profile:        "test_email_profile",
-		Timeout:        2,
-		Keepalive:      10,
-		TemplateOpen:   "template_open",
-		TemplateClose:  "template_close",
-		SendClose:      false,
+		ClassName:     "email",
+		Profile:       "test_email_profile",
+		Timeout:       2,
+		Keepalive:     10,
+		TemplateOpen:  "template_open",
+		TemplateClose: "template_close",
+		SendClose:     false,
 	}
 
 	return &module
@@ -114,7 +114,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Username = "user"
 	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Password = "pass"
 
-	module.sendMailFunc = func (server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
+	module.sendMailFunc = func(server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
 		assert.Equalf(t, "test.example.com:587", server, "Expected server to be test.example.com:587, not %v", server)
 		assert.NotNil(t, auth, "Expected auth to not be nil")
 		assert.Equalf(t, "sender@example.com", from, "Expected from to be sender@example.com, not %v", from)
@@ -141,7 +141,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 func TestEmailNotifier_Notify_Close(t *testing.T) {
 	module := fixtureEmailNotifier()
 
-	module.sendMailFunc = func (server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
+	module.sendMailFunc = func(server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
 		assert.Equalf(t, "test.example.com:587", server, "Expected server to be test.example.com:587, not %v", server)
 		assert.Nil(t, auth, "Expected auth to be nil")
 		assert.Equalf(t, "sender@example.com", from, "Expected from to be sender@example.com, not %v", from)
