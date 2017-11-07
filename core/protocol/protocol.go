@@ -1,4 +1,4 @@
-/* Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version
+/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
  * 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -22,6 +22,7 @@ import (
 type ApplicationContext struct {
 	// These fields need to be populated before Start is called
 	Configuration      *configuration.Configuration
+	ConfigurationValid bool
 	Logger             *zap.Logger
 	LogLevel           *zap.AtomicLevel
 

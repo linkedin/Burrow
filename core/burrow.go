@@ -1,4 +1,4 @@
-/* Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version
+/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
  * 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -82,6 +82,21 @@ func NewCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	}
 }
 
+func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) {
+	// Configure methods are allowed to panic, as their errors are non-recoverable
+	// Catch panics here and flag in the application context if we can't continue
+	defer func() {
+		if r := recover(); r != nil {
+			app.ConfigurationValid = false
+		}
+	}()
+
+	// Configure the coordinators in order
+	for _, coordinator := range coordinators {
+		coordinator.Configure()
+	}
+}
+
 func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	// Validate that the ApplicationContext is complete
 	if (app == nil) || (app.Logger == nil) || (app.LogLevel == nil) {
@@ -110,9 +125,10 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	app.EvaluatorChannel = make(chan *protocol.EvaluatorRequest)
 	app.StorageChannel = make(chan *protocol.StorageRequest)
 
-	// Configure the coordinators in order. Note that they will panic if there is a configuration problem
-	for _, coordinator := range coordinators {
-		coordinator.Configure()
+	// Configure coordinators and exit if anything fails
+	configureCoordinators(app, coordinators)
+	if !app.ConfigurationValid {
+		return 1
 	}
 
 	// Start the coordinators in order
