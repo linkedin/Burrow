@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"strings"
 )
 
 func CheckAndCreatePidFile(filename string) bool {
@@ -76,7 +77,7 @@ func ConfigureLogger(configuration *configuration.Configuration) (*zap.Logger, *
 	var syncOutput zapcore.WriteSyncer
 
 	// Create an AtomicLevel that we can use elsewhere to dynamically change the logging level
-	switch configuration.Logging.Level {
+	switch strings.ToLower(configuration.Logging.Level) {
 	case "", "info":
 		level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	case "debug":
@@ -90,7 +91,8 @@ func ConfigureLogger(configuration *configuration.Configuration) (*zap.Logger, *
 	case "fatal":
 		level = zap.NewAtomicLevelAt(zap.FatalLevel)
 	default:
-		fmt.Printf("Invalid log level supplied: %s", configuration.Logging.Level)
+		fmt.Printf("Invalid log level supplied. Defaulting to info: %s", configuration.Logging.Level)
+		level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
 
 	// If a filename has been set, set up a rotating logger. Otherwise, use Stdout

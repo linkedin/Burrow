@@ -87,6 +87,7 @@ func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]pro
 	// Catch panics here and flag in the application context if we can't continue
 	defer func() {
 		if r := recover(); r != nil {
+			app.Logger.Panic(r.(string))
 			app.ConfigurationValid = false
 		}
 	}()

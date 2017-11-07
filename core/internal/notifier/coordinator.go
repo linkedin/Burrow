@@ -133,6 +133,7 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 }
 
 func (nc *Coordinator) Configure() {
+	nc.Log.Info("configuring")
 	nc.modules = make(map[string]protocol.Module)
 
 	nc.clusters = make(map[string]*ClusterGroups)
@@ -223,6 +224,8 @@ func (nc *Coordinator) Configure() {
 }
 
 func (nc *Coordinator) Start() error {
+	nc.Log.Info("starting")
+
 	// The notifier coordinator is responsible for fetching group evaluations and handing them off to the individual
 	// notifier modules.
 	go nc.responseLoop()
@@ -245,6 +248,8 @@ func (nc *Coordinator) Start() error {
 }
 
 func (nc *Coordinator) Stop() error {
+	nc.Log.Info("stopping")
+
 	nc.groupRefresh.Stop()
 	nc.evalInterval.Stop()
 

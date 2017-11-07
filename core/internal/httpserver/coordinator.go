@@ -39,6 +39,7 @@ type Coordinator struct {
 }
 
 func (hc *Coordinator) Configure() {
+	hc.Log.Info("configuring")
 	hc.router = httprouter.New()
 
 	// If no HTTP server configured, add a default HTTP server that listens on a random port
