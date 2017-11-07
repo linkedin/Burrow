@@ -8,7 +8,6 @@ import (
 	"testing"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/linkedin/Burrow/core/configuration"
 )
 
@@ -45,7 +44,7 @@ func setupConfiguration(coordinator *Coordinator) {
 }
 
 func TestHttpServer_configMain(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -53,10 +52,8 @@ func TestHttpServer_configMain(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config", coordinator.configMain)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -69,7 +66,7 @@ func TestHttpServer_configMain(t *testing.T) {
 }
 
 func TestHttpServer_configStorageList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -77,10 +74,8 @@ func TestHttpServer_configStorageList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/storage", coordinator.configStorageList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -95,7 +90,7 @@ func TestHttpServer_configStorageList(t *testing.T) {
 }
 
 func TestHttpServer_configConsumerList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -103,10 +98,8 @@ func TestHttpServer_configConsumerList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/consumer", coordinator.configConsumerList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -121,7 +114,7 @@ func TestHttpServer_configConsumerList(t *testing.T) {
 }
 
 func TestHttpServer_configClusterList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -129,10 +122,8 @@ func TestHttpServer_configClusterList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/cluster", coordinator.configClusterList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -147,7 +138,7 @@ func TestHttpServer_configClusterList(t *testing.T) {
 }
 
 func TestHttpServer_configEvaluatorList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -155,10 +146,8 @@ func TestHttpServer_configEvaluatorList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/evaluator", coordinator.configEvaluatorList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -173,7 +162,7 @@ func TestHttpServer_configEvaluatorList(t *testing.T) {
 }
 
 func TestHttpServer_configNotifierList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -181,10 +170,8 @@ func TestHttpServer_configNotifierList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/notifier", coordinator.configNotifierList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -199,7 +186,7 @@ func TestHttpServer_configNotifierList(t *testing.T) {
 }
 
 func TestHttpServer_configStorageDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -207,10 +194,8 @@ func TestHttpServer_configStorageDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/storage/:name", coordinator.configStorageDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -234,12 +219,12 @@ func TestHttpServer_configStorageDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/config/storage/nomodule", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_configConsumerDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -247,10 +232,8 @@ func TestHttpServer_configConsumerDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/consumer/:name", coordinator.configConsumerDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -274,12 +257,12 @@ func TestHttpServer_configConsumerDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/config/consumer/nomodule", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_configEvaluatorDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -287,10 +270,8 @@ func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/evaluator/:name", coordinator.configEvaluatorDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -314,12 +295,12 @@ func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/config/evaluator/nomodule", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_configNotifierDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	setupConfiguration(coordinator)
 
 	// Set up a request
@@ -327,10 +308,8 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/config/notifier/:name", coordinator.configNotifierDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -354,7 +333,7 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/config/notifier/nomodule", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 

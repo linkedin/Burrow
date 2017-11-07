@@ -7,7 +7,6 @@ import (
 	"testing"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/julienschmidt/httprouter"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"
@@ -16,21 +15,24 @@ import (
 	"time"
 )
 
-func fixtureCoordinator() *Coordinator {
+func fixtureConfiguredCoordinator() *Coordinator {
 	coordinator := Coordinator{
 		Log: zap.NewNop(),
 		App: &protocol.ApplicationContext{
-			Configuration:    &configuration.Configuration{},
+			Configuration:    &configuration.Configuration{
+				HttpServer: make(map[string]*configuration.HttpServerConfig),
+			},
 			StorageChannel:   make(chan *protocol.StorageRequest),
 			EvaluatorChannel: make(chan *protocol.EvaluatorRequest),
 		},
 	}
 
+	coordinator.Configure()
 	return &coordinator
 }
 
 func TestHttpServer_handleClusterList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -45,10 +47,8 @@ func TestHttpServer_handleClusterList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka", coordinator.handleClusterList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -62,7 +62,7 @@ func TestHttpServer_handleClusterList(t *testing.T) {
 }
 
 func TestHttpServer_handleClusterDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 	coordinator.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
 	coordinator.App.Configuration.ClientProfile["test"] = &configuration.ClientProfile{}
 	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
@@ -76,10 +76,8 @@ func TestHttpServer_handleClusterDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster", coordinator.handleClusterDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -103,12 +101,12 @@ func TestHttpServer_handleClusterDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_handleTopicList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -130,10 +128,8 @@ func TestHttpServer_handleTopicList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster/topic", coordinator.handleTopicList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -149,12 +145,12 @@ func TestHttpServer_handleTopicList(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/topic", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_handleConsumerList(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -176,10 +172,8 @@ func TestHttpServer_handleConsumerList(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster/consumer", coordinator.handleConsumerList)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -195,12 +189,12 @@ func TestHttpServer_handleConsumerList(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_handleTopicDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -231,10 +225,8 @@ func TestHttpServer_handleTopicDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster/topic/:topic", coordinator.handleTopicDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -250,19 +242,19 @@ func TestHttpServer_handleTopicDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/topic/testtopic", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 
 	// Call a third time for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/testcluster/topic/notopic", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_handleConsumerDetail(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -305,10 +297,8 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster/consumer/:consumer", coordinator.handleConsumerDetail)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -333,14 +323,14 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer/testgroup", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 
 	// Call a third time for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/testcluster/consumer/nogroup", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
@@ -372,7 +362,7 @@ type ResponseType struct {
 }
 
 func TestHttpServer_handleConsumerStatus(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected evaluator request
 	go func() {
@@ -487,11 +477,8 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.GET("/v3/kafka/:cluster/consumer/:consumer/status", coordinator.handleConsumerStatus)
-	router.GET("/v3/kafka/:cluster/consumer/:consumer/lag", coordinator.handleConsumerStatusComplete)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
@@ -511,21 +498,21 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer/testgroup/status", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 
 	// Call a third time for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/testcluster/consumer/nogroup/status", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 
 	// Call for complete status (/lag endpoint)
 	req, err = http.NewRequest("GET", "/v3/kafka/testcluster/consumer/testgroup/lag", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
 	// Parse response body
@@ -543,19 +530,19 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer/testgroup/lag", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 
 	// Call a sixth time for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/testcluster/consumer/nogroup/lag", nil)
 	assert.NoError(t, err, "Expected request setup to return no error")
 	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
 
 func TestHttpServer_handleConsumerDelete(t *testing.T) {
-	coordinator := fixtureCoordinator()
+	coordinator := fixtureConfiguredCoordinator()
 
 	// Respond to the expected storage request
 	go func() {
@@ -571,10 +558,8 @@ func TestHttpServer_handleConsumerDelete(t *testing.T) {
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
-	router := httprouter.New()
-	router.DELETE("/v3/kafka/:cluster/consumer/:consumer", coordinator.handleConsumerDelete)
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	coordinator.router.ServeHTTP(rr, req)
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 
