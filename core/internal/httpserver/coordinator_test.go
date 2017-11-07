@@ -1,17 +1,19 @@
 package httpserver
 
 import (
-	"go.uber.org/zap"
-
-	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/linkedin/Burrow/core/configuration"
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
+
+	"net/http/httptest"
+	"testing"
+	"github.com/stretchr/testify/assert"
+
+	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/configuration"
 )
 
 func fixtureConfiguredCoordinator() *Coordinator {

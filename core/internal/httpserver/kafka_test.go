@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"net/http/httptest"
 	"testing"
@@ -9,8 +11,6 @@ import (
 
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
-	"encoding/json"
-	"time"
 )
 
 func TestHttpServer_handleClusterList(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -27,7 +28,6 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
 	"go.uber.org/zap/zapcore"
-	"errors"
 )
 
 type Coordinator struct {
