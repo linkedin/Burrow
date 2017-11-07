@@ -6,6 +6,13 @@ type LogLevelRequest struct {
 	Level string `json:"level"`
 }
 
+type HTTPResponseLogLevel struct {
+	Error   bool                    `json:"error"`
+	Message string                  `json:"message"`
+	Level   string                  `json:"level"`
+	Request HTTPResponseRequestInfo `json:"request"`
+}
+
 type HTTPResponseRequestInfo struct {
 	URI     string `json:"url"`
 	Host    string `json:"host"`

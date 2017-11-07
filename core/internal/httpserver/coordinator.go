@@ -14,7 +14,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -126,7 +125,8 @@ func (hc *Coordinator) Configure() {
 
 	// TODO: This should really have authentication protecting it
 	hc.router.DELETE("/v3/kafka/:cluster/consumer/:consumer", hc.handleConsumerDelete)
-	hc.router.POST("/v3/admin/loglevel", hc.changeLogLevel)
+	hc.router.GET("/v3/admin/loglevel", hc.getLogLevel)
+	hc.router.POST("/v3/admin/loglevel", hc.setLogLevel)
 }
 
 func (hc *Coordinator) Start() error {
@@ -242,13 +242,21 @@ func (handler *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	if r.Method != "GET" {
-		http.Error(w, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}", http.StatusMethodNotAllowed)
-	}
-	io.WriteString(w, "GOOD")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("GOOD"))
 }
 
-func (hc *Coordinator) changeLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	requestInfo := makeRequestInfo(r)
+	writeResponse(w, r, http.StatusOK, HTTPResponseLogLevel{
+		Error:   false,
+		Message: "log level returned",
+		Level:   hc.App.LogLevel.Level().String(),
+		Request: requestInfo,
+	})
+}
+
+func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Decode the JSON body
 	decoder := json.NewDecoder(r.Body)
 	var req LogLevelRequest

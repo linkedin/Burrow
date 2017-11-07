@@ -7,29 +7,11 @@ import (
 	"testing"
 	"github.com/stretchr/testify/assert"
 
-	"go.uber.org/zap"
-
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/linkedin/Burrow/core/configuration"
 	"encoding/json"
 	"time"
 )
-
-func fixtureConfiguredCoordinator() *Coordinator {
-	coordinator := Coordinator{
-		Log: zap.NewNop(),
-		App: &protocol.ApplicationContext{
-			Configuration:    &configuration.Configuration{
-				HttpServer: make(map[string]*configuration.HttpServerConfig),
-			},
-			StorageChannel:   make(chan *protocol.StorageRequest),
-			EvaluatorChannel: make(chan *protocol.EvaluatorRequest),
-		},
-	}
-
-	coordinator.Configure()
-	return &coordinator
-}
 
 func TestHttpServer_handleClusterList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
