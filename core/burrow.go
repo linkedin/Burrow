@@ -96,6 +96,7 @@ func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]pro
 	for _, coordinator := range coordinators {
 		coordinator.Configure()
 	}
+	app.ConfigurationValid = true
 }
 
 func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
