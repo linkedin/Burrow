@@ -77,45 +77,50 @@ func ValidateUrl(rawUrl string) bool {
 
 // Validate a list of ZK or Kafka hosts of the form hostname:port
 func ValidateHostList(hosts []string) bool {
-	// Must be hostname:port, ipv4:port, or [ipv6]:port
 	for _, host := range hosts {
-		// Pop the last :XXX off as a port number
-		hostparts := strings.Split(host, ":")
-		if len(hostparts) < 2 {
+		if !ValidateHostPort(host, false) {
 			return false
-		}
-		_, err := strconv.Atoi(hostparts[len(hostparts)-1])
-		if err != nil {
-			return false
-		}
-		hostname := strings.Join(hostparts[:len(hostparts)-1], ":")
-
-		if len(hostparts) == 2 {
-			// If all the parts of the hostname are numbers, validate as IP. Otherwise, it's a hostname
-			hostnameParts := strings.Split(hostname, ".")
-			isIP := true
-			for _, section := range hostnameParts {
-				_, err := strconv.Atoi(section)
-				if err != nil {
-					isIP = false
-					break
-				}
-			}
-			if isIP {
-				return ValidateIP(hostname)
-			} else {
-				return ValidateHostname(hostname)
-			}
-		} else {
-			// Must be an IPv6 address, which must be enclosed in []
-			if (hostname[0] != 91) || (hostname[len(hostname)-1] != 93) {
-				return false
-			}
-			if ! ValidateIP(hostname[1:len(hostname)-2]) {
-				return false
-			}
 		}
 	}
 
 	return true
+}
+func ValidateHostPort(host string, allowBlankHost bool) bool {
+	// Must be hostname:port, ipv4:port, or [ipv6]:port. Optionally allow blank hostname
+	hostname, portString, err := net.SplitHostPort(host)
+	if err != nil {
+		return false
+	}
+
+	// Validate the port is a numeric (yeah, strings are valid in some places, but we don't support it)
+	_, err = strconv.Atoi(portString)
+	if err != nil {
+		return false
+	}
+
+	// Listeners can have blank hostnames, so we'll skip validation if that's what we're looking for
+	if allowBlankHost && hostname == "" {
+		return true
+	}
+
+	// Only IPv6 can contain :
+	if strings.Contains(hostname, ":") && (! ValidateIP(hostname)) {
+		return false
+	}
+
+	// If all the parts of the hostname are numbers, validate as IP. Otherwise, it's a hostname
+	hostnameParts := strings.Split(hostname, ".")
+	isIP4 := true
+	for _, section := range hostnameParts {
+		_, err := strconv.Atoi(section)
+		if err != nil {
+			isIP4 = false
+			break
+		}
+	}
+	if isIP4 {
+		return ValidateIP(hostname)
+	} else {
+		return ValidateHostname(hostname)
+	}
 }

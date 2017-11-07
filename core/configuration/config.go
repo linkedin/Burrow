@@ -12,11 +12,11 @@ package configuration
 
 import (
 	"errors"
-	"fmt"
-	"gopkg.in/gcfg.v1"
 	"log"
 	"os"
 	"strings"
+
+	"gopkg.in/gcfg.v1"
 )
 
 // Configuration definition
@@ -105,6 +105,15 @@ type NotifierConfig struct {
 	SendClose      bool     `gcfg:"send-close"`
 }
 
+type HttpServerConfig struct {
+	Address         string `gcfg:"address"`
+	TLS             bool   `gcfg:"tls"`
+	TLSCertFilePath string `gcfg:"tls-certfilepath"`
+	TLSKeyFilePath  string `gcfg:"tls-keyfilepath"`
+	TLSCAFilePath   string `gcfg:"tls-cafilepath"`
+	Timeout         int    `gcfg:"timeout"`
+}
+
 type Configuration struct {
 	General struct {
 		PIDFile        string `gcfg:"pidfile"`
@@ -124,11 +133,7 @@ type Configuration struct {
 		Timeout  int      `gcfg:"timeout"`
 		RootPath string   `gcfg:"root-path"`
 	}
-	HttpServer struct {
-		Enable bool     `gcfg:"server"`
-		Port   int      `gcfg:"port"`
-		Listen []string `gcfg:"listen"`
-	}
+	HttpServer map[string]*HttpServerConfig
 
 	// These are profiles used in modules to provide more configuration detail that could be shared
 	ClientProfile        map[string]*ClientProfile
@@ -201,21 +206,6 @@ func ValidateConfig(config *Configuration) error {
 	} else {
 		if !ValidateZookeeperPath(config.Zookeeper.RootPath) {
 			errs = append(errs, "Zookeeper root path is not valid")
-		}
-	}
-
-	// HTTP Server
-	if config.HttpServer.Enable {
-		if len(config.HttpServer.Listen) == 0 {
-			if config.HttpServer.Port == 0 {
-				errs = append(errs, "HTTP server port is not specified")
-			}
-			listenPort := fmt.Sprintf(":%v", config.HttpServer.Port)
-			config.HttpServer.Listen = append(config.HttpServer.Listen, listenPort)
-		} else {
-			if config.HttpServer.Port != 0 {
-				errs = append(errs, "Either HTTP server port or listen can be specified, but not both")
-			}
 		}
 	}
 

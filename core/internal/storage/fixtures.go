@@ -61,5 +61,7 @@ func StorageCoordinatorWithOffsets() *Coordinator {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	// Sleep just a little more to make sure everything's processed
+	time.Sleep(100 * time.Millisecond)
 	return &coordinator
 }
