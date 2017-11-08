@@ -32,7 +32,7 @@
 
 [[constraint]]
   name = "github.com/stretchr/testify"
-  version = "1.1.4"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/karrick/goswarm"

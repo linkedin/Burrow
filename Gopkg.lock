@@ -92,10 +92,10 @@
   revision = "1a9d0bb9f541897e62256577b352fdbc1fb4fd94"
 
 [[projects]]
+  branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert","mock"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  revision = "2aa2c176b9dab406a6970f6a55f513e8a8c8b18f"
 
 [[projects]]
   name = "go.uber.org/atomic"
@@ -136,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "57aaf124ea4bbf4fe905671da82ac068d75a3c8a2cfbcb37a860b7e5d88b3f4c"
+  inputs-digest = "1daf4ad95e851d51cb95d5238692c10de18d3d633cf8ca9c0c9304a1e306b40d"
   solver-name = "gps-cdcl"
   solver-version = 1
