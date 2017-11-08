@@ -164,6 +164,9 @@ func (module *InMemoryStorage) mainLoop() {
 				go module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
 			case protocol.StorageFetchTopic:
 				go module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
+			case protocol.StorageClearConsumerOwners:
+				go module.clearConsumerOwners(r, requestLogger.With(zap.String("request", "StorageClearConsumerOwners")))
+
 			default:
 				requestLogger.Error("unknown storage request type",
 					zap.Int("request_type", int(r.RequestType)),
@@ -386,9 +389,49 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	consumerMap.lock.Lock()
 	defer consumerMap.lock.Unlock()
 
+	if topic, ok := consumerMap.topics[request.Topic]; !ok || (int32(len(topic)) <= request.Partition) {
+		requestLogger.Debug("dropped", zap.String("reason", "no partition"))
+		return
+	}
+
 	// Write the owner for the given topic/partition
 	requestLogger.Debug("ok")
 	consumerMap.topics[request.Topic][request.Partition].owner = request.Owner
+}
+
+func (module *InMemoryStorage) clearConsumerOwners(request *protocol.StorageRequest, requestLogger *zap.Logger) {
+	clusterMap, ok := module.offsets[request.Cluster]
+	if !ok {
+		// Ignore metadata for clusters that we don't know about - should never happen anyways
+		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	if !module.acceptConsumerGroup(request.Group) {
+		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
+		return
+	}
+
+	// Make the consumer group if it does not yet exist
+	clusterMap.consumerLock.Lock()
+	consumerMap, ok := clusterMap.consumer[request.Group]
+	if !ok {
+		// Consumer group doesn't exist, so we can't clear owners for it
+		return
+	}
+	clusterMap.consumerLock.Unlock()
+
+	// For the rest of this, we need the write lock for the consumer group
+	consumerMap.lock.Lock()
+	defer consumerMap.lock.Unlock()
+
+	for topic, partitions := range consumerMap.topics {
+		for partitionID := range partitions {
+			consumerMap.topics[topic][partitionID].owner = ""
+		}
+	}
+
+	requestLogger.Debug("ok")
 }
 
 func (module *InMemoryStorage) deleteTopic(request *protocol.StorageRequest, requestLogger *zap.Logger) {
@@ -537,6 +580,8 @@ func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
 					}
 					ringPtr = ringPtr.Next()
 				}
+			} else {
+				consumerPartition.Offsets = make([]*protocol.ConsumerOffset, 0)
 			}
 			topicList[topic][partitionId] = consumerPartition
 		}
@@ -562,12 +607,12 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 	}
 
 	// Lazily purge consumers that haven't committed in longer than the defined interval. Return as a 404
-	if (time.Now().Unix() - module.myConfiguration.ExpireGroup) > consumerMap.lastCommit {
+	if ((time.Now().Unix() - module.myConfiguration.ExpireGroup) * 1000) > consumerMap.lastCommit {
 		// Swap for a write lock
 		clusterMap.consumerLock.RUnlock()
 
 		clusterMap.consumerLock.Lock()
-		requestLogger.Info("purge expired consumer")
+		requestLogger.Info("purge expired consumer", zap.Int64("last_commit", consumerMap.lastCommit))
 		delete(clusterMap.consumer, request.Group)
 		clusterMap.consumerLock.Unlock()
 		return
@@ -587,7 +632,9 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		}
 
 		for p, partition := range partitions {
-			partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets)-1].Offset
+			if len(partition.Offsets) > 0 {
+				partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets)-1].Offset
+			}
 		}
 	}
 	clusterMap.brokerLock.RUnlock()

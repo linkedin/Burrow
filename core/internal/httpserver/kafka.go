@@ -162,7 +162,7 @@ func (hc *Coordinator) handleConsumerDetail(w http.ResponseWriter, r *http.Reque
 		requestInfo := makeRequestInfo(r)
 		writeResponse(w, r, http.StatusOK, HTTPResponseConsumerDetail{
 			Error:   false,
-			Message: "consumer list returned",
+			Message: "consumer detail returned",
 			Topics:  response.(protocol.ConsumerTopics),
 			Request: requestInfo,
 		})

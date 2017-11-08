@@ -217,6 +217,11 @@ func (nc *Coordinator) Configure() {
 		}
 	}
 
+	// If there are no modules specified, the minInterval will still be MaxInt64. Set it to a large number of seconds
+	if nc.minInterval == math.MaxInt64 {
+		nc.minInterval = 310536000
+	}
+
 	// Set up the tickers but do not start them
 	// TODO - should probably be configurable
 	nc.groupRefresh = helpers.NewPausableTicker(60 * time.Second)

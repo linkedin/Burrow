@@ -206,6 +206,12 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 		zap.Int64("offset", msg.Offset),
 	)
 
+	if len(msg.Value) == 0 {
+		// Tombstone message - we don't handle them for now
+		logger.Debug("dropped tombstone")
+		return
+	}
+
 	var keyver uint16
 	keyBuffer := bytes.NewBuffer(msg.Key)
 	err := binary.Read(keyBuffer, binary.BigEndian, &keyver)
@@ -230,11 +236,15 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 }
 
 func readString(buf *bytes.Buffer) (string, error) {
-	var strlen uint16
+	var strlen int16
 	err := binary.Read(buf, binary.BigEndian, &strlen)
 	if err != nil {
 		return "", err
 	}
+	if strlen == -1 {
+		return "", nil
+	}
+
 	strbytes := make([]byte, strlen)
 	n, err := buf.Read(strbytes)
 	if (err != nil) || (n != int(strlen)) {
@@ -367,6 +377,7 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 	if err != nil {
 		logger.Warn("failed to decode",
 			zap.String("message_type", "metadata"),
+			zap.String("group", group),
 			zap.String("reason", "no value version"),
 		)
 		return
@@ -409,6 +420,17 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion uint16, group
 		metadataLogger.Warn("failed to decode",
 			zap.String("reason", "no member size"),
 		)
+		return
+	}
+
+	// If memberCount is zero, clear all ownership
+	if memberCount == 0 {
+		metadataLogger.Debug("clear owners")
+		helpers.TimeoutSendStorageRequest(module.App.StorageChannel, &protocol.StorageRequest{
+			RequestType: protocol.StorageClearConsumerOwners,
+			Cluster:     module.myConfiguration.Cluster,
+			Group:       group,
+		}, 1)
 		return
 	}
 

@@ -11,7 +11,6 @@
 package notifier
 
 import (
-	"math"
 	"sync"
 	"text/template"
 	"time"
@@ -112,7 +111,7 @@ func TestCoordinator_Configure_NoModules(t *testing.T) {
 	delete(coordinator.App.Configuration.Notifier, "test")
 	coordinator.Configure()
 
-	assert.Equalf(t, int64(math.MaxInt64), coordinator.minInterval, "Expected coordinator minInterval to be MaxInt64, not %v", coordinator.minInterval)
+	assert.Equalf(t, int64(310536000), coordinator.minInterval, "Expected coordinator minInterval to be 310536000, not %v", coordinator.minInterval)
 }
 
 func TestCoordinator_Configure_TwoModules(t *testing.T) {

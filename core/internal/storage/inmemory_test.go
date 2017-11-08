@@ -782,3 +782,5 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
 }
+
+// TODO: Test for clear consumer offsets

@@ -54,7 +54,9 @@ func (hc *Coordinator) Configure() {
 	// Validate provided HTTP server configs
 	hc.servers = make(map[string]*http.Server)
 	for name, cfg := range hc.App.Configuration.HttpServer {
-		server := &http.Server{}
+		server := &http.Server{
+			Handler: hc.router,
+		}
 
 		if !configuration.ValidateHostPort(cfg.Address, true) {
 			panic("invalid HTTP server listener address")

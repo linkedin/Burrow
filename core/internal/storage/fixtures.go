@@ -71,6 +71,22 @@ func StorageCoordinatorWithOffsets() *Coordinator {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	// Add a second group with a partial ring
+	for i := 0; i < 5; i++ {
+		coordinator.App.StorageChannel <- &protocol.StorageRequest{
+			RequestType: protocol.StorageSetConsumerOffset,
+			Cluster:     "testcluster",
+			Topic:       "testtopic",
+			Group:       "testgroup2",
+			Partition:   0,
+			Offset:      int64(1000 + (i * 100)),
+			Timestamp:   startTime + int64((i * 10000)),
+		}
+
+		// If we don't sleep while submitting these, we can end up with false test results due to race conditions
+		time.Sleep(10 * time.Millisecond)
+	}
+
 	// Sleep just a little more to make sure everything's processed
 	time.Sleep(100 * time.Millisecond)
 	return &coordinator

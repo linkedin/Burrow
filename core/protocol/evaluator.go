@@ -26,14 +26,14 @@ type PartitionStatus struct {
 	Start      *ConsumerOffset `json:"start"`
 	End        *ConsumerOffset `json:"end"`
 	CurrentLag int64           `json:"current_lag"`
-	Complete   bool            `json:"complete"`
+	Complete   float32         `json:"complete"`
 }
 
 type ConsumerGroupStatus struct {
 	Cluster         string             `json:"cluster"`
 	Group           string             `json:"group"`
 	Status          StatusConstant     `json:"status"`
-	Complete        bool               `json:"complete"`
+	Complete        float32            `json:"complete"`
 	Partitions      []*PartitionStatus `json:"partitions"`
 	TotalPartitions int                `json:"partition_count"`
 	Maxlag          *PartitionStatus   `json:"maxlag"`

@@ -51,7 +51,7 @@ func (z *BurrowZookeeperClient) Create(path string, data []byte, flags int32, ac
 }
 
 func (z *BurrowZookeeperClient) NewLock(path string) protocol.ZookeeperLock {
-	return zk.NewLock(z.Client, path, []zk.ACL{})
+	return zk.NewLock(z.Client, path, zk.WorldACL(zk.PermAll))
 }
 
 // Mock ZookeeperClient for testing

@@ -334,13 +334,13 @@ type ResponsePartition struct {
 	Start      *protocol.ConsumerOffset `json:"start"`
 	End        *protocol.ConsumerOffset `json:"end"`
 	CurrentLag int64                    `json:"current_lag"`
-	Complete   bool                     `json:"complete"`
+	Complete   float32                  `json:"complete"`
 }
 type ResponseStatus struct {
 	Cluster         string               `json:"cluster"`
 	Group           string               `json:"group"`
 	Status          string               `json:"status"`
-	Complete        bool                 `json:"complete"`
+	Complete        float32              `json:"complete"`
 	Partitions      []*ResponsePartition `json:"partitions"`
 	TotalPartitions int                  `json:"partition_count"`
 	Maxlag          *ResponsePartition   `json:"maxlag"`
@@ -366,7 +366,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Cluster:         request.Cluster,
 			Group:           request.Group,
 			Status:          protocol.StatusOK,
-			Complete:        true,
+			Complete:        1.0,
 			Partitions:      make([]*protocol.PartitionStatus, 0),
 			TotalPartitions: 2134,
 			Maxlag: &protocol.PartitionStatus{
@@ -398,7 +398,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Cluster:    request.Cluster,
 			Group:      request.Group,
 			Status:     protocol.StatusNotFound,
-			Complete:   true,
+			Complete:   1.0,
 			Partitions: make([]*protocol.PartitionStatus, 0),
 			Maxlag:     nil,
 			TotalLag:   0,
@@ -414,7 +414,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Cluster:    request.Cluster,
 			Group:      request.Group,
 			Status:     protocol.StatusNotFound,
-			Complete:   true,
+			Complete:   1.0,
 			Partitions: make([]*protocol.PartitionStatus, 0),
 			Maxlag:     nil,
 			TotalLag:   0,
@@ -440,7 +440,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Cluster:    request.Cluster,
 			Group:      request.Group,
 			Status:     protocol.StatusNotFound,
-			Complete:   true,
+			Complete:   1.0,
 			Partitions: make([]*protocol.PartitionStatus, 0),
 			Maxlag:     nil,
 			TotalLag:   0,
@@ -456,7 +456,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 			Cluster:    request.Cluster,
 			Group:      request.Group,
 			Status:     protocol.StatusNotFound,
-			Complete:   true,
+			Complete:   1.0,
 			Partitions: make([]*protocol.PartitionStatus, 0),
 			Maxlag:     nil,
 			TotalLag:   0,
@@ -481,7 +481,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
 	assert.NotNil(t, resp.Status, "Expected Status to not be nil")
-	assert.True(t, resp.Status.Complete, "Expected Complete to be true")
+	assert.Equalf(t, float32(1.0), resp.Status.Complete, "Expected Complete to be 1.0, not %v", resp.Status.Complete)
 	assert.Lenf(t, resp.Status.Partitions, 0, "Expected Status to contain exactly zero partitions, not %v", len(resp.Status.Partitions))
 	assert.Equalf(t, 2134, resp.Status.TotalPartitions, "Expected TotalPartitions to be 2134, not %v", resp.Status.TotalPartitions)
 	assert.NotNil(t, resp.Status.Maxlag, "Expected Maxlag to not be nil")
@@ -513,7 +513,7 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
 	assert.NotNil(t, resp.Status, "Expected Status to not be nil")
-	assert.True(t, resp.Status.Complete, "Expected Complete to be true")
+	assert.Equalf(t, float32(1.0), resp.Status.Complete, "Expected Complete to be 1.0, not %v", resp.Status.Complete)
 	assert.Lenf(t, resp.Status.Partitions, 1, "Expected Status to contain exactly one partition, not %v", len(resp.Status.Partitions))
 	assert.Equalf(t, 2134, resp.Status.TotalPartitions, "Expected TotalPartitions to be 2134, not %v", resp.Status.TotalPartitions)
 	assert.NotNil(t, resp.Status.Maxlag, "Expected Maxlag to not be nil")

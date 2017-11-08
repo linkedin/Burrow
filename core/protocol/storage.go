@@ -13,16 +13,17 @@ package protocol
 type StorageRequestConstant int
 
 const (
-	StorageSetBrokerOffset   StorageRequestConstant = 0
-	StorageSetConsumerOffset StorageRequestConstant = 1
-	StorageSetConsumerOwner  StorageRequestConstant = 2
-	StorageSetDeleteTopic    StorageRequestConstant = 3
-	StorageSetDeleteGroup    StorageRequestConstant = 4
-	StorageFetchClusters     StorageRequestConstant = 5
-	StorageFetchConsumers    StorageRequestConstant = 6
-	StorageFetchTopics       StorageRequestConstant = 7
-	StorageFetchConsumer     StorageRequestConstant = 8
-	StorageFetchTopic        StorageRequestConstant = 9
+	StorageSetBrokerOffset     StorageRequestConstant = 0
+	StorageSetConsumerOffset   StorageRequestConstant = 1
+	StorageSetConsumerOwner    StorageRequestConstant = 2
+	StorageSetDeleteTopic      StorageRequestConstant = 3
+	StorageSetDeleteGroup      StorageRequestConstant = 4
+	StorageFetchClusters       StorageRequestConstant = 5
+	StorageFetchConsumers      StorageRequestConstant = 6
+	StorageFetchTopics         StorageRequestConstant = 7
+	StorageFetchConsumer       StorageRequestConstant = 8
+	StorageFetchTopic          StorageRequestConstant = 9
+	StorageClearConsumerOwners StorageRequestConstant = 10
 )
 
 type StorageRequest struct {

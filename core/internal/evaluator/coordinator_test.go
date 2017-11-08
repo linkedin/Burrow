@@ -83,7 +83,7 @@ func TestCoordinator_Start(t *testing.T) {
 	response := <-request.Reply
 
 	assert.Equalf(t, protocol.StatusOK, response.Status, "Expected status to be OK, not %v", response.Status.String())
-	assert.True(t, response.Complete, "Expected complete to be true")
+	assert.Equalf(t, float32(1.0), response.Complete, "Expected complete to be 1.0, not %v", response.Complete)
 	assert.Equalf(t, 1, response.TotalPartitions, "Expected total_partitions to be 1, not %v", response.TotalPartitions)
 	assert.Equalf(t, uint64(2421), response.TotalLag, "Expected total_lag to be 2421, not %v", response.TotalLag)
 	assert.Equalf(t, "testcluster", response.Cluster, "Expected cluster to be testcluster, not %v", response.Cluster)

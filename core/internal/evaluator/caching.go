@@ -122,7 +122,7 @@ func (module *CachingEvaluator) getConsumerStatus(request *protocol.EvaluatorReq
 			Cluster:    request.Cluster,
 			Group:      request.Group,
 			Status:     protocol.StatusNotFound,
-			Complete:   true,
+			Complete:   1.0,
 			Partitions: make([]*protocol.PartitionStatus, 0),
 			Maxlag:     nil,
 			TotalLag:   0,
@@ -197,7 +197,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 		Cluster:         cluster,
 		Group:           consumer,
 		Status:          protocol.StatusOK,
-		Complete:        true,
+		Complete:        1.0,
 		Maxlag:          nil,
 		TotalLag:        0,
 		TotalPartitions: 0,
@@ -214,11 +214,12 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	status.Partitions = make([]*protocol.PartitionStatus, status.TotalPartitions)
 
 	count := 0
+	completePartitions := 0
 	for topic, partitions := range topics {
-		for partition_id, partition := range partitions {
+		for partitionId, partition := range partitions {
 			partitionStatus := evaluatePartitionStatus(partition)
 			partitionStatus.Topic = topic
-			partitionStatus.Partition = int32(partition_id)
+			partitionStatus.Partition = int32(partitionId)
 
 			if partitionStatus.Status > status.Status {
 				// If the partition status is greater than StatusError, we just mark it as StatusError
@@ -232,17 +233,22 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 			if (status.Maxlag == nil) || (partitionStatus.CurrentLag > status.Maxlag.CurrentLag) {
 				status.Maxlag = partitionStatus
 			}
-			status.Complete = status.Complete && partitionStatus.Complete
+			if partitionStatus.Complete == 1.0 {
+				completePartitions += 1
+			}
 			status.Partitions[count] = partitionStatus
 			count++
 		}
 	}
 
+	// Calculate completeness as a percentage of the number of partitions that are complete
+	status.Complete = float32(completePartitions) / float32(status.TotalPartitions)
+
 	module.Log.Debug("evaluation result",
 		zap.String("cluster", cluster),
 		zap.String("consumer", consumer),
 		zap.String("status", status.Status.String()),
-		zap.Bool("complete", status.Complete),
+		zap.Float32("complete", status.Complete),
 		zap.Uint64("total_lag", status.TotalLag),
 		zap.Int("total_partitions", status.TotalPartitions),
 	)
@@ -252,23 +258,24 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.PartitionStatus {
 	status := &protocol.PartitionStatus{
 		Status:     protocol.StatusOK,
-		Complete:   true,
 		CurrentLag: partition.CurrentLag,
 	}
 
-	// Slice the offsets to remove all nil entries
-	numOffsets := len(partition.Offsets)
+	// Slice the offsets to remove all nil entries (they'll be at the start)
+	firstOffset := len(partition.Offsets) - 1
 	for i, offset := range partition.Offsets {
-		if offset == nil {
-			numOffsets = i
+		if offset != nil {
+			firstOffset = i
 			break
 		}
 	}
-	offsets := partition.Offsets[:numOffsets]
+	offsets := partition.Offsets[firstOffset:]
 
 	// Check if we had any nil offsets, and mark the partition as incomplete
 	if len(offsets) < len(partition.Offsets) {
-		status.Complete = false
+		status.Complete = float32(len(offsets)) / float32(len(partition.Offsets))
+	} else {
+		status.Complete = 1.0
 	}
 
 	// If there are no offsets left, just return an OK result as is - we can't determine anything more

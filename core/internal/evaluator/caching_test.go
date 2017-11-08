@@ -109,7 +109,7 @@ func TestCachingEvaluator_SingleRequest_NoShowAll(t *testing.T) {
 	response := <-request.Reply
 
 	assert.Equalf(t, protocol.StatusOK, response.Status, "Expected status to be OK, not %v", response.Status.String())
-	assert.True(t, response.Complete, "Expected complete to be true")
+	assert.Equalf(t, float32(1.0), response.Complete, "Expected complete to be 1.0, not %v", response.Complete)
 	assert.Equalf(t, 1, response.TotalPartitions, "Expected total_partitions to be 1, not %v", response.TotalPartitions)
 	assert.Equalf(t, uint64(2421), response.TotalLag, "Expected total_lag to be 2421, not %v", response.TotalLag)
 	assert.Equalf(t, "testcluster", response.Cluster, "Expected cluster to be testcluster, not %v", response.Cluster)
@@ -135,12 +135,46 @@ func TestCachingEvaluator_SingleRequest_ShowAll(t *testing.T) {
 	response := <-request.Reply
 
 	assert.Equalf(t, protocol.StatusOK, response.Status, "Expected status to be OK, not %v", response.Status.String())
-	assert.True(t, response.Complete, "Expected complete to be true")
+	assert.Equalf(t, float32(1.0), response.Complete, "Expected complete to be 1.0, not %v", response.Complete)
 	assert.Equalf(t, 1, response.TotalPartitions, "Expected total_partitions to be 1, not %v", response.TotalPartitions)
 	assert.Equalf(t, uint64(2421), response.TotalLag, "Expected total_lag to be 2421, not %v", response.TotalLag)
 	assert.Equalf(t, "testcluster", response.Cluster, "Expected cluster to be testcluster, not %v", response.Cluster)
 	assert.Equalf(t, "testgroup", response.Group, "Expected group to be testgroup, not %v", response.Group)
 	assert.Lenf(t, response.Partitions, 1, "Expected 1 partition status objects, not %v", len(response.Partitions))
+
+	response, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+
+	stopTestCluster(storageCoordinator, module)
+}
+
+func TestCachingEvaluator_SingleRequest_Incomplete(t *testing.T) {
+	storageCoordinator, module := startWithTestCluster()
+
+	request := &protocol.EvaluatorRequest{
+		Reply:   make(chan *protocol.ConsumerGroupStatus),
+		Cluster: "testcluster",
+		Group:   "testgroup2",
+	}
+	module.GetCommunicationChannel() <- request
+	response := <-request.Reply
+
+	assert.Equalf(t, protocol.StatusError, response.Status, "Expected status to be ERR, not %v", response.Status.String())
+	assert.Equalf(t, float32(0.0), response.Complete, "Expected complete to be 0.0, not %v", response.Complete)
+	assert.Equalf(t, 1, response.TotalPartitions, "Expected total_partitions to be 1, not %v", response.TotalPartitions)
+	assert.Equalf(t, uint64(2921), response.TotalLag, "Expected total_lag to be 2921, not %v", response.TotalLag)
+	assert.Equalf(t, "testcluster", response.Cluster, "Expected cluster to be testcluster, not %v", response.Cluster)
+	assert.Equalf(t, "testgroup2", response.Group, "Expected group to be testgroup2, not %v", response.Group)
+
+	assert.Lenf(t, response.Partitions, 1, "Expected 1 partition status objects, not %v", len(response.Partitions))
+	assert.Equalf(t, float32(0.5), response.Partitions[0].Complete, "Expected partition Complete to be 0.5, not %v", response.Partitions[0].Complete)
+	assert.Equalf(t, protocol.StatusStop, response.Partitions[0].Status, "Expected partition status to be STOP, not %v", response.Partitions[0].Status.String())
+
+	assert.NotNil(t, response.Maxlag, "Expected Maxlag to be not nil")
+	assert.NotNil(t, response.Maxlag.Start, "Expected Maxlag.Start to be not nil")
+	assert.Equalf(t, int64(1000), response.Maxlag.Start.Offset, "Expected Maxlag.Start.Offset to be 100, not %v", response.Maxlag.Start.Offset)
+	assert.NotNil(t, response.Maxlag.End, "Expected Maxlag.End to be not nil")
+	assert.Equalf(t, int64(1400), response.Maxlag.End.Offset, "Expected Maxlag.End.Offset to be 100, not %v", response.Maxlag.End.Offset)
 
 	response, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")

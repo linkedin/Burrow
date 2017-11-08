@@ -38,18 +38,18 @@ func templateJsonEncoder(encodeMe interface{}) string {
 // Helper - recategorize partitions as a map of lists
 // map[string][]string => status short name -> list of topics
 func classifyTopicsByStatus(partitions []*protocol.PartitionStatus) map[string][]string {
-	tmp_map := make(map[string]map[string]bool)
+	tmpMap := make(map[string]map[string]bool)
 	for _, partition := range partitions {
-		if _, ok := tmp_map[partition.Status.String()]; !ok {
-			tmp_map[partition.Status.String()] = make(map[string]bool)
+		if _, ok := tmpMap[partition.Status.String()]; !ok {
+			tmpMap[partition.Status.String()] = make(map[string]bool)
 		}
-		tmp_map[partition.Status.String()][partition.Topic] = true
+		tmpMap[partition.Status.String()][partition.Topic] = true
 	}
 
 	rv := make(map[string][]string)
-	for status, topicMap := range tmp_map {
+	for status, topicMap := range tmpMap {
 		rv[status] = make([]string, 0, len(topicMap))
-		for topic, _ := range topicMap {
+		for topic := range topicMap {
 			rv[status] = append(rv[status], topic)
 		}
 	}
