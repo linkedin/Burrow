@@ -510,33 +510,36 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion uint16) (MetadataMemb
 		return memberMetadata, "session_timeout"
 	}
 
-	var subscriptionBytes uint32
+	var subscriptionBytes int32
 	err = binary.Read(buf, binary.BigEndian, &subscriptionBytes)
 	if err != nil {
 		return memberMetadata, "subscription_bytes"
 	}
-	buf.Next(int(subscriptionBytes))
+	if subscriptionBytes > 0 {
+		buf.Next(int(subscriptionBytes))
+	}
 
-	var assignmentBytes uint32
+	var assignmentBytes int32
 	err = binary.Read(buf, binary.BigEndian, &assignmentBytes)
 	if err != nil {
 		return memberMetadata, "assignment_bytes"
 	}
 
-	var consumerProtocolVersion uint16
-	err = binary.Read(buf, binary.BigEndian, &consumerProtocolVersion)
-	if err != nil {
-		return memberMetadata, "consumer_protocol_version"
+	if assignmentBytes > 0 {
+		var consumerProtocolVersion uint16
+		err = binary.Read(buf, binary.BigEndian, &consumerProtocolVersion)
+		if err != nil {
+			return memberMetadata, "consumer_protocol_version"
+		}
+		if consumerProtocolVersion != 0 {
+			return memberMetadata, "consumer_protocol_version"
+		}
+		assignment, errorAt := decodeMemberAssignmentV0(buf)
+		if errorAt != "" {
+			return memberMetadata, "assignment"
+		}
+		memberMetadata.Assignment = assignment
 	}
-
-	if consumerProtocolVersion != 0 {
-		return memberMetadata, "consumer_protocol_version"
-	}
-	assignment, errorAt := decodeMemberAssignmentV0(buf)
-	if errorAt != "" {
-		return memberMetadata, "assignment"
-	}
-	memberMetadata.Assignment = assignment
 
 	return memberMetadata, ""
 }
