@@ -15,6 +15,7 @@ import (
 	"text/template"
 
 	"github.com/linkedin/Burrow/core/protocol"
+	"time"
 )
 
 // Helper functions for templates
@@ -27,6 +28,7 @@ var helperFunctionMap = template.FuncMap{
 	"multiply":        templateMultiply,
 	"divide":          templateDivide,
 	"maxlag":          maxLagHelper,
+	"formattimestamp": formatTimestamp,
 }
 
 // Helper function for the templates to encode an object into a JSON string
@@ -108,4 +110,8 @@ func maxLagHelper(a *protocol.PartitionStatus) int64 {
 	} else {
 		return a.CurrentLag
 	}
+}
+
+func formatTimestamp(timestamp int64, formatString string) string {
+	return time.Unix(0, timestamp * int64(time.Millisecond)).Format(formatString)
 }
