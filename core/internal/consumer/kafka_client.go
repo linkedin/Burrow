@@ -36,8 +36,8 @@ type KafkaClient struct {
 	clientProfile  *configuration.ClientProfile
 	groupWhitelist *regexp.Regexp
 
-	quitChannel    chan struct{}
-	running        sync.WaitGroup
+	quitChannel chan struct{}
+	running     sync.WaitGroup
 }
 
 func (module *KafkaClient) Configure(name string) {
@@ -176,7 +176,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	logger := module.Log.With(
 		zap.String("offset_topic", msg.Topic),
 		zap.Int32("offset_partition", msg.Partition),
-		zap.Int64("offset", msg.Offset),
+		zap.Int64("offset_offset", msg.Offset),
 	)
 
 	if len(msg.Value) == 0 {

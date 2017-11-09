@@ -19,9 +19,9 @@ import (
 	"go.uber.org/zap"
 
 	"container/ring"
+	"github.com/OneOfOne/xxhash"
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/OneOfOne/xxhash"
 )
 
 type InMemoryStorage struct {
@@ -206,7 +206,7 @@ func (module *InMemoryStorage) mainLoop() {
 				module.workers[int(rand.Int31n(int32(module.myConfiguration.Workers)))] <- r
 			case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
 				// Hash to a consistent worker
-				module.workers[int(xxhash.ChecksumString64(r.Cluster + r.Group) % uint64(module.myConfiguration.Workers))] <- r
+				module.workers[int(xxhash.ChecksumString64(r.Cluster+r.Group)%uint64(module.myConfiguration.Workers))] <- r
 			default:
 				module.Log.Error("unknown storage request type",
 					zap.Int("request_type", int(r.RequestType)),

@@ -105,7 +105,7 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	go module.partitionConsumer(consumer)
-	
+
 	// Send a message over the error channel to make sure it doesn't block
 	testError := &sarama.ConsumerError{
 		Topic:     "testtopic",

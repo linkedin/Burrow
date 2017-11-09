@@ -24,8 +24,8 @@ type HTTPResponseLogLevel struct {
 }
 
 type HTTPResponseRequestInfo struct {
-	URI     string `json:"url"`
-	Host    string `json:"host"`
+	URI  string `json:"url"`
+	Host string `json:"host"`
 }
 
 type HTTPResponseError struct {

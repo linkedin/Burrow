@@ -21,9 +21,9 @@ import (
 	"github.com/linkedin/Burrow/core/configuration"
 	"io/ioutil"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
-	"strings"
 )
 
 func CheckAndCreatePidFile(filename string) bool {
