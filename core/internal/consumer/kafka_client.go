@@ -34,14 +34,10 @@ type KafkaClient struct {
 
 	saramaConfig   *sarama.Config
 	clientProfile  *configuration.ClientProfile
-	messageChannel chan *sarama.ConsumerMessage
-	errorChannel   chan *sarama.ConsumerError
 	groupWhitelist *regexp.Regexp
 
-	quitChannel         chan struct{}
-	consumerQuitChannel chan struct{}
-	running             sync.WaitGroup
-	consumerRunning     sync.WaitGroup
+	quitChannel    chan struct{}
+	running        sync.WaitGroup
 }
 
 func (module *KafkaClient) Configure(name string) {
@@ -49,11 +45,8 @@ func (module *KafkaClient) Configure(name string) {
 
 	module.name = name
 	module.quitChannel = make(chan struct{})
-	module.consumerQuitChannel = make(chan struct{})
 	module.running = sync.WaitGroup{}
-	module.consumerRunning = sync.WaitGroup{}
 	module.myConfiguration = module.App.Configuration.Consumer[name]
-	module.messageChannel = make(chan *sarama.ConsumerMessage)
 
 	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; !ok {
 		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
@@ -93,14 +86,12 @@ func (module *KafkaClient) Start() error {
 		return err
 	}
 
+	// Start the consumers
 	err = module.startKafkaConsumer(&helpers.BurrowSaramaClient{Client: client})
 	if err != nil {
 		client.Close()
 		return err
 	}
-
-	// Start main loop
-	go module.mainLoop()
 
 	return nil
 }
@@ -108,46 +99,28 @@ func (module *KafkaClient) Start() error {
 func (module *KafkaClient) Stop() error {
 	module.Log.Info("stopping")
 
-	// We use 2 quit channels so that the consumers don't block on shutdown because the mainLoop went down first
-	close(module.consumerQuitChannel)
-	module.consumerRunning.Wait()
-
 	close(module.quitChannel)
 	module.running.Wait()
 
 	return nil
 }
 
-func (module *KafkaClient) mainLoop() {
+func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) {
 	module.running.Add(1)
 	defer module.running.Done()
-
-	for {
-		select {
-		case msg := <-module.messageChannel:
-			go module.processConsumerOffsetsMessage(msg)
-		case <-module.quitChannel:
-			return
-		}
-	}
-}
-
-func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) {
-	module.consumerRunning.Add(1)
-	defer module.consumerRunning.Done()
 	defer consumer.AsyncClose()
 
 	for {
 		select {
 		case msg := <-consumer.Messages():
-			module.messageChannel <- msg
+			module.processConsumerOffsetsMessage(msg)
 		case err := <-consumer.Errors():
 			module.Log.Error("consume error",
 				zap.String("topic", err.Topic),
 				zap.Int32("partition", err.Partition),
 				zap.String("error", err.Err.Error()),
 			)
-		case <-module.consumerQuitChannel:
+		case <-module.quitChannel:
 			return
 		}
 	}

@@ -105,13 +105,7 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	go module.partitionConsumer(consumer)
-
-	// Send a message over the message channel to make sure it gets received
-	testMessage := &sarama.ConsumerMessage{}
-	go func() { messageChan <- testMessage }()
-	receivedMessage := <-module.messageChannel
-	assert.Equal(t, testMessage, receivedMessage, "Expected to receive test message over fan in channel")
-
+	
 	// Send a message over the error channel to make sure it doesn't block
 	testError := &sarama.ConsumerError{
 		Topic:     "testtopic",
@@ -121,8 +115,8 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	errorChan <- testError
 
 	// Assure the partitionConsumer closes properly
-	close(module.consumerQuitChannel)
-	module.consumerRunning.Wait()
+	close(module.quitChannel)
+	module.running.Wait()
 
 	consumer.AssertExpectations(t)
 }
@@ -151,8 +145,8 @@ func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 	err := module.startKafkaConsumer(client)
 	assert.Nil(t, err, "Expected startKafkaConsumer to return no error")
 
-	close(module.consumerQuitChannel)
-	module.consumerRunning.Wait()
+	close(module.quitChannel)
+	module.running.Wait()
 
 	consumer.AssertExpectations(t)
 	client.AssertExpectations(t)
