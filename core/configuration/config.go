@@ -117,8 +117,9 @@ type HttpServerConfig struct {
 
 type Configuration struct {
 	General struct {
-		PIDFile       string `gcfg:"pidfile"`
-		StdoutLogfile string `gcfg:"stdout-logfile"`
+		PIDFile                  string `gcfg:"pidfile"`
+		StdoutLogfile            string `gcfg:"stdout-logfile"`
+		AccessControlAllowOrigin string `gcfg:"access-control-allow-origin"`
 	}
 	Logging struct {
 		Filename       string `gcfg:"filename"`

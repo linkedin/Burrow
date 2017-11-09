@@ -212,31 +212,28 @@ func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
 	}
 }
 
-func writeResponse(w http.ResponseWriter, r *http.Request, statusCode int, jsonObj interface{}) {
-	jsonBytes, err := json.Marshal(jsonObj)
-	if err != nil {
-		writeErrorResponse(w, r, http.StatusInternalServerError, "could not encode JSON")
-		return
+func (hc *Coordinator) writeResponse(w http.ResponseWriter, r *http.Request, statusCode int, jsonObj interface{}) {
+	// Add CORS header, if configured
+	if hc.App.Configuration.General.AccessControlAllowOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", hc.App.Configuration.General.AccessControlAllowOrigin)
 	}
 
-	// Headers go here
-	w.WriteHeader(statusCode)
-	w.Write(jsonBytes)
+	if jsonBytes, err := json.Marshal(jsonObj); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"))
+		return
+	} else {
+		w.WriteHeader(statusCode)
+		w.Write(jsonBytes)
+	}
 }
 
-func writeErrorResponse(w http.ResponseWriter, r *http.Request, errValue int, message string) {
-	rv := HTTPResponseError{
+func (hc *Coordinator) writeErrorResponse(w http.ResponseWriter, r *http.Request, errValue int, message string) {
+	hc.writeResponse(w, r, errValue, HTTPResponseError{
 		Error:   true,
 		Message: message,
 		Request: makeRequestInfo(r),
-	}
-
-	jsonStr, err := json.Marshal(rv)
-	if err != nil {
-		http.Error(w, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}", http.StatusInternalServerError)
-	} else {
-		http.Error(w, string(jsonStr), errValue)
-	}
+	})
 }
 
 // This is a catch-all handler for unknown URLs. It should return a 404
@@ -247,13 +244,18 @@ func (handler *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// Add CORS header, if configured
+	if hc.App.Configuration.General.AccessControlAllowOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", hc.App.Configuration.General.AccessControlAllowOrigin)
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("GOOD"))
 }
 
 func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	requestInfo := makeRequestInfo(r)
-	writeResponse(w, r, http.StatusOK, HTTPResponseLogLevel{
+	hc.writeResponse(w, r, http.StatusOK, HTTPResponseLogLevel{
 		Error:   false,
 		Message: "log level returned",
 		Level:   hc.App.LogLevel.Level().String(),
@@ -267,7 +269,7 @@ func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ htt
 	var req LogLevelRequest
 	err := decoder.Decode(&req)
 	if err != nil {
-		writeErrorResponse(w, r, http.StatusBadRequest, "could not decode message body")
+		hc.writeErrorResponse(w, r, http.StatusBadRequest, "could not decode message body")
 		return
 	}
 	r.Body.Close()
@@ -285,12 +287,12 @@ func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ htt
 	case "fatal":
 		hc.App.LogLevel.SetLevel(zap.FatalLevel)
 	default:
-		writeErrorResponse(w, r, http.StatusNotFound, "unknown log level")
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "unknown log level")
 		return
 	}
 
 	requestInfo := makeRequestInfo(r)
-	writeResponse(w, r, http.StatusOK, HTTPResponseError{
+	hc.writeResponse(w, r, http.StatusOK, HTTPResponseError{
 		Error:   false,
 		Message: "set log level",
 		Request: requestInfo,

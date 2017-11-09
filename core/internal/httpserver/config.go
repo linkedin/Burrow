@@ -51,7 +51,7 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 	}
 
 	requestInfo := makeRequestInfo(r)
-	writeResponse(w, r, http.StatusOK, HTTPResponseConfigMain{
+	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigMain{
 		Error:      false,
 		Message:    "main config returned",
 		General:    configGeneral,
@@ -62,9 +62,9 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 	})
 }
 
-func writeModuleListResponse(w http.ResponseWriter, r *http.Request, coordinator string, modules []string) {
+func (hc *Coordinator) writeModuleListResponse(w http.ResponseWriter, r *http.Request, coordinator string, modules []string) {
 	requestInfo := makeRequestInfo(r)
-	writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleList{
+	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleList{
 		Error:       false,
 		Message:     "module list returned",
 		Request:     requestInfo,
@@ -80,7 +80,7 @@ func (hc *Coordinator) configStorageList(w http.ResponseWriter, r *http.Request,
 		modules[i] = name
 		i++
 	}
-	writeModuleListResponse(w, r, "storage", modules)
+	hc.writeModuleListResponse(w, r, "storage", modules)
 }
 
 func (hc *Coordinator) configConsumerList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -90,7 +90,7 @@ func (hc *Coordinator) configConsumerList(w http.ResponseWriter, r *http.Request
 		modules[i] = name
 		i++
 	}
-	writeModuleListResponse(w, r, "consumer", modules)
+	hc.writeModuleListResponse(w, r, "consumer", modules)
 }
 
 func (hc *Coordinator) configClusterList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -100,7 +100,7 @@ func (hc *Coordinator) configClusterList(w http.ResponseWriter, r *http.Request,
 		modules[i] = name
 		i++
 	}
-	writeModuleListResponse(w, r, "cluster", modules)
+	hc.writeModuleListResponse(w, r, "cluster", modules)
 }
 
 func (hc *Coordinator) configEvaluatorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -110,7 +110,7 @@ func (hc *Coordinator) configEvaluatorList(w http.ResponseWriter, r *http.Reques
 		modules[i] = name
 		i++
 	}
-	writeModuleListResponse(w, r, "evaluator", modules)
+	hc.writeModuleListResponse(w, r, "evaluator", modules)
 }
 
 func (hc *Coordinator) configNotifierList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -120,15 +120,15 @@ func (hc *Coordinator) configNotifierList(w http.ResponseWriter, r *http.Request
 		modules[i] = name
 		i++
 	}
-	writeModuleListResponse(w, r, "notifier", modules)
+	hc.writeModuleListResponse(w, r, "notifier", modules)
 }
 
 func (hc *Coordinator) configStorageDetail(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	if cfg, ok := hc.App.Configuration.Storage[params.ByName("name")]; !ok {
-		writeErrorResponse(w, r, http.StatusNotFound, "storage module not found")
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "storage module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "storage module detail returned",
 			Module: HTTPResponseConfigModuleStorage{
@@ -145,10 +145,10 @@ func (hc *Coordinator) configStorageDetail(w http.ResponseWriter, r *http.Reques
 
 func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	if cfg, ok := hc.App.Configuration.Consumer[params.ByName("name")]; !ok {
-		writeErrorResponse(w, r, http.StatusNotFound, "consumer module not found")
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "consumer module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "consumer module detail returned",
 			Module: HTTPResponseConfigModuleConsumer{
@@ -169,10 +169,10 @@ func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Reque
 
 func (hc *Coordinator) configEvaluatorDetail(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	if cfg, ok := hc.App.Configuration.Evaluator[params.ByName("name")]; !ok {
-		writeErrorResponse(w, r, http.StatusNotFound, "evaluator module not found")
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "evaluator module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "evaluator module detail returned",
 			Module: HTTPResponseConfigModuleEvaluator{
@@ -218,7 +218,7 @@ func getSlackNotifierProfile(name string, profile *configuration.SlackNotifierPr
 
 func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	if cfg, ok := hc.App.Configuration.Notifier[params.ByName("name")]; !ok {
-		writeErrorResponse(w, r, http.StatusNotFound, "notifier module not found")
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "notifier module not found")
 	} else {
 		// Get the right profile structure
 		var profile interface{}
@@ -231,7 +231,7 @@ func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Reque
 			profile = getSlackNotifierProfile(cfg.Profile, hc.App.Configuration.SlackNotifierProfile[cfg.Profile])
 		}
 		requestInfo := makeRequestInfo(r)
-		writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
 			Error:   false,
 			Message: "notifier module detail returned",
 			Module: HTTPResponseConfigModuleNotifier{
