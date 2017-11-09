@@ -38,6 +38,8 @@ type HttpNotifierProfile struct {
 	UrlClose    string `gcfg:"url-close"`
 	MethodOpen  string `gcfg:"method-open"`
 	MethodClose string `gcfg:"method-close"`
+	Username    string `gcfg:"username"`
+	Password    string `gcfg:"password"`
 }
 type SlackNotifierProfile struct {
 	Token     string `gcfg:"token"`

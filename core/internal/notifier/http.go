@@ -150,8 +150,12 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 		return
 	}
 
-	// Send POST to HTTP endpoint
+	// Send request to HTTP endpoint
 	req, err := http.NewRequest(method, url, bytesToSend)
+	if module.profile.Username != "" {
+		// Add basic auth using the provided username and password
+		req.SetBasicAuth(module.profile.Username, module.profile.Password)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := module.HttpClient.Do(req)
