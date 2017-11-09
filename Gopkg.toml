@@ -37,3 +37,7 @@
 [[constraint]]
   name = "github.com/karrick/goswarm"
   version = "1.4.7"
+
+[[constraint]]
+  name = "github.com/OneOfOne/xxhash"
+  version = "1.2.1"

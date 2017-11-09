@@ -11,15 +11,17 @@
 package storage
 
 import (
+	"math/rand"
+	"regexp"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
 	"container/ring"
 	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"regexp"
-	"time"
+	"github.com/OneOfOne/xxhash"
 )
 
 type InMemoryStorage struct {
@@ -33,6 +35,7 @@ type InMemoryStorage struct {
 
 	offsets        map[string]ClusterOffsets
 	groupWhitelist *regexp.Regexp
+	workers        []chan *protocol.StorageRequest
 }
 
 type BrokerOffset struct {
@@ -74,15 +77,18 @@ func (module *InMemoryStorage) Configure(name string) {
 	module.offsets = make(map[string]ClusterOffsets)
 
 	// Set defaults for configs if needed
-	if module.App.Configuration.Storage[module.name].Intervals == 0 {
-		module.App.Configuration.Storage[module.name].Intervals = 10
+	if module.myConfiguration.Intervals == 0 {
+		module.myConfiguration.Intervals = 10
 	}
-	if module.App.Configuration.Storage[module.name].ExpireGroup == 0 {
-		module.App.Configuration.Storage[module.name].ExpireGroup = 604800
+	if module.myConfiguration.ExpireGroup == 0 {
+		module.myConfiguration.ExpireGroup = 604800
+	}
+	if module.myConfiguration.Workers == 0 {
+		module.myConfiguration.Workers = 20
 	}
 
-	if module.App.Configuration.Storage[module.name].GroupWhitelist != "" {
-		re, err := regexp.Compile(module.App.Configuration.Storage[module.name].GroupWhitelist)
+	if module.myConfiguration.GroupWhitelist != "" {
+		re, err := regexp.Compile(module.myConfiguration.GroupWhitelist)
 		if err != nil {
 			module.Log.Panic("Failed to compile group whitelist")
 			panic(err)
@@ -108,6 +114,13 @@ func (module *InMemoryStorage) Start() error {
 		}
 	}
 
+	// Start the appropriate number of workers, with a channel for each
+	module.workers = make([]chan *protocol.StorageRequest, module.myConfiguration.Workers)
+	for i := 0; i < module.myConfiguration.Workers; i++ {
+		module.workers[i] = make(chan *protocol.StorageRequest)
+		go module.requestWorker(i, module.workers[i])
+	}
+
 	go module.mainLoop()
 	return nil
 }
@@ -116,8 +129,64 @@ func (module *InMemoryStorage) Stop() error {
 	module.Log.Info("stopping")
 
 	close(module.RequestChannel)
+	for i := 0; i < module.myConfiguration.Workers; i++ {
+		close(module.workers[i])
+	}
+
 	module.running.Wait()
 	return nil
+}
+
+func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan *protocol.StorageRequest) {
+	module.running.Add(1)
+	defer module.running.Done()
+
+	workerLogger := module.Log.With(zap.Int("worker", workerNum))
+	for {
+		select {
+		case r, isOpen := <-requestChannel:
+			if !isOpen {
+				return
+			}
+
+			// Easier to set up the structured logger once for the request
+			requestLogger := workerLogger.With(
+				zap.String("cluster", r.Cluster),
+				zap.String("consumer", r.Group),
+				zap.String("topic", r.Topic),
+				zap.Int32("partition", r.Partition),
+				zap.Int32("topic_partition_count", r.TopicPartitionCount),
+				zap.Int64("offset", r.Offset),
+				zap.Int64("timestamp", r.Timestamp),
+				zap.String("owner", r.Owner),
+			)
+
+			switch r.RequestType {
+			case protocol.StorageSetBrokerOffset:
+				module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
+			case protocol.StorageSetConsumerOffset:
+				module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
+			case protocol.StorageSetConsumerOwner:
+				module.addConsumerOwner(r, requestLogger.With(zap.String("request", "StorageSetConsumerOwner")))
+			case protocol.StorageSetDeleteTopic:
+				module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
+			case protocol.StorageSetDeleteGroup:
+				module.deleteGroup(r, requestLogger.With(zap.String("request", "StorageSetDeleteGroup")))
+			case protocol.StorageFetchClusters:
+				module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
+			case protocol.StorageFetchConsumers:
+				module.fetchConsumerList(r, requestLogger.With(zap.String("request", "StorageFetchConsumers")))
+			case protocol.StorageFetchTopics:
+				module.fetchTopicList(r, requestLogger.With(zap.String("request", "StorageFetchTopics")))
+			case protocol.StorageFetchConsumer:
+				module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
+			case protocol.StorageFetchTopic:
+				module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
+			case protocol.StorageClearConsumerOwners:
+				module.clearConsumerOwners(r, requestLogger.With(zap.String("request", "StorageClearConsumerOwners")))
+			}
+		}
+	}
 }
 
 func (module *InMemoryStorage) mainLoop() {
@@ -131,44 +200,15 @@ func (module *InMemoryStorage) mainLoop() {
 				return
 			}
 
-			// Easier to set up the structured logger once for the request
-			requestLogger := module.Log.With(
-				zap.String("cluster", r.Cluster),
-				zap.String("consumer", r.Group),
-				zap.String("topic", r.Topic),
-				zap.Int32("partition", r.Partition),
-				zap.Int32("topic_partition_count", r.TopicPartitionCount),
-				zap.Int64("offset", r.Offset),
-				zap.Int64("timestamp", r.Timestamp),
-				zap.String("owner", r.Owner),
-			)
-
 			switch r.RequestType {
-			case protocol.StorageSetBrokerOffset:
-				go module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
-			case protocol.StorageSetConsumerOffset:
-				go module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
-			case protocol.StorageSetConsumerOwner:
-				go module.addConsumerOwner(r, requestLogger.With(zap.String("request", "StorageSetConsumerOwner")))
-			case protocol.StorageSetDeleteTopic:
-				go module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
-			case protocol.StorageSetDeleteGroup:
-				go module.deleteGroup(r, requestLogger.With(zap.String("request", "StorageSetDeleteGroup")))
-			case protocol.StorageFetchClusters:
-				go module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
-			case protocol.StorageFetchConsumers:
-				go module.fetchConsumerList(r, requestLogger.With(zap.String("request", "StorageFetchConsumers")))
-			case protocol.StorageFetchTopics:
-				go module.fetchTopicList(r, requestLogger.With(zap.String("request", "StorageFetchTopics")))
-			case protocol.StorageFetchConsumer:
-				go module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
-			case protocol.StorageFetchTopic:
-				go module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
-			case protocol.StorageClearConsumerOwners:
-				go module.clearConsumerOwners(r, requestLogger.With(zap.String("request", "StorageClearConsumerOwners")))
-
+			case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic:
+				// Send to any worker
+				module.workers[int(rand.Int31n(int32(module.myConfiguration.Workers)))] <- r
+			case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
+				// Hash to a consistent worker
+				module.workers[int(xxhash.ChecksumString64(r.Cluster + r.Group) % uint64(module.myConfiguration.Workers))] <- r
 			default:
-				requestLogger.Error("unknown storage request type",
+				module.Log.Error("unknown storage request type",
 					zap.Int("request_type", int(r.RequestType)),
 				)
 				if r.Reply != nil {
