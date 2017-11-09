@@ -212,7 +212,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 		return
 	}
 
-	var keyver uint16
+	var keyver int16
 	keyBuffer := bytes.NewBuffer(msg.Key)
 	err := binary.Read(keyBuffer, binary.BigEndian, &keyver)
 	if err != nil {
@@ -230,7 +230,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	default:
 		logger.Warn("failed to decode",
 			zap.String("reason", "key version"),
-			zap.Uint16("version", keyver),
+			zap.Int16("version", keyver),
 		)
 	}
 }
@@ -256,12 +256,12 @@ func readString(buf *bytes.Buffer) (string, error) {
 type OffsetKey struct {
 	Group     string
 	Topic     string
-	Partition uint32
+	Partition int32
 	ErrorAt   string
 }
 type OffsetValue struct {
-	Offset    uint64
-	Timestamp uint64
+	Offset    int64
+	Timestamp int64
 	ErrorAt   string
 }
 type MetadataHeader struct {
@@ -295,7 +295,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 			zap.String("message_type", "offset"),
 			zap.String("group", offsetKey.Group),
 			zap.String("topic", offsetKey.Topic),
-			zap.Uint32("partition", offsetKey.Partition),
+			zap.Int32("partition", offsetKey.Partition),
 			zap.String("reason", errorAt),
 		)
 		return
@@ -305,7 +305,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 		zap.String("message_type", "offset"),
 		zap.String("group", offsetKey.Group),
 		zap.String("topic", offsetKey.Topic),
-		zap.Uint32("partition", offsetKey.Partition),
+		zap.Int32("partition", offsetKey.Partition),
 	)
 
 	if !module.acceptConsumerGroup(offsetKey.Group) {
@@ -313,7 +313,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 		return
 	}
 
-	var valueVersion uint16
+	var valueVersion int16
 	valueBuffer := bytes.NewBuffer(value)
 	err := binary.Read(valueBuffer, binary.BigEndian, &valueVersion)
 	if err != nil {
@@ -329,7 +329,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 	default:
 		offsetLogger.Warn("failed to decode",
 			zap.String("reason", "value version"),
-			zap.Uint16("version", valueVersion),
+			zap.Int16("version", valueVersion),
 		)
 	}
 }
@@ -338,8 +338,8 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey OffsetKey, valueBuffer 
 	offsetValue, errorAt := decodeOffsetValueV0(valueBuffer)
 	if errorAt != "" {
 		logger.Warn("failed to decode",
-			zap.Uint64("offset", offsetValue.Offset),
-			zap.Uint64("timestamp", offsetValue.Timestamp),
+			zap.Int64("offset", offsetValue.Offset),
+			zap.Int64("timestamp", offsetValue.Timestamp),
 			zap.String("reason", errorAt),
 		)
 		return
@@ -355,8 +355,8 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey OffsetKey, valueBuffer 
 		Offset:      int64(offsetValue.Offset),
 	}
 	logger.Debug("consumer offset",
-		zap.Uint64("offset", offsetValue.Offset),
-		zap.Uint64("timestamp", offsetValue.Timestamp),
+		zap.Int64("offset", offsetValue.Offset),
+		zap.Int64("timestamp", offsetValue.Timestamp),
 	)
 	helpers.TimeoutSendStorageRequest(module.App.StorageChannel, partitionOffset, 1)
 }
@@ -371,7 +371,7 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 		return
 	}
 
-	var valueVersion uint16
+	var valueVersion int16
 	valueBuffer := bytes.NewBuffer(value)
 	err = binary.Read(valueBuffer, binary.BigEndian, &valueVersion)
 	if err != nil {
@@ -394,12 +394,12 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 			zap.String("message_type", "metadata"),
 			zap.String("group", group),
 			zap.String("reason", "value version"),
-			zap.Uint16("version", valueVersion),
+			zap.Int16("version", valueVersion),
 		)
 	}
 }
 
-func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion uint16, group string, valueBuffer *bytes.Buffer, logger *zap.Logger) {
+func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group string, valueBuffer *bytes.Buffer, logger *zap.Logger) {
 	metadataHeader, errorAt := decodeMetadataValueHeader(valueBuffer)
 	metadataLogger := logger.With(
 		zap.String("protocol_type", metadataHeader.ProtocolType),
@@ -414,7 +414,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion uint16, group
 		return
 	}
 
-	var memberCount uint32
+	var memberCount int32
 	err := binary.Read(valueBuffer, binary.BigEndian, &memberCount)
 	if err != nil {
 		metadataLogger.Warn("failed to decode",
@@ -483,7 +483,7 @@ func decodeMetadataValueHeader(buf *bytes.Buffer) (MetadataHeader, string) {
 	return metadataHeader, ""
 }
 
-func decodeMetadataMember(buf *bytes.Buffer, memberVersion uint16) (MetadataMember, string) {
+func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (MetadataMember, string) {
 	var err error
 	memberMetadata := MetadataMember{}
 
@@ -526,7 +526,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion uint16) (MetadataMemb
 	}
 
 	if assignmentBytes > 0 {
-		var consumerProtocolVersion uint16
+		var consumerProtocolVersion int16
 		err = binary.Read(buf, binary.BigEndian, &consumerProtocolVersion)
 		if err != nil {
 			return memberMetadata, "consumer_protocol_version"
@@ -547,7 +547,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion uint16) (MetadataMemb
 func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 	var err error
 	var topics map[string][]int32
-	var numTopics, numPartitions, partitionId uint32
+	var numTopics, numPartitions, partitionId, userDataLen int32
 
 	err = binary.Read(buf, binary.BigEndian, &numTopics)
 	if err != nil {
@@ -575,6 +575,14 @@ func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 			}
 			topics[topicName][j] = int32(partitionId)
 		}
+	}
+
+	err = binary.Read(buf, binary.BigEndian, &userDataLen)
+	if err != nil {
+		return topics, "user_bytes"
+	}
+	if userDataLen > 0 {
+		buf.Next(int(userDataLen))
 	}
 
 	return topics, ""

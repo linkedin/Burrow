@@ -250,7 +250,7 @@ func TestKafkaClient_decodeMetadataValueHeader_Errors(t *testing.T) {
 }
 
 func TestKafkaClient_decodeMetadataMember(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00"))
+	buf := bytes.NewBuffer([]byte("\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"))
 	result, errorAt := decodeMetadataMember(buf, 1)
 
 	assert.Equalf(t, "", errorAt, "Expected decodeMetadataMember to return empty errorAt, not %v", errorAt)
@@ -281,7 +281,7 @@ func TestKafkaClient_decodeMetadataMember_Errors(t *testing.T) {
 }
 
 func TestKafkaClient_decodeMemberAssignmentV0(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00"))
+	buf := bytes.NewBuffer([]byte("\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"))
 	assignment, errorAt := decodeMemberAssignmentV0(buf)
 
 	assert.Equalf(t, "", errorAt, "Expected decodeMemberAssignmentV0 to return empty errorAt, not %v", errorAt)
@@ -313,7 +313,7 @@ func TestKafkaClient_decodeOffsetKeyV0(t *testing.T) {
 	assert.Equalf(t, "", errorAt, "Expected decodeOffsetKeyV0 to return empty errorAt, not %v", errorAt)
 	assert.Equalf(t, "testgroup", result.Group, "Expected Group to be testgroup, not %v", result.Group)
 	assert.Equalf(t, "testtopic", result.Topic, "Expected Topic to be testtopic, not %v", result.Topic)
-	assert.Equalf(t, uint32(11), result.Partition, "Expected Partition to be 11, not %v", result.Partition)
+	assert.Equalf(t, int32(11), result.Partition, "Expected Partition to be 11, not %v", result.Partition)
 }
 
 var decodeOffsetKeyV0Errors = []errorTestSetBytesWithString{
@@ -334,8 +334,8 @@ func TestKafkaClient_decodeOffsetValueV0(t *testing.T) {
 	result, errorAt := decodeOffsetValueV0(buf)
 
 	assert.Equalf(t, "", errorAt, "Expected decodeOffsetValueV0 to return empty errorAt, not %v", errorAt)
-	assert.Equalf(t, uint64(8372), result.Offset, "Expected Offset to be 8372, not %v", result.Offset)
-	assert.Equalf(t, uint64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
+	assert.Equalf(t, int64(8372), result.Offset, "Expected Offset to be 8372, not %v", result.Offset)
+	assert.Equalf(t, int64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
 }
 
 var decodeOffsetValueV0Errors = []errorTestSetBytesWithString{
@@ -419,7 +419,7 @@ func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	module.Configure("test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup"))
-	valueBytes := []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b")
+	valueBytes := []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00")
 
 	go module.decodeGroupMetadata(keyBuf, valueBytes, zap.NewNop())
 	request := <-module.App.StorageChannel
@@ -472,7 +472,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 
 	msg := &sarama.ConsumerMessage{
 		Key:       []byte("\x00\x02\x00\x09testgroup"),
-		Value:     []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b"),
+		Value:     []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00"),
 		Topic:     "__consumer_offsets",
 		Partition: 0,
 		Offset:    8232,

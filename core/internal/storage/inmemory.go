@@ -385,9 +385,19 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	}
 	clusterMap.consumerLock.Unlock()
 
+	// Get the partition count for this partition (we don't need the actual broker offset)
+	_, partitionCount := module.getBrokerOffset(&clusterMap, request.Topic, request.Partition, requestLogger)
+	if partitionCount == 0 {
+		// If the returned partitionCount is zero, there was an error that was already logged. Just stop processing
+		return
+	}
+
 	// For the rest of this, we need the write lock for the consumer group
 	consumerMap.lock.Lock()
 	defer consumerMap.lock.Unlock()
+
+	// Get the offset ring for this partition - we don't need it, but it will properly create the topic and partitions for us
+	module.getPartitionRing(consumerMap, request.Topic, request.Partition, partitionCount, requestLogger)
 
 	if topic, ok := consumerMap.topics[request.Topic]; !ok || (int32(len(topic)) <= request.Partition) {
 		requestLogger.Debug("dropped", zap.String("reason", "no partition"))
@@ -417,6 +427,7 @@ func (module *InMemoryStorage) clearConsumerOwners(request *protocol.StorageRequ
 	consumerMap, ok := clusterMap.consumer[request.Group]
 	if !ok {
 		// Consumer group doesn't exist, so we can't clear owners for it
+		clusterMap.consumerLock.Unlock()
 		return
 	}
 	clusterMap.consumerLock.Unlock()
@@ -632,7 +643,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		}
 
 		for p, partition := range partitions {
-			if len(partition.Offsets) > 0 {
+			if (len(partition.Offsets) > 0) && (partition.Offsets[len(partition.Offsets)-1] != nil) {
 				partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets)-1].Offset
 			}
 		}

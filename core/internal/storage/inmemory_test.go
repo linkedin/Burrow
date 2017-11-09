@@ -783,4 +783,4 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
-// TODO: Test for clear consumer offsets
+// TODO: Test for clear consumer offsets, including clear for missing group

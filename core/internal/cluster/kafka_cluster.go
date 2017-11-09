@@ -76,10 +76,15 @@ func (module *KafkaCluster) Start() error {
 		return err
 	}
 
+	// Fire off the offset requests once, before we start the ticker, to make sure we start with good data for consumers
+	helperClient := &helpers.BurrowSaramaClient{client}
+	module.fetchMetadata = true
+	module.getOffsets(helperClient)
+
 	// Start main loop that has a timer for offset and topic fetches
 	module.offsetTicker = time.NewTicker(time.Duration(module.myConfiguration.OffsetRefresh) * time.Second)
 	module.metadataTicker = time.NewTicker(time.Duration(module.myConfiguration.TopicRefresh) * time.Second)
-	go module.mainLoop(&helpers.BurrowSaramaClient{client})
+	go module.mainLoop(helperClient)
 
 	return nil
 }

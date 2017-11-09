@@ -86,7 +86,7 @@ func (zc *Coordinator) createRecursive(path string) error {
 
 	parts := strings.Split(path, "/")
 	for i := 2; i <= len(parts); i++ {
-		_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, []zk.ACL{})
+		_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, zk.WorldACL(zk.PermAll))
 		// Ignore when the node exists already
 		if (err != nil) && (err != zk.ErrNodeExists) {
 			return err
