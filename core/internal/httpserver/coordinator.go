@@ -154,6 +154,7 @@ func (hc *Coordinator) Start() error {
 			}
 			return err
 		}
+		hc.Log.Info("started listener", zap.String("listener", ln.Addr().String()))
 		listeners[name] = tcpKeepAliveListener{
 			Keepalive:   server.IdleTimeout,
 			TCPListener: ln.(*net.TCPListener),
