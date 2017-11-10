@@ -14,15 +14,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"testing"
 	"text/template"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -30,28 +31,17 @@ func fixtureSlackNotifier() *SlackNotifier {
 	module := SlackNotifier{
 		Log: zap.NewNop(),
 	}
-	module.App = &protocol.ApplicationContext{
-		Configuration: &configuration.Configuration{},
-	}
+	module.App = &protocol.ApplicationContext{}
 
-	module.App.Configuration.SlackNotifierProfile = make(map[string]*configuration.SlackNotifierProfile)
-	module.App.Configuration.SlackNotifierProfile["test_slack_profile"] = &configuration.SlackNotifierProfile{
-		Token:     "testtoken",
-		Channel:   "#testchannel",
-		Username:  "testuser",
-		IconEmoji: ":shrug:",
-	}
-
-	module.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
-	module.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:     "slack",
-		Profile:       "test_slack_profile",
-		Timeout:       2,
-		Keepalive:     10,
-		TemplateOpen:  "template_open",
-		TemplateClose: "template_close",
-		SendClose:     false,
-	}
+	viper.Reset()
+	viper.Set("notifier.test.class-name", "slack")
+	viper.Set("notifier.test.template-open", "template_open")
+	viper.Set("notifier.test.template-close", "template_close")
+	viper.Set("notifier.test.send-close", false)
+	viper.Set("notifier.test.token", "testtoken")
+	viper.Set("notifier.test.channel", "#testchannel")
+	viper.Set("notifier.test.username", "testuser")
+	viper.Set("notifier.test.icon-emoji", ":shrug:")
 
 	return &module
 }
@@ -64,39 +54,27 @@ func TestSlackNotifier_ImplementsModule(t *testing.T) {
 func TestSlackNotifier_Configure(t *testing.T) {
 	module := fixtureSlackNotifier()
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 	assert.NotNil(t, module.HttpClient, "Expected HttpClient to be set with a client object")
-	assert.Equalf(t, 2, module.myConfiguration.Timeout, "Expected Timeout to get set to 2, not %v", module.myConfiguration.Interval)
-	assert.Equalf(t, 10, module.myConfiguration.Keepalive, "Expected Keepalive to get set to 10, not %v", module.myConfiguration.Interval)
-}
-
-func TestSlackNotifier_Configure_Defaults(t *testing.T) {
-	module := fixtureSlackNotifier()
-	module.App.Configuration.Notifier["test"].Timeout = 0
-	module.App.Configuration.Notifier["test"].Keepalive = 0
-
-	module.Configure("test")
-	assert.Equalf(t, 5, module.myConfiguration.Timeout, "Expected Timeout to get set to 5, not %v", module.myConfiguration.Interval)
-	assert.Equalf(t, 300, module.myConfiguration.Keepalive, "Expected Keepalive to get set to 300, not %v", module.myConfiguration.Interval)
 }
 
 func TestSlackNotifier_Configure_NoToken(t *testing.T) {
 	module := fixtureSlackNotifier()
-	module.App.Configuration.SlackNotifierProfile["test_slack_profile"].Token = ""
+	viper.Set("notifier.test.token", "")
 
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	assert.Panics(t, func() { module.Configure("test", "notifier.test") }, "The code did not panic")
 }
 
 func TestSlackNotifier_Configure_NoChannel(t *testing.T) {
 	module := fixtureSlackNotifier()
-	module.App.Configuration.SlackNotifierProfile["test_slack_profile"].Channel = ""
+	viper.Set("notifier.test.channel", "")
 
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	assert.Panics(t, func() { module.Configure("test", "notifier.test") }, "The code did not panic")
 }
 
 func TestSlackNotifier_StartStop(t *testing.T) {
 	module := fixtureSlackNotifier()
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	err := module.Start()
 	assert.Nil(t, err, "Expected Start to return no error")
@@ -106,7 +84,7 @@ func TestSlackNotifier_StartStop(t *testing.T) {
 
 func TestSlackNotifier_AcceptConsumerGroup(t *testing.T) {
 	module := fixtureSlackNotifier()
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	// Should always return true
 	assert.True(t, module.AcceptConsumerGroup(&protocol.ConsumerGroupStatus{}), "Expected any status to return True")
@@ -155,7 +133,7 @@ func TestSlackNotifier_Notify_Open(t *testing.T) {
 	// Template sends the ID, cluster, and group
 	module.templateOpen, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status:  protocol.StatusWarning,
@@ -204,13 +182,13 @@ func TestSlackNotifier_Notify_Close(t *testing.T) {
 	defer ts.Close()
 
 	module := fixtureSlackNotifier()
-	module.App.Configuration.Notifier["test"].SendClose = true
+	viper.Set("notifier.test.send-close", true)
 	module.postURL = ts.URL
 
 	// Template sends the ID, cluster, and group
 	module.templateClose, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status:  protocol.StatusWarning,

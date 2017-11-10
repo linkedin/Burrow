@@ -11,14 +11,14 @@
 package evaluator
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	"github.com/linkedin/Burrow/core/internal/storage"
 	"github.com/linkedin/Burrow/core/protocol"
-
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func fixtureModule() (*storage.Coordinator, *CachingEvaluator) {
@@ -30,11 +30,9 @@ func fixtureModule() (*storage.Coordinator, *CachingEvaluator) {
 	module.App = storageCoordinator.App
 	module.App.EvaluatorChannel = make(chan *protocol.EvaluatorRequest)
 
-	module.App.Configuration.Evaluator = make(map[string]*configuration.EvaluatorConfig)
-	module.App.Configuration.Evaluator["test"] = &configuration.EvaluatorConfig{
-		ClassName:   "caching",
-		ExpireCache: 30,
-	}
+	viper.Reset()
+	viper.Set("evaluator.test.class-name", "caching")
+	viper.Set("evaluator.test.expire-cache", 30)
 
 	// Return the module without starting it, so we can test configure, start, and stop
 	return storageCoordinator, module
@@ -42,7 +40,7 @@ func fixtureModule() (*storage.Coordinator, *CachingEvaluator) {
 
 func startWithTestCluster() (*storage.Coordinator, *CachingEvaluator) {
 	storageCoordinator, module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "evaluator.test")
 	module.Start()
 	return storageCoordinator, module
 }
@@ -62,15 +60,17 @@ func TestCachingEvaluator_ImplementsEvaluatorModule(t *testing.T) {
 
 func TestCachingEvaluator_Configure(t *testing.T) {
 	storageCoordinator, module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "evaluator.test")
 	storageCoordinator.Stop()
 }
 
 func TestCachingEvaluator_Configure_DefaultExpireCache(t *testing.T) {
 	storageCoordinator, module := fixtureModule()
-	module.App.Configuration.Evaluator["test"].ExpireCache = 0
-	module.Configure("test")
-	assert.Equal(t, int64(10), module.myConfiguration.ExpireCache, "Default ExpireCache value of 10 did not get set")
+	viper.Reset()
+	viper.Set("evaluator.test.class-name", "caching")
+
+	module.Configure("test", "evaluator.test")
+	assert.Equal(t, int(10), module.expireCache, "Default ExpireCache value of 10 did not get set")
 	storageCoordinator.Stop()
 }
 

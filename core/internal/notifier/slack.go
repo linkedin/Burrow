@@ -22,9 +22,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -32,58 +32,56 @@ type SlackNotifier struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
+	name           string
+	threshold      int
 	groupWhitelist *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
-
-	name            string
-	myConfiguration *configuration.NotifierConfig
-	profile         *configuration.SlackNotifierProfile
+	token          string
+	channel        string
+	username       string
+	iconUrl        string
+	iconEmoji      string
 
 	HttpClient *http.Client
 	postURL    string
 }
 
-func (module *SlackNotifier) Configure(name string) {
+func (module *SlackNotifier) Configure(name string, configRoot string) {
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Notifier[name]
 
 	// Set the Slack chat.postMessage URL (unless it's been set for testing)
 	if module.postURL == "" {
 		module.postURL = "https://slack.com/api/chat.postMessage"
 	}
-	if profile, ok := module.App.Configuration.SlackNotifierProfile[module.myConfiguration.Profile]; ok {
-		module.profile = profile
-	} else {
-		module.Log.Panic("unknown Slack notifier profile")
-		panic(errors.New("configuration error"))
-	}
 
-	if module.profile.Token == "" {
+	module.token = viper.GetString(configRoot + ".token")
+	if module.token == "" {
 		module.Log.Panic("missing auth token")
 		panic(errors.New("configuration error"))
 	}
 
-	if module.profile.Channel == "" {
+	module.channel = viper.GetString(configRoot + ".channel")
+	if module.channel == "" {
 		module.Log.Panic("missing channel")
 		panic(errors.New("configuration error"))
 	}
 
+	module.username = viper.GetString(configRoot + ".username")
+	module.iconUrl = viper.GetString(configRoot + ".icon-url")
+	module.iconEmoji = viper.GetString(configRoot + ".icon-emoji")
+
 	// Set defaults for module-specific configs if needed
-	if module.App.Configuration.Notifier[module.name].Timeout == 0 {
-		module.App.Configuration.Notifier[module.name].Timeout = 5
-	}
-	if module.App.Configuration.Notifier[module.name].Keepalive == 0 {
-		module.App.Configuration.Notifier[module.name].Keepalive = 300
-	}
+	viper.SetDefault(configRoot+".timeout", 5)
+	viper.SetDefault(configRoot+".keepalive", 300)
 
 	// Set up HTTP client
 	module.HttpClient = &http.Client{
-		Timeout: time.Duration(module.myConfiguration.Timeout) * time.Second,
+		Timeout: viper.GetDuration(configRoot+".timeout") * time.Second,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				KeepAlive: time.Duration(module.myConfiguration.Keepalive) * time.Second,
+				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
 			Proxy: http.ProxyFromEnvironment,
 		},
@@ -102,10 +100,6 @@ func (module *SlackNotifier) Stop() error {
 
 func (module *SlackNotifier) GetName() string {
 	return module.name
-}
-
-func (module *SlackNotifier) GetConfig() *configuration.NotifierConfig {
-	return module.myConfiguration
 }
 
 func (module *SlackNotifier) GetGroupWhitelist() *regexp.Regexp {
@@ -153,10 +147,10 @@ func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 
 	// Encode JSON payload
 	data, err := json.Marshal(SlackMessage{
-		Channel:   module.profile.Channel,
-		Username:  module.profile.Username,
-		IconUrl:   module.profile.IconUrl,
-		IconEmoji: module.profile.IconEmoji,
+		Channel:   module.channel,
+		Username:  module.username,
+		IconUrl:   module.iconUrl,
+		IconEmoji: module.iconEmoji,
 		Text:      messageBytes.String(),
 	})
 	if err != nil {
@@ -167,7 +161,7 @@ func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	// Send POST to HTTP endpoint
 	req, err := http.NewRequest("POST", module.postURL, bytes.NewBuffer(data))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+module.profile.Token)
+	req.Header.Set("Authorization", "Bearer "+module.token)
 
 	resp, err := module.HttpClient.Do(req)
 	if err != nil {

@@ -23,11 +23,12 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
-
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 type Coordinator struct {
@@ -43,39 +44,41 @@ func (hc *Coordinator) Configure() {
 	hc.router = httprouter.New()
 
 	// If no HTTP server configured, add a default HTTP server that listens on a random port
-	if len(hc.App.Configuration.HttpServer) == 0 {
-		hc.App.Configuration.HttpServer["default"] = &configuration.HttpServerConfig{
-			Address: ":0",
-			TLS:     false,
-			Timeout: 300,
-		}
+	servers := viper.GetStringMap("httpserver")
+	if len(servers) == 0 {
+		viper.Set("httpserver.default.address", ":0")
 	}
 
 	// Validate provided HTTP server configs
 	hc.servers = make(map[string]*http.Server)
-	for name, cfg := range hc.App.Configuration.HttpServer {
+	for name := range servers {
+		configRoot := "httpserver." + name
 		server := &http.Server{
 			Handler: hc.router,
 		}
 
-		if !configuration.ValidateHostPort(cfg.Address, true) {
+		server.Addr = viper.GetString(configRoot + ".address")
+		if !helpers.ValidateHostPort(server.Addr, true) {
 			panic("invalid HTTP server listener address")
 		}
-		server.Addr = cfg.Address
 
-		if cfg.Timeout == 0 {
-			cfg.Timeout = 300
-		}
-		server.ReadTimeout = time.Duration(cfg.Timeout) * time.Second
-		server.ReadHeaderTimeout = time.Duration(cfg.Timeout) * time.Second
-		server.WriteTimeout = time.Duration(cfg.Timeout) * time.Second
-		server.IdleTimeout = time.Duration(cfg.Timeout) * time.Second
+		viper.SetDefault(configRoot+".timeout", 300)
+		timeout := viper.GetInt(configRoot + ".timeout")
+		server.ReadTimeout = time.Duration(timeout) * time.Second
+		server.ReadHeaderTimeout = time.Duration(timeout) * time.Second
+		server.WriteTimeout = time.Duration(timeout) * time.Second
+		server.IdleTimeout = time.Duration(timeout) * time.Second
 
-		if cfg.TLS {
+		if viper.IsSet(configRoot + ".tls") {
+			tlsName := viper.GetString(configRoot + ".tls")
+			certFile := viper.GetString("tls." + tlsName + ".certfile")
+			keyFile := viper.GetString("tls." + tlsName + ".keyfile")
+			caFile := viper.GetString("tls." + tlsName + ".cafile")
+
 			server.TLSConfig = &tls.Config{}
 
-			if cfg.TLSCAFilePath != "" {
-				caCert, err := ioutil.ReadFile(cfg.TLSCAFilePath)
+			if caFile != "" {
+				caCert, err := ioutil.ReadFile(caFile)
 				if err != nil {
 					panic("cannot read TLS CA file: " + err.Error())
 				}
@@ -83,10 +86,10 @@ func (hc *Coordinator) Configure() {
 				server.TLSConfig.RootCAs.AppendCertsFromPEM(caCert)
 			}
 
-			if cfg.TLSCertFilePath == "" || cfg.TLSKeyFilePath == "" {
+			if certFile == "" || keyFile == "" {
 				panic("TLS HTTP server specified with missing certificate or key")
 			}
-			cert, err := tls.LoadX509KeyPair(cfg.TLSCertFilePath, cfg.TLSKeyFilePath)
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 			if err != nil {
 				panic("cannot read TLS certificate or key file: " + err.Error())
 			}
@@ -214,8 +217,9 @@ func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
 
 func (hc *Coordinator) writeResponse(w http.ResponseWriter, r *http.Request, statusCode int, jsonObj interface{}) {
 	// Add CORS header, if configured
-	if hc.App.Configuration.General.AccessControlAllowOrigin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", hc.App.Configuration.General.AccessControlAllowOrigin)
+	corsHeader := viper.GetString("general.access-control-allow-origin")
+	if corsHeader != "" {
+		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
 	}
 
 	if jsonBytes, err := json.Marshal(jsonObj); err != nil {
@@ -245,8 +249,9 @@ func (handler *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Add CORS header, if configured
-	if hc.App.Configuration.General.AccessControlAllowOrigin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", hc.App.Configuration.General.AccessControlAllowOrigin)
+	corsHeader := viper.GetString("general.access-control-allow-origin")
+	if corsHeader != "" {
+		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
 	}
 
 	w.WriteHeader(http.StatusOK)

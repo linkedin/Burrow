@@ -15,13 +15,10 @@ import (
 
 	"github.com/samuel/go-zookeeper/zk"
 	"go.uber.org/zap"
-
-	"github.com/linkedin/Burrow/core/configuration"
 )
 
 type ApplicationContext struct {
 	// These fields need to be populated before Start is called
-	Configuration      *configuration.Configuration
 	ConfigurationValid bool
 	Logger             *zap.Logger
 	LogLevel           *zap.AtomicLevel
@@ -46,7 +43,7 @@ type ApplicationContext struct {
  * the coordinator with the proper fields to start with.
  */
 type Module interface {
-	Configure(name string)
+	Configure(name string, configRoot string)
 	Start() error
 	Stop() error
 }

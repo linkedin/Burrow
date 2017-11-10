@@ -11,17 +11,17 @@
 package consumer
 
 import (
+	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"regexp"
-	"strconv"
 )
 
 type TopicList struct {
@@ -37,46 +37,48 @@ type KafkaZkClient struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.ConsumerConfig
-	connectFunc     func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
+	name             string
+	cluster          string
+	servers          []string
+	zookeeperTimeout int
+	zookeeperPath    string
 
 	zk             protocol.ZookeeperClient
 	areWatchesSet  bool
 	groupLock      *sync.Mutex
 	groupList      map[string]*TopicList
 	groupWhitelist *regexp.Regexp
+	connectFunc    func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 }
 
-func (module *KafkaZkClient) Configure(name string) {
+func (module *KafkaZkClient) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Consumer[name]
 	module.groupLock = &sync.Mutex{}
 	module.groupList = make(map[string]*TopicList)
 	module.connectFunc = helpers.ZookeeperConnect
 
-	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; !ok {
-		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
-	}
-	if len(module.myConfiguration.Servers) == 0 {
+	module.servers = viper.GetStringSlice(configRoot + ".servers")
+	if len(module.servers) == 0 {
 		panic("No Zookeeper servers specified for consumer " + module.name)
-	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !helpers.ValidateHostList(module.servers) {
 		panic("Consumer '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
-	// Set defaults for configs if needed
-	if module.App.Configuration.Consumer[module.name].ZookeeperTimeout == 0 {
-		module.App.Configuration.Consumer[module.name].ZookeeperTimeout = 30
-	}
-	module.App.Configuration.Consumer[module.name].ZookeeperPath = module.App.Configuration.Consumer[module.name].ZookeeperPath + "/consumers"
-	if !configuration.ValidateZookeeperPath(module.App.Configuration.Consumer[module.name].ZookeeperPath) {
+	// Set defaults for configs if needed, and get them
+	viper.SetDefault(configRoot+".zookeeper-timeout", 30)
+	module.zookeeperTimeout = viper.GetInt(configRoot + ".zookeeper-timeout")
+	module.zookeeperPath = viper.GetString(configRoot+".zookeeper-path") + "/consumers"
+	module.cluster = viper.GetString(configRoot + ".cluster")
+
+	if !helpers.ValidateZookeeperPath(module.zookeeperPath) {
 		panic("Consumer '" + name + "' has a bad zookeeper path configuration")
 	}
 
-	if module.App.Configuration.Consumer[module.name].GroupWhitelist != "" {
-		re, err := regexp.Compile(module.App.Configuration.Consumer[module.name].GroupWhitelist)
+	whitelist := viper.GetString(configRoot + ".group-whitelist")
+	if whitelist != "" {
+		re, err := regexp.Compile(whitelist)
 		if err != nil {
 			module.Log.Panic("Failed to compile group whitelist")
 			panic(err)
@@ -88,7 +90,7 @@ func (module *KafkaZkClient) Configure(name string) {
 func (module *KafkaZkClient) Start() error {
 	module.Log.Info("starting")
 
-	zkconn, connEventChan, err := module.connectFunc(module.myConfiguration.Servers, time.Duration(module.myConfiguration.ZookeeperTimeout)*time.Second, module.Log)
+	zkconn, connEventChan, err := module.connectFunc(module.servers, time.Duration(module.zookeeperTimeout)*time.Second, module.Log)
 	if err != nil {
 		return err
 	}
@@ -161,7 +163,7 @@ func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
 
 func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 	// Get the current group list and reset our watch
-	consumerGroups, _, groupListEventChan, err := module.zk.ChildrenW(module.myConfiguration.ZookeeperPath)
+	consumerGroups, _, groupListEventChan, err := module.zk.ChildrenW(module.zookeeperPath)
 	if err != nil {
 		// Can't read the consumers path. Bail for now
 		module.Log.Error("failed to list groups", zap.String("error", err.Error()))
@@ -209,7 +211,7 @@ func (module *KafkaZkClient) watchTopicList(group string, eventChan <-chan zk.Ev
 
 func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly bool) {
 	// Get the current group topic list and reset our watch
-	groupTopics, _, topicListEventChan, err := module.zk.ChildrenW(module.myConfiguration.ZookeeperPath + "/" + group + "/offsets")
+	groupTopics, _, topicListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets")
 	if err != nil {
 		// Can't read the offsets path. Bail for now
 		module.Log.Error("failed to read offsets",
@@ -253,7 +255,7 @@ func (module *KafkaZkClient) watchPartitionList(group string, topic string, even
 
 func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic string, resetOnly bool) {
 	// Get the current topic partition list and reset our watch
-	topicPartitions, _, partitionListEventChan, err := module.zk.ChildrenW(module.myConfiguration.ZookeeperPath + "/" + group + "/offsets/" + topic)
+	topicPartitions, _, partitionListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets/" + topic)
 	if err != nil {
 		// Can't read the consumers path. Bail for now
 		module.Log.Error("failed to read partitions",
@@ -296,7 +298,7 @@ func (module *KafkaZkClient) watchOffset(group string, topic string, partition i
 
 func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string, partition int32, resetOnly bool) {
 	// Get the current offset and reset our watch
-	offsetString, offsetStat, offsetEventChan, err := module.zk.GetW(module.myConfiguration.ZookeeperPath + "/" + group + "/offsets/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
+	offsetString, offsetStat, offsetEventChan, err := module.zk.GetW(module.zookeeperPath + "/" + group + "/offsets/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
 	if err != nil {
 		// Can't read the partition ofset path. Bail for now
 		module.Log.Error("failed to read offset",
@@ -326,7 +328,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 		// Send the offset to the storage module
 		partitionOffset := &protocol.StorageRequest{
 			RequestType: protocol.StorageSetConsumerOffset,
-			Cluster:     module.myConfiguration.Cluster,
+			Cluster:     module.cluster,
 			Topic:       topic,
 			Partition:   int32(partition),
 			Group:       group,

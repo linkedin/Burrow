@@ -13,16 +13,17 @@ package cluster
 import (
 	"errors"
 	"testing"
-
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
+	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap"
-	"time"
+
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureModule() *KafkaCluster {
@@ -30,20 +31,13 @@ func fixtureModule() *KafkaCluster {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	module.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
-	module.App.Configuration.ClientProfile[""] = &configuration.ClientProfile{
-		ClientID: "testid",
-	}
-
-	module.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	module.App.Configuration.Cluster["test"] = &configuration.ClusterConfig{
-		ClassName: "kafka",
-		Servers:   []string{"broker1.example.com:1234"},
-	}
+	viper.Reset()
+	viper.Set("client-profile..client-id", "testid")
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
 
 	return &module
 }
@@ -54,22 +48,21 @@ func TestKafkaCluster_ImplementsModule(t *testing.T) {
 
 func TestKafkaCluster_Configure(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	assert.NotNil(t, module.saramaConfig, "Expected saramaConfig to be populated")
 }
 
 func TestKafkaCluster_Configure_DefaultIntervals(t *testing.T) {
 	module := fixtureModule()
-	module.App.Configuration.Cluster["test"].OffsetRefresh = 0
-	module.App.Configuration.Cluster["test"].TopicRefresh = 0
-	module.Configure("test")
-	assert.Equal(t, int64(10), module.myConfiguration.OffsetRefresh, "Default OffsetRefresh value of 10 did not get set")
-	assert.Equal(t, int64(60), module.myConfiguration.TopicRefresh, "Default TopicRefresh value of 60 did not get set")
+	module.Configure("test", "cluster.test")
+
+	assert.Equal(t, int(10), module.offsetRefresh, "Default OffsetRefresh value of 10 did not get set")
+	assert.Equal(t, int(60), module.topicRefresh, "Default TopicRefresh value of 60 did not get set")
 }
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoUpdate(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	client := &helpers.MockSaramaClient{}
 
 	module.maybeUpdateMetadataAndDeleteTopics(client)
@@ -78,7 +71,7 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoUpdate(t *testing.T) 
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoDelete(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 
 	// Set up the mock to return a test topic and partition
 	client := &helpers.MockSaramaClient{}
@@ -99,7 +92,7 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoDelete(t *testing.T) 
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 
 	// Set up the mock to return a test topic and partition
 	client := &helpers.MockSaramaClient{}
@@ -127,7 +120,7 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 
 func TestKafkaCluster_generateOffsetRequests(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	module.topicMap = make(map[string]int)
 	module.topicMap["testtopic"] = 1
 
@@ -152,7 +145,7 @@ func TestKafkaCluster_generateOffsetRequests(t *testing.T) {
 
 func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	module.topicMap = make(map[string]int)
 	module.topicMap["testtopic"] = 2
 
@@ -179,7 +172,7 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 
 func TestKafkaCluster_getOffsets(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	module.topicMap = make(map[string]int)
 	module.topicMap["testtopic"] = 2
 	module.fetchMetadata = false
@@ -223,7 +216,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 
 func TestKafkaCluster_getOffsets_BrokerFailed(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "cluster.test")
 	module.topicMap = make(map[string]int)
 	module.topicMap["testtopic"] = 1
 	module.fetchMetadata = false

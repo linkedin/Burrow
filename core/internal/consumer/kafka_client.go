@@ -19,9 +19,9 @@ import (
 	"github.com/Shopify/sarama"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/spf13/viper"
 	"regexp"
 )
 
@@ -29,46 +29,48 @@ type KafkaClient struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.ConsumerConfig
-
+	name           string
+	cluster        string
+	servers        []string
+	offsetsTopic   string
+	startLatest    bool
 	saramaConfig   *sarama.Config
-	clientProfile  *configuration.ClientProfile
 	groupWhitelist *regexp.Regexp
 
 	quitChannel chan struct{}
 	running     sync.WaitGroup
 }
 
-func (module *KafkaClient) Configure(name string) {
+func (module *KafkaClient) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
 	module.quitChannel = make(chan struct{})
 	module.running = sync.WaitGroup{}
-	module.myConfiguration = module.App.Configuration.Consumer[name]
 
-	if _, ok := module.App.Configuration.Cluster[module.myConfiguration.Cluster]; !ok {
-		panic("Consumer '" + name + "' references an unknown cluster '" + module.myConfiguration.Cluster + "'")
+	module.cluster = viper.GetString(configRoot + ".cluster")
+	if !viper.IsSet("cluster." + module.cluster) {
+		panic("Consumer '" + name + "' references an unknown cluster '" + module.cluster + "'")
 	}
-	if profile, ok := module.App.Configuration.ClientProfile[module.myConfiguration.ClientProfile]; ok {
-		module.saramaConfig = helpers.GetSaramaConfigFromClientProfile(profile)
-	} else {
-		panic("Consumer '" + name + "' references an unknown client-profile '" + module.myConfiguration.ClientProfile + "'")
-	}
-	if len(module.myConfiguration.Servers) == 0 {
+
+	profile := viper.GetString(configRoot + ".client-profile")
+	module.saramaConfig = helpers.GetSaramaConfigFromClientProfile(profile)
+
+	module.servers = viper.GetStringSlice(configRoot + ".servers")
+	if len(module.servers) == 0 {
 		panic("No Kafka brokers specified for consumer " + module.name)
-	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !helpers.ValidateHostList(module.servers) {
 		panic("Consumer '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
-	// Set defaults for configs if needed
-	if module.App.Configuration.Consumer[module.name].OffsetsTopic == "" {
-		module.App.Configuration.Consumer[module.name].OffsetsTopic = "__consumer_offsets"
-	}
+	// Set defaults for configs if needed, and get them
+	viper.SetDefault(configRoot+".offsets-topic", "__consumer_offsets")
+	module.offsetsTopic = viper.GetString(configRoot + ".offsets-topic")
+	module.startLatest = viper.GetBool(configRoot + ".start-latest")
 
-	if module.App.Configuration.Consumer[module.name].GroupWhitelist != "" {
-		re, err := regexp.Compile(module.App.Configuration.Consumer[module.name].GroupWhitelist)
+	whitelist := viper.GetString(configRoot + ".group-whitelist")
+	if whitelist != "" {
+		re, err := regexp.Compile(whitelist)
 		if err != nil {
 			module.Log.Panic("Failed to compile group whitelist")
 			panic(err)
@@ -81,7 +83,7 @@ func (module *KafkaClient) Start() error {
 	module.Log.Info("starting")
 
 	// Connect Kafka client
-	client, err := sarama.NewClient(module.myConfiguration.Servers, module.saramaConfig)
+	client, err := sarama.NewClient(module.servers, module.saramaConfig)
 	if err != nil {
 		return err
 	}
@@ -135,10 +137,10 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 	}
 
 	// Get a partition count for the consumption topic
-	partitions, err := client.Partitions(module.myConfiguration.OffsetsTopic)
+	partitions, err := client.Partitions(module.offsetsTopic)
 	if err != nil {
 		module.Log.Error("failed to get partition count",
-			zap.String("topic", module.myConfiguration.OffsetsTopic),
+			zap.String("topic", module.offsetsTopic),
 			zap.String("error", err.Error()),
 		)
 		client.Close()
@@ -147,20 +149,20 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 
 	// Default to bootstrapping the offsets topic, unless configured otherwise
 	startFrom := sarama.OffsetOldest
-	if module.myConfiguration.StartLatest {
+	if module.startLatest {
 		startFrom = sarama.OffsetNewest
 	}
 
 	// Start consumers for each partition with fan in
 	module.Log.Info("starting consumers",
-		zap.String("topic", module.myConfiguration.OffsetsTopic),
+		zap.String("topic", module.offsetsTopic),
 		zap.Int("count", len(partitions)),
 	)
 	for i, partition := range partitions {
-		pconsumer, err := consumer.ConsumePartition(module.myConfiguration.OffsetsTopic, partition, startFrom)
+		pconsumer, err := consumer.ConsumePartition(module.offsetsTopic, partition, startFrom)
 		if err != nil {
 			module.Log.Error("failed to consume partition",
-				zap.String("topic", module.myConfiguration.OffsetsTopic),
+				zap.String("topic", module.offsetsTopic),
 				zap.Int("partition", i),
 				zap.String("error", err.Error()),
 			)
@@ -320,7 +322,7 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey OffsetKey, valueBuffer 
 
 	partitionOffset := &protocol.StorageRequest{
 		RequestType: protocol.StorageSetConsumerOffset,
-		Cluster:     module.myConfiguration.Cluster,
+		Cluster:     module.cluster,
 		Topic:       offsetKey.Topic,
 		Partition:   int32(offsetKey.Partition),
 		Group:       offsetKey.Group,
@@ -401,7 +403,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 		metadataLogger.Debug("clear owners")
 		helpers.TimeoutSendStorageRequest(module.App.StorageChannel, &protocol.StorageRequest{
 			RequestType: protocol.StorageClearConsumerOwners,
-			Cluster:     module.myConfiguration.Cluster,
+			Cluster:     module.cluster,
 			Group:       group,
 		}, 1)
 		return
@@ -422,7 +424,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 			for _, partition := range partitions {
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, &protocol.StorageRequest{
 					RequestType: protocol.StorageSetConsumerOwner,
-					Cluster:     module.myConfiguration.Cluster,
+					Cluster:     module.cluster,
 					Topic:       topic,
 					Partition:   partition,
 					Group:       group,

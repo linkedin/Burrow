@@ -11,18 +11,19 @@
 package consumer
 
 import (
+	"bytes"
 	"errors"
 	"testing"
-
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
-
-	"bytes"
-	"github.com/Shopify/sarama"
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Shopify/sarama"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureModule() *KafkaClient {
@@ -30,24 +31,16 @@ func fixtureModule() *KafkaClient {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	module.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
-	module.App.Configuration.ClientProfile[""] = &configuration.ClientProfile{
-		ClientID: "testid",
-	}
-
-	module.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	module.App.Configuration.Cluster["test"] = &configuration.ClusterConfig{}
-
-	module.App.Configuration.Consumer = make(map[string]*configuration.ConsumerConfig)
-	module.App.Configuration.Consumer["test"] = &configuration.ConsumerConfig{
-		ClassName: "kafka",
-		Servers:   []string{"broker1.example.com:1234"},
-		Cluster:   "test",
-	}
+	viper.Reset()
+	viper.Set("client-profile..client-id", "testid")
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.class-name", "kafka")
+	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.cluster", "test")
 
 	return &module
 }
@@ -67,33 +60,27 @@ func TestKafkaClient_ImplementsModule(t *testing.T) {
 
 func TestKafkaClient_Configure(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	assert.NotNil(t, module.saramaConfig, "Expected saramaConfig to be populated")
-}
-
-func TestKafkaClient_Configure_DefaultTopic(t *testing.T) {
-	module := fixtureModule()
-	module.App.Configuration.Consumer["test"].OffsetsTopic = ""
-	module.Configure("test")
-	assert.Equal(t, "__consumer_offsets", module.myConfiguration.OffsetsTopic, "Default OffsetTopic value of __consumer_offsets did not get set")
+	assert.Equal(t, "__consumer_offsets", module.offsetsTopic, "Default OffsetTopic value of __consumer_offsets did not get set")
 }
 
 func TestKafkaClient_Configure_BadCluster(t *testing.T) {
 	module := fixtureModule()
-	delete(module.App.Configuration.Cluster, "test")
+	viper.Set("consumer.test.cluster", "nocluster")
 
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	assert.Panics(t, func() { module.Configure("test", "consumer.test") }, "The code did not panic")
 }
 
 func TestKafkaClient_Configure_BadRegexp(t *testing.T) {
 	module := fixtureModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "["
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	viper.Set("consumer.test.group-whitelist", "[")
+	assert.Panics(t, func() { module.Configure("test", "consumer.test") }, "The code did not panic")
 }
 
 func TestKafkaClient_partitionConsumer(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	// Channels for testing
 	messageChan := make(chan *sarama.ConsumerMessage)
@@ -123,7 +110,7 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 
 func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	// Channels for testing
 	messageChan := make(chan *sarama.ConsumerMessage)
@@ -154,7 +141,7 @@ func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 
 func TestKafkaClient_startKafkaConsumer_FailCreateConsumer(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	// Set up the mock to return the leader broker for a test topic and partition
 	testError := errors.New("test error")
@@ -169,7 +156,7 @@ func TestKafkaClient_startKafkaConsumer_FailCreateConsumer(t *testing.T) {
 
 func TestKafkaClient_startKafkaConsumer_FailGetPartitions(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	consumer := &helpers.MockSaramaConsumer{}
 	testError := errors.New("test error")
@@ -186,7 +173,7 @@ func TestKafkaClient_startKafkaConsumer_FailGetPartitions(t *testing.T) {
 
 func TestKafkaClient_startKafkaConsumer_FailConsumePartition(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	testError := errors.New("test error")
 	consumer := &helpers.MockSaramaConsumer{}
@@ -347,8 +334,8 @@ func TestKafkaClient_decodeOffsetValueV0_Errors(t *testing.T) {
 
 func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	module := fixtureModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
-	module.Configure("test")
+	viper.Set("consumer.test.group-whitelist", "test.*")
+	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"))
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
@@ -373,7 +360,7 @@ var decodeKeyAndOffsetErrors = []errorTestSetBytes{
 
 func TestKafkaClient_decodeKeyAndOffset_BadValueVersion(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	for _, values := range decodeKeyAndOffsetErrors {
 		// Should not timeout
@@ -383,8 +370,8 @@ func TestKafkaClient_decodeKeyAndOffset_BadValueVersion(t *testing.T) {
 
 func TestKafkaClient_decodeKeyAndOffset_Whitelist(t *testing.T) {
 	module := fixtureModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
-	module.Configure("test")
+	viper.Set("consumer.test.group-whitelist", "test.*")
+	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x0ddropthisgroup\x00\x09testtopic\x00\x00\x00\x0b"))
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
@@ -395,7 +382,7 @@ func TestKafkaClient_decodeKeyAndOffset_Whitelist(t *testing.T) {
 
 func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	offsetKey := OffsetKey{
 		Group:     "testgroup",
@@ -410,7 +397,7 @@ func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 
 func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup"))
 	valueBytes := []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x16\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00")
@@ -436,7 +423,7 @@ var decodeGroupMetadataErrors = []errorTestSetBytes{
 
 func TestKafkaClient_decodeGroupMetadata_Errors(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	for _, values := range decodeGroupMetadataErrors {
 		// Should not timeout
@@ -452,7 +439,7 @@ var decodeAndSendGroupMetadataErrors = [][]byte{
 
 func TestKafkaClient_decodeAndSendGroupMetadata_Errors(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	for _, value := range decodeAndSendGroupMetadataErrors {
 		// Should not timeout
@@ -462,7 +449,7 @@ func TestKafkaClient_decodeAndSendGroupMetadata_Errors(t *testing.T) {
 
 func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	msg := &sarama.ConsumerMessage{
 		Key:       []byte("\x00\x02\x00\x09testgroup"),
@@ -486,7 +473,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 
 func TestKafkaClient_processConsumerOffsetsMessage_Metadata(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	msg := &sarama.ConsumerMessage{
 		Key:       []byte("\x00\x01\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"),
@@ -516,7 +503,7 @@ var processConsumerOffsetsMessageErrors = []errorTestSetBytes{
 
 func TestKafkaClient_processConsumerOffsetsMessage_Errors(t *testing.T) {
 	module := fixtureModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 
 	for _, values := range processConsumerOffsetsMessageErrors {
 		msg := &sarama.ConsumerMessage{

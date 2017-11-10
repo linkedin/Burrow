@@ -13,22 +13,21 @@ package notifier
 import (
 	"regexp"
 	"text/template"
+	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"time"
 )
 
 // This notifier is only used for testing. It is used in place of a mock when testing the coordinator so that there is
 // no template loading code in the way.
 type NullNotifier struct {
-	App             *protocol.ApplicationContext
-	Log             *zap.Logger
-	name            string
-	myConfiguration *configuration.NotifierConfig
+	App *protocol.ApplicationContext
+	Log *zap.Logger
 
+	name           string
+	threshold      int
 	groupWhitelist *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
@@ -41,9 +40,8 @@ type NullNotifier struct {
 	CalledAcceptConsumerGroup bool
 }
 
-func (module *NullNotifier) Configure(name string) {
+func (module *NullNotifier) Configure(name string, configRoot string) {
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Notifier[name]
 	module.CalledConfigure = true
 }
 
@@ -59,10 +57,6 @@ func (module *NullNotifier) Stop() error {
 
 func (module *NullNotifier) GetName() string {
 	return module.name
-}
-
-func (module *NullNotifier) GetConfig() *configuration.NotifierConfig {
-	return module.myConfiguration
 }
 
 func (module *NullNotifier) GetGroupWhitelist() *regexp.Regexp {

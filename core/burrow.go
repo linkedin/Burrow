@@ -16,7 +16,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/cluster"
 	"github.com/linkedin/Burrow/core/internal/consumer"
 	"github.com/linkedin/Burrow/core/internal/evaluator"
@@ -103,12 +102,6 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	// Validate that the ApplicationContext is complete
 	if (app == nil) || (app.Logger == nil) || (app.LogLevel == nil) {
 		fmt.Fprintln(os.Stderr, "Burrow was called with an incomplete ApplicationContext")
-		return 1
-	}
-
-	// Validate the configuration that was passed in
-	if err := configuration.ValidateConfig(app.Configuration); err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot validate configuration: %v", err)
 		return 1
 	}
 

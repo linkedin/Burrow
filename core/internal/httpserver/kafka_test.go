@@ -15,11 +15,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -55,13 +56,9 @@ func TestHttpServer_handleClusterList(t *testing.T) {
 
 func TestHttpServer_handleClusterDetail(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	coordinator.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
-	coordinator.App.Configuration.ClientProfile["test"] = &configuration.ClientProfile{}
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{
-		ClassName:     "kafka",
-		ClientProfile: "test",
-	}
+	viper.Set("client-profile.test.client-id", "testid")
+	viper.Set("cluster.testcluster.class-name", "kafka")
+	viper.Set("cluster.testcluster.client-profile", "test")
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/kafka/testcluster", nil)

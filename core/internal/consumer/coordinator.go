@@ -13,6 +13,7 @@ package consumer
 import (
 	"errors"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
@@ -55,16 +56,18 @@ func (cc *Coordinator) Configure() {
 
 	cc.modules = make(map[string]protocol.Module)
 
-	// Create all configured consumer modules, add to list of consumers
-	if len(cc.App.Configuration.Consumer) == 0 {
+	// Create all configured cluster modules, add to list of clusters
+	modules := viper.GetStringMap("consumer")
+	if len(modules) == 0 {
 		panic("At least one consumer module must be configured")
 	}
-	for name, config := range cc.App.Configuration.Consumer {
-		if _, ok := cc.App.Configuration.Cluster[cc.App.Configuration.Consumer[name].Cluster]; !ok {
-			panic("Consumer '" + name + "' references an unknown cluster '" + cc.App.Configuration.Consumer[name].Cluster + "'")
+	for name := range modules {
+		configRoot := "consumer." + name
+		if !viper.IsSet("cluster." + viper.GetString(configRoot+".cluster")) {
+			panic("Consumer '" + name + "' references an unknown cluster '" + viper.GetString(configRoot+".cluster") + "'")
 		}
-		module := GetModuleForClass(cc.App, config.ClassName)
-		module.Configure(name)
+		module := GetModuleForClass(cc.App, viper.GetString(configRoot+".class-name"))
+		module.Configure(name, configRoot)
 		cc.modules[name] = module
 	}
 }

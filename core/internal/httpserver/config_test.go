@@ -18,44 +18,24 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/spf13/viper"
 )
 
-func setupConfiguration(coordinator *Coordinator) {
-	coordinator.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
-	coordinator.App.Configuration.Storage["teststorage"] = &configuration.StorageConfig{
-		ClassName: "inmemory",
-	}
-
-	coordinator.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
-	coordinator.App.Configuration.ClientProfile["test"] = &configuration.ClientProfile{}
-
-	coordinator.App.Configuration.Consumer = make(map[string]*configuration.ConsumerConfig)
-	coordinator.App.Configuration.Consumer["testconsumer"] = &configuration.ConsumerConfig{
-		ClassName:     "kafka_zk",
-		ClientProfile: "test",
-	}
-
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{
-		ClassName:     "kafka",
-		ClientProfile: "test",
-	}
-
-	coordinator.App.Configuration.Evaluator = make(map[string]*configuration.EvaluatorConfig)
-	coordinator.App.Configuration.Evaluator["testevaluator"] = &configuration.EvaluatorConfig{
-		ClassName: "caching",
-	}
-
-	coordinator.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
-	coordinator.App.Configuration.Notifier["testnotifier"] = &configuration.NotifierConfig{
-		ClassName: "null",
-	}
+func setupConfiguration() {
+	viper.Reset()
+	viper.Set("client-profile.test.client-id", "testid")
+	viper.Set("storage.teststorage.class-name", "inmemory")
+	viper.Set("consumer.testconsumer.class-name", "kafka_zk")
+	viper.Set("consumer.testconsumer.client-profile", "test")
+	viper.Set("cluster.testcluster.class-name", "kafka")
+	viper.Set("cluster.testcluster.client-profile", "test")
+	viper.Set("evaluator.testevaluator.class-name", "caching")
+	viper.Set("notifier.testnotifier.class-name", "null")
 }
 
 func TestHttpServer_configMain(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config", nil)
@@ -77,7 +57,7 @@ func TestHttpServer_configMain(t *testing.T) {
 
 func TestHttpServer_configStorageList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/storage", nil)
@@ -101,7 +81,7 @@ func TestHttpServer_configStorageList(t *testing.T) {
 
 func TestHttpServer_configConsumerList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/consumer", nil)
@@ -125,7 +105,7 @@ func TestHttpServer_configConsumerList(t *testing.T) {
 
 func TestHttpServer_configClusterList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/cluster", nil)
@@ -149,7 +129,7 @@ func TestHttpServer_configClusterList(t *testing.T) {
 
 func TestHttpServer_configEvaluatorList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/evaluator", nil)
@@ -173,7 +153,7 @@ func TestHttpServer_configEvaluatorList(t *testing.T) {
 
 func TestHttpServer_configNotifierList(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/notifier", nil)
@@ -197,7 +177,7 @@ func TestHttpServer_configNotifierList(t *testing.T) {
 
 func TestHttpServer_configStorageDetail(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/storage/teststorage", nil)
@@ -235,7 +215,7 @@ func TestHttpServer_configStorageDetail(t *testing.T) {
 
 func TestHttpServer_configConsumerDetail(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/consumer/testconsumer", nil)
@@ -273,7 +253,7 @@ func TestHttpServer_configConsumerDetail(t *testing.T) {
 
 func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/evaluator/testevaluator", nil)
@@ -311,7 +291,7 @@ func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 
 func TestHttpServer_configNotifierDetail(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
-	setupConfiguration(coordinator)
+	setupConfiguration()
 
 	// Set up a request
 	req, err := http.NewRequest("GET", "/v3/config/notifier/testnotifier", nil)
@@ -325,10 +305,10 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 
 	// Need a custom type for the test, due to variations in the response for different module types
 	type ResponseType struct {
-		Error   bool                            `json:"error"`
-		Message string                          `json:"message"`
-		Module  HTTPResponseConfigModuleStorage `json:"module"`
-		Request HTTPResponseRequestInfo         `json:"request"`
+		Error   bool                                 `json:"error"`
+		Message string                               `json:"message"`
+		Module  HTTPResponseConfigModuleNotifierNull `json:"module"`
+		Request HTTPResponseRequestInfo              `json:"request"`
 	}
 
 	// Parse response body

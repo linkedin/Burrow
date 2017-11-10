@@ -12,21 +12,27 @@ package core
 
 import (
 	"fmt"
-	"os"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/linkedin/Burrow/core/configuration"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/linkedin/Burrow/core/internal/helpers"
 )
 
 func CheckAndCreatePidFile(filename string) bool {
+	if !helpers.ValidateFilename(filename) {
+		fmt.Fprintln(os.Stderr, "PID filename is invalid")
+		return false
+	}
+
 	// Check if the PID file exists
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		// The file exists, so read it and check if the PID specified is running
@@ -72,12 +78,19 @@ func RemovePidFile(filename string) {
 	}
 }
 
-func ConfigureLogger(configuration *configuration.Configuration) (*zap.Logger, *zap.AtomicLevel) {
+func ConfigureLogger() (*zap.Logger, *zap.AtomicLevel) {
 	var level zap.AtomicLevel
 	var syncOutput zapcore.WriteSyncer
 
+	// Set config defaults for logging
+	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.maxsize", 100)
+	viper.SetDefault("logging.maxbackups", 10)
+	viper.SetDefault("logging.maxage", 30)
+
 	// Create an AtomicLevel that we can use elsewhere to dynamically change the logging level
-	switch strings.ToLower(configuration.Logging.Level) {
+	logLevel := viper.GetString("logging.level")
+	switch strings.ToLower(logLevel) {
 	case "", "info":
 		level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	case "debug":
@@ -91,19 +104,20 @@ func ConfigureLogger(configuration *configuration.Configuration) (*zap.Logger, *
 	case "fatal":
 		level = zap.NewAtomicLevelAt(zap.FatalLevel)
 	default:
-		fmt.Printf("Invalid log level supplied. Defaulting to info: %s", configuration.Logging.Level)
+		fmt.Printf("Invalid log level supplied. Defaulting to info: %s", logLevel)
 		level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
 
 	// If a filename has been set, set up a rotating logger. Otherwise, use Stdout
-	if configuration.Logging.Filename != "" {
+	logFilename := viper.GetString("logging.filename")
+	if logFilename != "" {
 		syncOutput = zapcore.AddSync(&lumberjack.Logger{
-			Filename:   configuration.Logging.Filename,
-			MaxSize:    configuration.Logging.MaxSize,
-			MaxBackups: configuration.Logging.MaxBackups,
-			MaxAge:     configuration.Logging.MaxAge,
-			LocalTime:  configuration.Logging.UseLocalTime,
-			Compress:   configuration.Logging.UseCompression,
+			Filename:   logFilename,
+			MaxSize:    viper.GetInt("logging.maxsize"),
+			MaxBackups: viper.GetInt("logging.maxbackups"),
+			MaxAge:     viper.GetInt("logging.maxage"),
+			LocalTime:  viper.GetBool("logging.use-localtime"),
+			Compress:   viper.GetBool("logging.use-compression"),
 		})
 	} else {
 		syncOutput = zapcore.Lock(os.Stdout)

@@ -22,66 +22,61 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/spf13/viper"
 )
 
 type EmailNotifier struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
+	name           string
+	threshold      int
 	groupWhitelist *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
-
-	name            string
-	myConfiguration *configuration.NotifierConfig
-	profile         *configuration.EmailNotifierProfile
+	from           string
+	to             string
 
 	auth           smtp.Auth
 	serverWithPort string
 	sendMailFunc   func(string, smtp.Auth, string, []string, []byte) error
 }
 
-func (module *EmailNotifier) Configure(name string) {
+func (module *EmailNotifier) Configure(name string, configRoot string) {
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Notifier[name]
 
 	// Abstract the SendMail call so we can test
 	if module.sendMailFunc == nil {
 		module.sendMailFunc = smtp.SendMail
 	}
 
-	if profile, ok := module.App.Configuration.EmailNotifierProfile[module.myConfiguration.Profile]; ok {
-		module.profile = profile
-	} else {
-		module.Log.Panic("unknown Email notifier profile")
-		panic(errors.New("configuration error"))
-	}
-
-	module.serverWithPort = fmt.Sprintf("%s:%v", module.profile.Server, module.profile.Port)
-	if !configuration.ValidateHostList([]string{module.serverWithPort}) {
+	module.serverWithPort = fmt.Sprintf("%s:%v", viper.GetString(configRoot+".server"), viper.GetString(configRoot+".port"))
+	if !helpers.ValidateHostList([]string{module.serverWithPort}) {
 		module.Log.Panic("bad server or port")
 		panic(errors.New("configuration error"))
 	}
 
-	if module.profile.From == "" {
+	module.from = viper.GetString(configRoot + ".from")
+	if module.from == "" {
 		module.Log.Panic("missing from address")
 		panic(errors.New("configuration error"))
 	}
 
-	if module.profile.To == "" {
+	module.to = viper.GetString(configRoot + ".to")
+	if module.to == "" {
 		module.Log.Panic("missing to address")
 		panic(errors.New("configuration error"))
 	}
 
 	// Set up SMTP authentication
-	switch strings.ToLower(module.profile.AuthType) {
+	switch strings.ToLower(viper.GetString(configRoot + ".auth-type")) {
 	case "plain":
-		module.auth = smtp.PlainAuth("", module.profile.Username, module.profile.Password, module.profile.Server)
+		module.auth = smtp.PlainAuth("", viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"), viper.GetString(configRoot+".server"))
 	case "crammd5":
-		module.auth = smtp.CRAMMD5Auth(module.profile.Username, module.profile.Password)
+		module.auth = smtp.CRAMMD5Auth(viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"))
 	case "":
 		module.auth = nil
 	default:
@@ -102,10 +97,6 @@ func (module *EmailNotifier) Stop() error {
 
 func (module *EmailNotifier) GetName() string {
 	return module.name
-}
-
-func (module *EmailNotifier) GetConfig() *configuration.NotifierConfig {
-	return module.myConfiguration
 }
 
 func (module *EmailNotifier) GetGroupWhitelist() *regexp.Regexp {
@@ -137,7 +128,7 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	}
 
 	// Put the from and to lines in without the template. Template should set the subject line, followed by a blank line
-	bytesToSend := bytes.NewBufferString("From: " + module.profile.From + "\nTo: " + module.profile.To + "\n")
+	bytesToSend := bytes.NewBufferString("From: " + module.from + "\nTo: " + module.to + "\n")
 	messageBody, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
 	if err != nil {
 		logger.Error("failed to assemble", zap.Error(err))
@@ -145,7 +136,7 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	}
 	bytesToSend.Write(messageBody.Bytes())
 
-	err = module.sendMailFunc(module.serverWithPort, module.auth, module.profile.From, []string{module.profile.To}, bytesToSend.Bytes())
+	err = module.sendMailFunc(module.serverWithPort, module.auth, module.from, []string{module.to}, bytesToSend.Bytes())
 	if err != nil {
 		logger.Error("failed to send", zap.Error(err))
 	}

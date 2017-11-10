@@ -12,12 +12,13 @@ package storage
 
 import (
 	"errors"
+	"sync"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"sync"
 )
 
 type Module interface {
@@ -72,12 +73,14 @@ func (sc *Coordinator) Configure() {
 	sc.running = sync.WaitGroup{}
 
 	// Create all configured storage modules, add to list of storage
-	if len(sc.App.Configuration.Storage) != 1 {
+	modules := viper.GetStringMap("storage")
+	if len(modules) != 1 {
 		panic("Only one storage module must be configured")
 	}
-	for name, config := range sc.App.Configuration.Storage {
-		module := GetModuleForClass(sc.App, config.ClassName)
-		module.Configure(name)
+	for name := range modules {
+		configRoot := "storage." + name
+		module := GetModuleForClass(sc.App, viper.GetString(configRoot+".class-name"))
+		module.Configure(name, configRoot)
 		sc.modules[name] = module
 	}
 }

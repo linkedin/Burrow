@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package configuration
+package helpers
 
 import (
 	"github.com/stretchr/testify/assert"

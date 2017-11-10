@@ -34,18 +34,26 @@ type HTTPResponseError struct {
 	Request HTTPResponseRequestInfo `json:"request"`
 }
 
+type HTTPResponseTLSProfile struct {
+	Name     string `json:"name"`
+	NoVerify bool   `json:"noverify"`
+	CertFile string `json:"certfile"`
+	KeyFile  string `json:"keyfile"`
+	CAFile   string `json:"cafile"`
+}
+
+type HTTPResponseSASLProfile struct {
+	Name           string `json:"name"`
+	HandshakeFirst bool   `json:"handshake-first"`
+	Username       string `json:"username"`
+}
+
 type HTTPResponseClientProfile struct {
-	Name            string `json:"name"`
-	ClientID        string `json:"client-id"`
-	KafkaVersion    string `json:"kafka-version"`
-	TLS             bool   `json:"tls"`
-	TLSNoVerify     bool   `json:"tls-noverify"`
-	TLSCertFilePath string `json:"tls-certfilepath"`
-	TLSKeyFilePath  string `json:"tls-keyfilepath"`
-	TLSCAFilePath   string `json:"tls-cafilepath"`
-	SASL            bool   `json:"sasl"`
-	HandshakeFirst  bool   `json:"handshake-first"`
-	Username        string `json:"username"`
+	Name         string                   `json:"name"`
+	ClientID     string                   `json:"client-id"`
+	KafkaVersion string                   `json:"kafka-version"`
+	TLS          *HTTPResponseTLSProfile  `json:"tls"`
+	SASL         *HTTPResponseSASLProfile `json:"tls"`
 }
 
 type HTTPResponseClusterList struct {
@@ -91,8 +99,9 @@ type HTTPResponseConsumerStatus struct {
 }
 
 type HTTPResponseConfigGeneral struct {
-	PIDFile       string `json:"pidfile"`
-	StdoutLogfile string `json:"stdout-logfile"`
+	PIDFile                  string `json:"pidfile"`
+	StdoutLogfile            string `json:"stdout-logfile"`
+	AccessControlAllowOrigin string `json:"access-control-allow-origin"`
 }
 type HTTPResponseConfigLogging struct {
 	Filename       string `json:"filename"`
@@ -109,12 +118,9 @@ type HTTPResponseConfigZookeeper struct {
 	RootPath string   `json:"root-path"`
 }
 type HTTPResponseConfigHttpServer struct {
-	Address         string `json:"address"`
-	TLS             bool   `json:"tls"`
-	TLSCertFilePath string `json:"tls-certfilepath"`
-	TLSKeyFilePath  string `json:"tls-keyfilepath"`
-	TLSCAFilePath   string `json:"tls-cafilepath"`
-	Timeout         int    `json:"timeout"`
+	Address string `json:"address"`
+	TLS     string `json:"tls"`
+	Timeout int    `json:"timeout"`
 }
 type HTTPResponseConfigMain struct {
 	Error      bool                                    `json:"error"`
@@ -173,39 +179,64 @@ type HTTPResponseConfigModuleEvaluator struct {
 	ExpireCache int64  `json:"expire-cache"`
 }
 
-type HTTPResponseConfigHttpNotifierProfile struct {
-	Name        string `json:"name"`
-	UrlOpen     string `json:"url-open"`
-	UrlClose    string `json:"url-close"`
-	MethodOpen  string `json:"method-open"`
-	MethodClose string `json:"method-close"`
+type HTTPResponseConfigModuleNotifierHttp struct {
+	ClassName      string   `json:"class-name"`
+	GroupWhitelist string   `json:"group-whitelist"`
+	Interval       int64    `json:"interval"`
+	Threshold      int      `json:"threshold"`
+	Timeout        int      `json:"timeout"`
+	Keepalive      int      `json:"keepalive"`
+	UrlOpen        string   `json:"url-open"`
+	UrlClose       string   `json:"url-close"`
+	MethodOpen     string   `json:"method-open"`
+	MethodClose    string   `json:"method-close"`
+	TemplateOpen   string   `json:"template-open"`
+	TemplateClose  string   `json:"template-close"`
+	Extras         []string `json:"extra"`
+	SendClose      bool     `json:"send-close"`
 }
-type HTTPResponseConfigEmailNotifierProfile struct {
-	Name     string `json:"name"`
-	Server   string `json:"server"`
-	Port     int    `json:"port"`
-	AuthType string `json:"auth-type"`
-	Username string `json:"username"`
-	From     string `json:"from"`
-	To       string `json:"to"`
+
+type HTTPResponseConfigModuleNotifierSlack struct {
+	ClassName      string   `json:"class-name"`
+	GroupWhitelist string   `json:"group-whitelist"`
+	Interval       int64    `json:"interval"`
+	Threshold      int      `json:"threshold"`
+	Timeout        int      `json:"timeout"`
+	Keepalive      int      `json:"keepalive"`
+	TemplateOpen   string   `json:"template-open"`
+	TemplateClose  string   `json:"template-close"`
+	Extras         []string `json:"extra"`
+	SendClose      bool     `json:"send-close"`
+	Channel        string   `json:"channel"`
+	Username       string   `json:"username"`
+	IconUrl        string   `json:"icon-url"`
+	IconEmoji      string   `json:"icon-emoji"`
 }
-type HTTPResponseConfigSlackNotifierProfile struct {
-	Name      string `json:"name"`
-	Channel   string `json:"channel"`
-	Username  string `json:"username"`
-	IconUrl   string `json:"icon-url"`
-	IconEmoji string `json:"icon-emoji"`
+
+type HTTPResponseConfigModuleNotifierEmail struct {
+	ClassName      string   `json:"class-name"`
+	GroupWhitelist string   `json:"group-whitelist"`
+	Interval       int64    `json:"interval"`
+	Threshold      int      `json:"threshold"`
+	TemplateOpen   string   `json:"template-open"`
+	TemplateClose  string   `json:"template-close"`
+	Extras         []string `json:"extra"`
+	SendClose      bool     `json:"send-close"`
+	Server         string   `json:"server"`
+	Port           int      `json:"port"`
+	AuthType       string   `json:"auth-type"`
+	Username       string   `json:"username"`
+	From           string   `json:"from"`
+	To             string   `json:"to"`
 }
-type HTTPResponseConfigModuleNotifier struct {
-	ClassName      string      `json:"class-name"`
-	GroupWhitelist string      `json:"group-whitelist"`
-	Interval       int64       `json:"interval"`
-	Threshold      int         `json:"threshold"`
-	Timeout        int         `json:"timeout"`
-	Keepalive      int         `json:"keepalive"`
-	Profile        interface{} `json:"profile"`
-	TemplateOpen   string      `json:"template-open"`
-	TemplateClose  string      `json:"template-close"`
-	Extras         []string    `json:"extra"`
-	SendClose      bool        `json:"send-close"`
+
+type HTTPResponseConfigModuleNotifierNull struct {
+	ClassName      string   `json:"class-name"`
+	GroupWhitelist string   `json:"group-whitelist"`
+	Interval       int64    `json:"interval"`
+	Threshold      int      `json:"threshold"`
+	TemplateOpen   string   `json:"template-open"`
+	TemplateClose  string   `json:"template-close"`
+	Extras         []string `json:"extra"`
+	SendClose      bool     `json:"send-close"`
 }

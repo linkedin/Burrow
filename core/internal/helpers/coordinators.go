@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -44,8 +43,8 @@ type MockModule struct {
 	mock.Mock
 }
 
-func (m *MockModule) Configure(name string) {
-	m.Called(name)
+func (m *MockModule) Configure(name string, configRoot string) {
+	m.Called(name, configRoot)
 }
 func (m *MockModule) Start() error {
 	args := m.Called()
@@ -58,10 +57,6 @@ func (m *MockModule) Stop() error {
 func (m *MockModule) GetName() string {
 	args := m.Called()
 	return args.String(0)
-}
-func (m *MockModule) GetConfig() *configuration.NotifierConfig {
-	args := m.Called()
-	return args.Get(0).(*configuration.NotifierConfig)
 }
 func (m *MockModule) GetGroupWhitelist() *regexp.Regexp {
 	args := m.Called()

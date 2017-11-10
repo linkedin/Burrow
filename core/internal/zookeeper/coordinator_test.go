@@ -11,16 +11,19 @@
 package zookeeper
 
 import (
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/samuel/go-zookeeper/zk"
+	"sync"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap"
-	"sync"
 	"testing"
-	"time"
+
+	"github.com/samuel/go-zookeeper/zk"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -28,14 +31,13 @@ func fixtureCoordinator() *Coordinator {
 		Log: zap.NewNop(),
 	}
 	coordinator.App = &protocol.ApplicationContext{
-		Logger:        zap.NewNop(),
-		Configuration: &configuration.Configuration{},
+		Logger: zap.NewNop(),
 	}
 
-	coordinator.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
-	coordinator.App.Configuration.Zookeeper.RootPath = "/test/path/burrow"
-	coordinator.App.Configuration.Zookeeper.Server = []string{"zk.example.com:2181"}
-	coordinator.App.Configuration.Zookeeper.Timeout = 5
+	viper.Reset()
+	viper.Set("zookeeper.root-path", "/test/path/burrow")
+	viper.Set("zookeeper.servers", []string{"zk.example.com:2181"})
+	viper.Set("zookeeper.timeout", 5)
 
 	return &coordinator
 }
@@ -66,6 +68,7 @@ func TestCoordinator_StartStop(t *testing.T) {
 	mockClient.On("Create", "/test/path/burrow", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", nil)
 	mockClient.On("Close").Run(func(args mock.Arguments) { close(eventChan) }).Return()
 
+	coordinator.Configure()
 	err := coordinator.Start()
 	assert.Nil(t, err, "Expected Start to not return an error")
 	assert.Equal(t, &mockClient, coordinator.App.Zookeeper, "Expected App.Zookeeper to be set to the mock client")

@@ -14,8 +14,8 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/viper"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -37,26 +37,49 @@ func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request,
 	})
 }
 
-func getClientProfile(name string, profile *configuration.ClientProfile) HTTPResponseClientProfile {
-	return HTTPResponseClientProfile{
-		Name:            name,
-		ClientID:        profile.ClientID,
-		KafkaVersion:    profile.KafkaVersion,
-		TLS:             profile.TLS,
-		TLSNoVerify:     profile.TLSNoVerify,
-		TLSCertFilePath: profile.TLSCertFilePath,
-		TLSKeyFilePath:  profile.TLSKeyFilePath,
-		TLSCAFilePath:   profile.TLSCAFilePath,
-		SASL:            profile.SASL,
-		HandshakeFirst:  profile.HandshakeFirst,
-		Username:        profile.Username,
+func getTLSProfile(name string) *HTTPResponseTLSProfile {
+	configRoot := "tls." + name
+	if !viper.IsSet(configRoot) {
+		return nil
 	}
 
+	return &HTTPResponseTLSProfile{
+		Name:     name,
+		CertFile: viper.GetString(configRoot + ".certfile"),
+		KeyFile:  viper.GetString(configRoot + ".keyfile"),
+		CAFile:   viper.GetString(configRoot + ".cafile"),
+		NoVerify: viper.GetBool(configRoot + ".no-verify"),
+	}
+}
+
+func getSASLProfile(name string) *HTTPResponseSASLProfile {
+	configRoot := "sasl." + name
+	if !viper.IsSet(configRoot) {
+		return nil
+	}
+
+	return &HTTPResponseSASLProfile{
+		Name:           name,
+		HandshakeFirst: viper.GetBool(configRoot + ".handshake-first"),
+		Username:       viper.GetString(configRoot + ".username"),
+	}
+}
+
+func getClientProfile(name string) HTTPResponseClientProfile {
+	configRoot := "client-profile." + name
+	return HTTPResponseClientProfile{
+		Name:         name,
+		ClientID:     viper.GetString(configRoot + ".client-id"),
+		KafkaVersion: viper.GetString(configRoot + ".kafka-version"),
+		TLS:          getTLSProfile(viper.GetString(configRoot + ".tls")),
+		SASL:         getSASLProfile(viper.GetString(configRoot + ".sasl")),
+	}
 }
 
 func (hc *Coordinator) handleClusterDetail(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	// Get cluster config
-	if cfg, ok := hc.App.Configuration.Cluster[params.ByName("cluster")]; !ok {
+	configRoot := "cluster." + params.ByName("cluster")
+	if !viper.IsSet(configRoot) {
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
@@ -64,11 +87,11 @@ func (hc *Coordinator) handleClusterDetail(w http.ResponseWriter, r *http.Reques
 			Error:   false,
 			Message: "cluster module detail returned",
 			Module: HTTPResponseConfigModuleCluster{
-				ClassName:     cfg.ClassName,
-				Servers:       cfg.Servers,
-				ClientProfile: getClientProfile(cfg.ClientProfile, hc.App.Configuration.ClientProfile[cfg.ClientProfile]),
-				TopicRefresh:  cfg.TopicRefresh,
-				OffsetRefresh: cfg.OffsetRefresh,
+				ClassName:     viper.GetString(configRoot + ".class-name"),
+				Servers:       viper.GetStringSlice(configRoot + ".servers"),
+				TopicRefresh:  viper.GetInt64(configRoot + ".topic-refresh"),
+				OffsetRefresh: viper.GetInt64(configRoot + ".offset-refresh"),
+				ClientProfile: getClientProfile(viper.GetString(configRoot + ".client-profile")),
 			},
 			Request: requestInfo,
 		})

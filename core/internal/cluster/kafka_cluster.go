@@ -12,23 +12,25 @@ package cluster
 
 import (
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"time"
 )
 
 type KafkaCluster struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.ClusterConfig
-	saramaConfig    *sarama.Config
+	name          string
+	saramaConfig  *sarama.Config
+	servers       []string
+	offsetRefresh int
+	topicRefresh  int
 
 	offsetTicker   *time.Ticker
 	metadataTicker *time.Ticker
@@ -39,51 +41,49 @@ type KafkaCluster struct {
 	topicMap      map[string]int
 }
 
-func (module *KafkaCluster) Configure(name string) {
+func (module *KafkaCluster) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
 	module.quitChannel = make(chan struct{})
 	module.running = sync.WaitGroup{}
-	module.myConfiguration = module.App.Configuration.Cluster[name]
 
-	if profile, ok := module.App.Configuration.ClientProfile[module.myConfiguration.ClientProfile]; ok {
-		module.saramaConfig = helpers.GetSaramaConfigFromClientProfile(profile)
-	} else {
-		panic("Cluster '" + name + "' references an unknown client-profile '" + module.myConfiguration.ClientProfile + "'")
-	}
-	if len(module.myConfiguration.Servers) == 0 {
+	profile := viper.GetString(configRoot + ".client-profile")
+	module.saramaConfig = helpers.GetSaramaConfigFromClientProfile(profile)
+
+	module.servers = viper.GetStringSlice(configRoot + ".servers")
+	if len(module.servers) == 0 {
 		panic("No Kafka brokers specified for cluster " + module.name)
-	} else if !configuration.ValidateHostList(module.myConfiguration.Servers) {
+	} else if !helpers.ValidateHostList(module.servers) {
 		panic("Cluster '" + name + "' has one or more improperly formatted servers (must be host:port)")
 	}
 
 	// Set defaults for configs if needed
-	if module.App.Configuration.Cluster[module.name].OffsetRefresh == 0 {
-		module.App.Configuration.Cluster[module.name].OffsetRefresh = 10
-	}
-	if module.App.Configuration.Cluster[module.name].TopicRefresh == 0 {
-		module.App.Configuration.Cluster[module.name].TopicRefresh = 60
-	}
+	viper.SetDefault(configRoot+".offset-refresh", 10)
+	viper.SetDefault(configRoot+".topic-refresh", 60)
+	module.offsetRefresh = viper.GetInt(configRoot + ".offset-refresh")
+	module.topicRefresh = viper.GetInt(configRoot + ".topic-refresh")
 }
 
 func (module *KafkaCluster) Start() error {
 	module.Log.Info("starting")
 
 	// Connect Kafka client
-	client, err := sarama.NewClient(module.myConfiguration.Servers, module.saramaConfig)
+	client, err := sarama.NewClient(module.servers, module.saramaConfig)
 	if err != nil {
 		return err
 	}
 
 	// Fire off the offset requests once, before we start the ticker, to make sure we start with good data for consumers
-	helperClient := &helpers.BurrowSaramaClient{client}
+	helperClient := &helpers.BurrowSaramaClient{
+		Client: client,
+	}
 	module.fetchMetadata = true
 	module.getOffsets(helperClient)
 
 	// Start main loop that has a timer for offset and topic fetches
-	module.offsetTicker = time.NewTicker(time.Duration(module.myConfiguration.OffsetRefresh) * time.Second)
-	module.metadataTicker = time.NewTicker(time.Duration(module.myConfiguration.TopicRefresh) * time.Second)
+	module.offsetTicker = time.NewTicker(time.Duration(module.offsetRefresh) * time.Second)
+	module.metadataTicker = time.NewTicker(time.Duration(module.topicRefresh) * time.Second)
 	go module.mainLoop(helperClient)
 
 	return nil

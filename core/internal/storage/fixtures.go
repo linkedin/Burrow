@@ -11,10 +11,12 @@
 package storage
 
 import (
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
-	"go.uber.org/zap"
 	"time"
+
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot
@@ -26,19 +28,15 @@ func StorageCoordinatorWithOffsets() *Coordinator {
 	}
 	coordinator.App = &protocol.ApplicationContext{
 		Logger:         zap.NewNop(),
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	coordinator.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
-	coordinator.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName:      "inmemory",
-		Intervals:      10,
-		MinDistance:    0,
-		GroupWhitelist: "",
-	}
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{}
+	viper.Reset()
+	viper.Set("storage.test.class-name", "inmemory")
+	viper.Set("storage.test.intervals", 10)
+	viper.Set("storage.test.min-distance", 0)
+	viper.Set("storage.test.group-whitelist", "")
+	viper.Set("cluster.testcluster.class-name", "kafka")
 
 	coordinator.Configure()
 	coordinator.Start()

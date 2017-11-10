@@ -11,26 +11,27 @@
 package evaluator
 
 import (
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/karrick/goswarm"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"strings"
-	"time"
 )
 
 type CachingEvaluator struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.EvaluatorConfig
-	RequestChannel  chan *protocol.EvaluatorRequest
-	running         sync.WaitGroup
-	cache           *goswarm.Simple
+	name        string
+	expireCache int
+
+	RequestChannel chan *protocol.EvaluatorRequest
+	running        sync.WaitGroup
+	cache          *goswarm.Simple
 }
 
 type CacheError struct {
@@ -42,19 +43,17 @@ func (e *CacheError) Error() string {
 	return e.Reason
 }
 
-func (module *CachingEvaluator) Configure(name string) {
+func (module *CachingEvaluator) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
 	module.RequestChannel = make(chan *protocol.EvaluatorRequest)
-	module.myConfiguration = module.App.Configuration.Evaluator[name]
 	module.running = sync.WaitGroup{}
 
 	// Set defaults for configs if needed
-	if module.App.Configuration.Evaluator[module.name].ExpireCache == 0 {
-		module.App.Configuration.Evaluator[module.name].ExpireCache = 10
-	}
-	cacheExpire := time.Duration(module.App.Configuration.Evaluator[module.name].ExpireCache) * time.Second
+	viper.SetDefault(configRoot+".expire-cache", 10)
+	module.expireCache = viper.GetInt(configRoot + ".expire-cache")
+	cacheExpire := time.Duration(module.expireCache) * time.Second
 
 	newCache, err := goswarm.NewSimple(&goswarm.Config{
 		GoodExpiryDuration: cacheExpire,

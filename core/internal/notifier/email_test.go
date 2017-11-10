@@ -11,47 +11,34 @@
 package notifier
 
 import (
-	"testing"
+	"net/smtp"
 	"text/template"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"testing"
+
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
-	"net/smtp"
 )
 
 func fixtureEmailNotifier() *EmailNotifier {
 	module := EmailNotifier{
 		Log: zap.NewNop(),
 	}
-	module.App = &protocol.ApplicationContext{
-		Configuration: &configuration.Configuration{},
-	}
+	module.App = &protocol.ApplicationContext{}
 
-	module.App.Configuration.EmailNotifierProfile = make(map[string]*configuration.EmailNotifierProfile)
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"] = &configuration.EmailNotifierProfile{
-		Server:   "test.example.com",
-		Port:     587,
-		AuthType: "",
-		Username: "",
-		Password: "",
-		From:     "sender@example.com",
-		To:       "receiver@example.com",
-	}
-
-	module.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
-	module.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:     "email",
-		Profile:       "test_email_profile",
-		Timeout:       2,
-		Keepalive:     10,
-		TemplateOpen:  "template_open",
-		TemplateClose: "template_close",
-		SendClose:     false,
-	}
+	viper.Reset()
+	viper.Set("notifier.test.class-name", "email")
+	viper.Set("notifier.test.template-open", "template_open")
+	viper.Set("notifier.test.template-close", "template_close")
+	viper.Set("notifier.test.send-close", false)
+	viper.Set("notifier.test.server", "test.example.com")
+	viper.Set("notifier.test.port", 587)
+	viper.Set("notifier.test.from", "sender@example.com")
+	viper.Set("notifier.test.to", "receiver@example.com")
 
 	return &module
 }
@@ -64,7 +51,7 @@ func TestEmailNotifier_ImplementsModule(t *testing.T) {
 func TestEmailNotifier_Configure(t *testing.T) {
 	module := fixtureEmailNotifier()
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 	assert.Equalf(t, "test.example.com:587", module.serverWithPort, "Expected serverWithPort to be test.example.com:587, not %v", module.serverWithPort)
 	assert.NotNil(t, module.sendMailFunc, "Expected sendMailFunc to get set to smtp.SendMail")
 	assert.Nil(t, module.auth, "Expected auth to be set to nil")
@@ -72,27 +59,27 @@ func TestEmailNotifier_Configure(t *testing.T) {
 
 func TestEmailNotifier_Configure_BasicAuth(t *testing.T) {
 	module := fixtureEmailNotifier()
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].AuthType = "plain"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Username = "user"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Password = "pass"
+	viper.Set("notifier.test.auth-type", "plain")
+	viper.Set("notifier.test.username", "user")
+	viper.Set("notifier.test.password", "pass")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 	assert.NotNil(t, module.auth, "Expected auth to be set")
 }
 
 func TestEmailNotifier_Configure_CramMD5(t *testing.T) {
 	module := fixtureEmailNotifier()
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].AuthType = "CramMD5"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Username = "user"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Password = "pass"
+	viper.Set("notifier.test.auth-type", "CramMD5")
+	viper.Set("notifier.test.username", "user")
+	viper.Set("notifier.test.password", "pass")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 	assert.NotNil(t, module.auth, "Expected auth to be set")
 }
 
 func TestEmailNotifier_StartStop(t *testing.T) {
 	module := fixtureEmailNotifier()
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	err := module.Start()
 	assert.Nil(t, err, "Expected Start to return no error")
@@ -102,7 +89,7 @@ func TestEmailNotifier_StartStop(t *testing.T) {
 
 func TestEmailNotifier_AcceptConsumerGroup(t *testing.T) {
 	module := fixtureEmailNotifier()
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	// Should always return true
 	assert.True(t, module.AcceptConsumerGroup(&protocol.ConsumerGroupStatus{}), "Expected any status to return True")
@@ -110,9 +97,9 @@ func TestEmailNotifier_AcceptConsumerGroup(t *testing.T) {
 
 func TestEmailNotifier_Notify_Open(t *testing.T) {
 	module := fixtureEmailNotifier()
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].AuthType = "plain"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Username = "user"
-	module.App.Configuration.EmailNotifierProfile["test_email_profile"].Password = "pass"
+	viper.Set("notifier.test.auth-type", "plain")
+	viper.Set("notifier.test.username", "user")
+	viper.Set("notifier.test.password", "pass")
 
 	module.sendMailFunc = func(server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
 		assert.Equalf(t, "test.example.com:587", server, "Expected server to be test.example.com:587, not %v", server)
@@ -127,7 +114,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 	// Template for testing
 	module.templateOpen, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status:  protocol.StatusWarning,
@@ -154,7 +141,7 @@ func TestEmailNotifier_Notify_Close(t *testing.T) {
 	// Template for testing
 	module.templateClose, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status:  protocol.StatusOK,

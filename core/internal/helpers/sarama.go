@@ -16,15 +16,25 @@ import (
 	"io/ioutil"
 
 	"github.com/Shopify/sarama"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
-
-	"github.com/linkedin/Burrow/core/configuration"
 )
 
-func GetSaramaConfigFromClientProfile(profile *configuration.ClientProfile) *sarama.Config {
+func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
+	// Set config root and defaults
+	configRoot := "client-profile." + profileName
+	if (profileName != "") && (!viper.IsSet("client-profile." + profileName)) {
+		panic("unknown client-profile '" + profileName + "'")
+	}
+
+	viper.SetDefault(configRoot+".client-id", "burrow-lagchecker")
+	viper.SetDefault(configRoot+".kafka-version", "0.8")
+
 	saramaConfig := sarama.NewConfig()
-	saramaConfig.ClientID = profile.ClientID
-	switch profile.KafkaVersion {
+	saramaConfig.ClientID = viper.GetString(configRoot + "client-id")
+
+	kafkaVersion := viper.GetString(configRoot + ".kafka-version")
+	switch kafkaVersion {
 	case "0.8", "0.8.0":
 		saramaConfig.Version = sarama.V0_8_2_0
 	case "0.8.1":
@@ -44,20 +54,26 @@ func GetSaramaConfigFromClientProfile(profile *configuration.ClientProfile) *sar
 	case "", "0.10.2", "0.10.2.0":
 		saramaConfig.Version = sarama.V0_10_2_0
 	default:
-		panic("Unknown Kafka Version: " + profile.KafkaVersion)
+		panic("Unknown Kafka Version: " + kafkaVersion)
 	}
 
 	// Configure TLS if enabled
-	if profile.TLS {
+	if viper.IsSet(configRoot + ".tls") {
+		tlsName := viper.GetString(configRoot + ".tls")
+
 		saramaConfig.Net.TLS.Enable = true
-		if profile.TLSCertFilePath == "" || profile.TLSKeyFilePath == "" || profile.TLSCAFilePath == "" {
+		certFile := viper.GetString("tls." + tlsName + ".certfile")
+		keyFile := viper.GetString("tls." + tlsName + ".keyfile")
+		caFile := viper.GetString("tls." + tlsName + ".cafile")
+
+		if certFile == "" || keyFile == "" || caFile == "" {
 			saramaConfig.Net.TLS.Config = &tls.Config{}
 		} else {
-			caCert, err := ioutil.ReadFile(profile.TLSCAFilePath)
+			caCert, err := ioutil.ReadFile(caFile)
 			if err != nil {
 				panic("cannot read TLS CA file: " + err.Error())
 			}
-			cert, err := tls.LoadX509KeyPair(profile.TLSCertFilePath, profile.TLSKeyFilePath)
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 			if err != nil {
 				panic("cannot read TLS certificate or key file: " + err.Error())
 			}
@@ -69,15 +85,17 @@ func GetSaramaConfigFromClientProfile(profile *configuration.ClientProfile) *sar
 			}
 			saramaConfig.Net.TLS.Config.BuildNameToCertificate()
 		}
-		saramaConfig.Net.TLS.Config.InsecureSkipVerify = profile.TLSNoVerify
+		saramaConfig.Net.TLS.Config.InsecureSkipVerify = viper.GetBool("tls." + tlsName + ".noverify")
 	}
 
 	// Configure SASL if enabled
-	if profile.SASL {
+	if viper.IsSet(configRoot + ".sasl") {
+		saslName := viper.GetString(configRoot + ".sasl")
+
 		saramaConfig.Net.SASL.Enable = true
-		saramaConfig.Net.SASL.Handshake = profile.HandshakeFirst
-		saramaConfig.Net.SASL.User = profile.Username
-		saramaConfig.Net.SASL.Password = profile.Password
+		saramaConfig.Net.SASL.Handshake = viper.GetBool("sasl." + saslName + ".handshake-first")
+		saramaConfig.Net.SASL.User = viper.GetString("sasl." + saslName + ".username")
+		saramaConfig.Net.SASL.Password = viper.GetString("sasl." + saslName + ".password")
 	}
 
 	return saramaConfig

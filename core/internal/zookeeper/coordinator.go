@@ -11,21 +11,23 @@
 package zookeeper
 
 import (
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"strings"
 )
 
 type Coordinator struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
+	servers     []string
 	connectFunc func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 	running     sync.WaitGroup
 }
@@ -37,6 +39,22 @@ func (zc *Coordinator) Configure() {
 		zc.connectFunc = helpers.ZookeeperConnect
 	}
 
+	// Set and check configs
+	viper.SetDefault("zookeeper.timeout", 6)
+	viper.SetDefault("zookeeper.root-path", "/burrow")
+
+	zc.servers = viper.GetStringSlice("zookeeper.servers")
+	if len(zc.servers) == 0 {
+		panic("No Zookeeper servers specified")
+	} else if !helpers.ValidateHostList(zc.servers) {
+		panic("Failed to validate Zookeeper servers")
+	}
+
+	zc.App.ZookeeperRoot = viper.GetString("zookeeper.root-path")
+	if !helpers.ValidateZookeeperPath(zc.App.ZookeeperRoot) {
+		panic("Zookeeper root path is not valid")
+	}
+
 	zc.running = sync.WaitGroup{}
 }
 
@@ -45,17 +63,15 @@ func (zc *Coordinator) Start() error {
 
 	// This ZK client will be shared by other parts of Burrow for things like locks
 	// NOTE - samuel/go-zookeeper does not support chroot, so we pass along the configured root path in config
-	zkConn, connEventChan, err := zc.connectFunc(zc.App.Configuration.Zookeeper.Server, time.Duration(zc.App.Configuration.Zookeeper.Timeout)*time.Second, zc.Log)
+	zkConn, connEventChan, err := zc.connectFunc(zc.servers, viper.GetDuration("zookeeper.timeout")*time.Second, zc.Log)
 	if err != nil {
-		zc.Log.Panic("Failure to start module", zap.String("error", err.Error()))
+		zc.Log.Panic("Failure to start zookeeper", zap.String("error", err.Error()))
 		return err
 	}
-
 	zc.App.Zookeeper = zkConn
 
 	// Assure that our root path exists
-	zc.App.ZookeeperRoot = zc.App.Configuration.Zookeeper.RootPath
-	err = zc.createRecursive(zc.App.Configuration.Zookeeper.RootPath)
+	err = zc.createRecursive(zc.App.ZookeeperRoot)
 	if err != nil {
 		zc.Log.Error("cannot create root path", zap.Error(err))
 		return err

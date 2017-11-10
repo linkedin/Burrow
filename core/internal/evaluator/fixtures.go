@@ -11,10 +11,11 @@
 package evaluator
 
 import (
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	"github.com/linkedin/Burrow/core/internal/storage"
 	"github.com/linkedin/Burrow/core/protocol"
-	"go.uber.org/zap"
 )
 
 // This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot
@@ -29,11 +30,8 @@ func StorageAndEvaluatorCoordinatorsWithOffsets() (*Coordinator, *storage.Coordi
 	evaluatorCoordinator.App = storageCoordinator.App
 	evaluatorCoordinator.App.EvaluatorChannel = make(chan *protocol.EvaluatorRequest)
 
-	evaluatorCoordinator.App.Configuration.Evaluator = make(map[string]*configuration.EvaluatorConfig)
-	evaluatorCoordinator.App.Configuration.Evaluator["test"] = &configuration.EvaluatorConfig{
-		ClassName:   "caching",
-		ExpireCache: 30,
-	}
+	viper.Set("evaluator.test.class-name", "caching")
+	viper.Set("evaluator.test.expire-cache", 30)
 
 	evaluatorCoordinator.Configure()
 	evaluatorCoordinator.Start()

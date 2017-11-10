@@ -11,20 +11,20 @@
 package notifier
 
 import (
+	"errors"
+	"regexp"
 	"sync"
 	"text/template"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"testing"
+
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-
-	"errors"
-	"github.com/stretchr/testify/assert"
-	"regexp"
-	"testing"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -33,7 +33,6 @@ func fixtureCoordinator() *Coordinator {
 	}
 	coordinator.App = &protocol.ApplicationContext{
 		Logger:             zap.NewNop(),
-		Configuration:      &configuration.Configuration{},
 		StorageChannel:     make(chan *protocol.StorageRequest),
 		EvaluatorChannel:   make(chan *protocol.EvaluatorRequest),
 		Zookeeper:          &helpers.MockZookeeperClient{},
@@ -47,19 +46,16 @@ func fixtureCoordinator() *Coordinator {
 		return template.New("test").Parse("")
 	}
 
-	coordinator.App.Configuration.Notifier = make(map[string]*configuration.NotifierConfig)
-	coordinator.App.Configuration.Notifier["test"] = &configuration.NotifierConfig{
-		ClassName:      "null",
-		GroupWhitelist: ".*",
-		Interval:       123,
-		Threshold:      1,
-		Timeout:        2,
-		Keepalive:      10,
-		TemplateOpen:   "template_open",
-		TemplateClose:  "template_close",
-		Extras:         []string{"foo=bar"},
-		SendClose:      false,
-	}
+	viper.Reset()
+	viper.Set("notifier.test.class-name", "null")
+	viper.Set("notifier.test.group-whitelist", ".*")
+	viper.Set("notifier.test.threshold", 1)
+	viper.Set("notifier.test.timeout", 2)
+	viper.Set("notifier.test.keepalive", 10)
+	viper.Set("notifier.test.template-open", "template_open")
+	viper.Set("notifier.test.template-close", "template_close")
+	viper.Set("notifier.test.extras.foo", "bar")
+	viper.Set("notifier.test.send-close", false)
 
 	return &coordinator
 }
@@ -75,11 +71,7 @@ func TestCoordinator_Configure(t *testing.T) {
 	assert.Lenf(t, coordinator.modules, 1, "Expected 1 module configured, not %v", len(coordinator.modules))
 
 	module := coordinator.modules["test"].(*NullNotifier)
-	moduleConfig := coordinator.App.Configuration.Notifier["test"]
 	assert.True(t, module.CalledConfigure, "Expected module Configure to be called")
-	assert.Equalf(t, int64(123), coordinator.minInterval, "Expected coordinator minInterval to be 123, not %v", coordinator.minInterval)
-	assert.Equalf(t, int64(123), moduleConfig.Interval, "Expected Interval to get set to 123, not %v", moduleConfig.Interval)
-	assert.Equalf(t, 1, moduleConfig.Threshold, "Expected Threshold to get set to 1, not %v", moduleConfig.Threshold)
 
 	assert.Lenf(t, module.extras, 1, "Expected exactly one extra entry to be set, not %v", len(module.extras))
 	val, ok := module.extras["foo"]
@@ -87,28 +79,9 @@ func TestCoordinator_Configure(t *testing.T) {
 	assert.Equalf(t, "bar", val, "Expected value of extras 'foo' to be 'bar', not %v", val)
 }
 
-func TestCoordinator_Configure_Defaults(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].Interval = 0
-	coordinator.App.Configuration.Notifier["test"].Threshold = 0
-	coordinator.App.Configuration.Notifier["test"].Extras = []string{}
-
-	coordinator.Configure()
-
-	module := coordinator.modules["test"].(*NullNotifier)
-	moduleConfig := coordinator.App.Configuration.Notifier["test"]
-	assert.Equalf(t, int64(60), moduleConfig.Interval, "Expected Interval to get set to 60, not %v", moduleConfig.Interval)
-	assert.Equalf(t, 2, moduleConfig.Threshold, "Expected Threshold to get set to 2, not %v", moduleConfig.Threshold)
-	assert.Equalf(t, int64(60), coordinator.minInterval, "Expected coordinator minInterval to be 60, not %v", coordinator.minInterval)
-	assert.Lenf(t, module.extras, 0, "Expected exactly zero extra entries to be set, not %v", len(module.extras))
-	assert.NotNil(t, module.groupWhitelist, "Expected groupWhitelist to be set with a regular expression")
-	assert.NotNil(t, module.templateOpen, "Expected templateOpen to be set with a template")
-	assert.Nil(t, module.templateClose, "Expected templateClose to not be set")
-}
-
 func TestCoordinator_Configure_NoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	delete(coordinator.App.Configuration.Notifier, "test")
+	viper.Reset()
 	coordinator.Configure()
 
 	assert.Equalf(t, int64(310536000), coordinator.minInterval, "Expected coordinator minInterval to be 310536000, not %v", coordinator.minInterval)
@@ -116,9 +89,7 @@ func TestCoordinator_Configure_NoModules(t *testing.T) {
 
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["anothertest"] = &configuration.NotifierConfig{
-		ClassName: "null",
-	}
+	viper.Set("notifier.anothertest.class-name", "null")
 	coordinator.Configure()
 
 	assert.Lenf(t, coordinator.modules, 2, "Expected 2 modules configured, not %v", len(coordinator.modules))
@@ -131,7 +102,7 @@ func TestCoordinator_Configure_TwoModules(t *testing.T) {
 
 func TestCoordinator_Configure_BadRegexp(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].GroupWhitelist = "["
+	viper.Set("notifier.test.group-whitelist", "[")
 
 	assert.Panics(t, func() { coordinator.Configure() }, "The code did not panic")
 }
@@ -147,16 +118,9 @@ func TestCoordinator_Configure_BadTemplate(t *testing.T) {
 	assert.Panics(t, func() { coordinator.Configure() }, "The code did not panic")
 }
 
-func TestCoordinator_Configure_BadExtras(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].Extras = []string{"badextra"}
-
-	assert.Panics(t, func() { coordinator.Configure() }, "The code did not panic")
-}
-
 func TestCoordinator_Configure_SendClose(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].SendClose = true
+	viper.Set("notifier.test.send-close", true)
 
 	// Simple parser replacement that returns an empty template using a string, or throws an error on unexpected use for this test
 	coordinator.templateParseFunc = func(filenames ...string) (*template.Template, error) {
@@ -545,10 +509,6 @@ func TestCoordinator_notifyModule_NoIncidentOK(t *testing.T) {
 	}
 	mockModule := &helpers.MockModule{}
 	mockModule.On("GetName").Return("test")
-	mockModule.On("GetConfig").Return(&configuration.NotifierConfig{
-		Interval:  60,
-		Threshold: 2,
-	})
 
 	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
 
@@ -582,10 +542,6 @@ func TestCoordinator_notifyModule_HaveIncidentOK(t *testing.T) {
 	}
 	mockModule := &helpers.MockModule{}
 	mockModule.On("GetName").Return("test")
-	mockModule.On("GetConfig").Return(&configuration.NotifierConfig{
-		Interval:  60,
-		Threshold: 2,
-	})
 
 	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
 
@@ -596,6 +552,7 @@ func TestCoordinator_notifyModule_HaveIncidentOK(t *testing.T) {
 
 func TestCoordinator_notifyModule_HaveIncidentOK_SendClose(t *testing.T) {
 	coordinator := fixtureCoordinator()
+	viper.Set("notifier.test.send-close", true)
 	coordinator.Configure()
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
@@ -619,11 +576,6 @@ func TestCoordinator_notifyModule_HaveIncidentOK_SendClose(t *testing.T) {
 	}
 	mockModule := &helpers.MockModule{}
 	mockModule.On("GetName").Return("test")
-	mockModule.On("GetConfig").Return(&configuration.NotifierConfig{
-		Interval:  60,
-		Threshold: 2,
-		SendClose: true,
-	})
 	mockModule.On("Notify", responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Id, coordinator.clusters["testcluster"].Groups["testgroup"].Start, true)
 
 	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
@@ -635,7 +587,7 @@ func TestCoordinator_notifyModule_HaveIncidentOK_SendClose(t *testing.T) {
 
 func TestCoordinator_notifyModule_IntervalTooShort(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].SendClose = true
+	viper.Set("notifier.test.send-close", true)
 	coordinator.Configure()
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
@@ -659,10 +611,6 @@ func TestCoordinator_notifyModule_IntervalTooShort(t *testing.T) {
 	}
 	mockModule := &helpers.MockModule{}
 	mockModule.On("GetName").Return("test")
-	mockModule.On("GetConfig").Return(&configuration.NotifierConfig{
-		Interval:  60,
-		Threshold: 2,
-	})
 
 	coordinator.notifyModule(mockModule, responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
 
@@ -673,7 +621,7 @@ func TestCoordinator_notifyModule_IntervalTooShort(t *testing.T) {
 
 func TestCoordinator_notifyModule_Warning(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Notifier["test"].SendClose = true
+	viper.Set("notifier.test.send-close", true)
 	coordinator.Configure()
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
@@ -697,10 +645,6 @@ func TestCoordinator_notifyModule_Warning(t *testing.T) {
 	}
 	mockModule := &helpers.MockModule{}
 	mockModule.On("GetName").Return("test")
-	mockModule.On("GetConfig").Return(&configuration.NotifierConfig{
-		Interval:  60,
-		Threshold: 2,
-	})
 	mockModule.On("Notify", responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Id, coordinator.clusters["testcluster"].Groups["testgroup"].Start, false)
 
 	coordinator.notifyModule(mockModule, responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
@@ -712,10 +656,11 @@ func TestCoordinator_notifyModule_Warning(t *testing.T) {
 
 func TestCoordinator_AcceptConsumerGroup(t *testing.T) {
 	module := fixtureHttpNotifier()
-	module.App.Configuration.Notifier["test"].Threshold = 2
-	module.App.Configuration.Notifier["test"].GroupWhitelist = "test.*"
+
+	viper.Set("notifier.test.threshold", 2)
+	viper.Set("notifier.test.group-whitelist", "test.*")
 	module.groupWhitelist, _ = regexp.Compile("test.*")
-	module.Configure("test")
+	module.Configure("test", "notifier.test")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status: protocol.StatusOK,

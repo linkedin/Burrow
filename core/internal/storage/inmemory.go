@@ -11,16 +11,16 @@
 package storage
 
 import (
+	"container/ring"
 	"math/rand"
 	"regexp"
 	"sync"
 	"time"
 
+	"github.com/OneOfOne/xxhash"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"container/ring"
-	"github.com/OneOfOne/xxhash"
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -28,11 +28,14 @@ type InMemoryStorage struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.StorageConfig
-	RequestChannel  chan *protocol.StorageRequest
-	running         sync.WaitGroup
+	name        string
+	intervals   int
+	numWorkers  int
+	expireGroup int64
+	minDistance int64
 
+	RequestChannel chan *protocol.StorageRequest
+	running        sync.WaitGroup
 	offsets        map[string]ClusterOffsets
 	groupWhitelist *regexp.Regexp
 	workers        []chan *protocol.StorageRequest
@@ -67,28 +70,26 @@ type ClusterOffsets struct {
 	consumerLock *sync.RWMutex
 }
 
-func (module *InMemoryStorage) Configure(name string) {
+func (module *InMemoryStorage) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Storage[name]
 	module.RequestChannel = make(chan *protocol.StorageRequest)
 	module.running = sync.WaitGroup{}
 	module.offsets = make(map[string]ClusterOffsets)
 
 	// Set defaults for configs if needed
-	if module.myConfiguration.Intervals == 0 {
-		module.myConfiguration.Intervals = 10
-	}
-	if module.myConfiguration.ExpireGroup == 0 {
-		module.myConfiguration.ExpireGroup = 604800
-	}
-	if module.myConfiguration.Workers == 0 {
-		module.myConfiguration.Workers = 20
-	}
+	viper.SetDefault(configRoot+".intervals", 10)
+	viper.SetDefault(configRoot+".expire-group", 604800)
+	viper.SetDefault(configRoot+".workers", 20)
+	module.intervals = viper.GetInt(configRoot + ".intervals")
+	module.expireGroup = viper.GetInt64(configRoot + ".expire-group")
+	module.numWorkers = viper.GetInt(configRoot + ".workers")
+	module.minDistance = viper.GetInt64(configRoot + ".min-distance")
 
-	if module.myConfiguration.GroupWhitelist != "" {
-		re, err := regexp.Compile(module.myConfiguration.GroupWhitelist)
+	whitelist := viper.GetString(configRoot + ".group-whitelist")
+	if whitelist != "" {
+		re, err := regexp.Compile(whitelist)
 		if err != nil {
 			module.Log.Panic("Failed to compile group whitelist")
 			panic(err)
@@ -104,7 +105,7 @@ func (module *InMemoryStorage) GetCommunicationChannel() chan *protocol.StorageR
 func (module *InMemoryStorage) Start() error {
 	module.Log.Info("starting")
 
-	for cluster := range module.App.Configuration.Cluster {
+	for cluster := range viper.GetStringMap("cluster") {
 		module.
 			offsets[cluster] = ClusterOffsets{
 			broker:       make(map[string][]*BrokerOffset),
@@ -115,8 +116,8 @@ func (module *InMemoryStorage) Start() error {
 	}
 
 	// Start the appropriate number of workers, with a channel for each
-	module.workers = make([]chan *protocol.StorageRequest, module.myConfiguration.Workers)
-	for i := 0; i < module.myConfiguration.Workers; i++ {
+	module.workers = make([]chan *protocol.StorageRequest, module.numWorkers)
+	for i := 0; i < module.numWorkers; i++ {
 		module.workers[i] = make(chan *protocol.StorageRequest)
 		go module.requestWorker(i, module.workers[i])
 	}
@@ -129,7 +130,7 @@ func (module *InMemoryStorage) Stop() error {
 	module.Log.Info("stopping")
 
 	close(module.RequestChannel)
-	for i := 0; i < module.myConfiguration.Workers; i++ {
+	for i := 0; i < module.numWorkers; i++ {
 		close(module.workers[i])
 	}
 
@@ -203,10 +204,10 @@ func (module *InMemoryStorage) mainLoop() {
 			switch r.RequestType {
 			case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic:
 				// Send to any worker
-				module.workers[int(rand.Int31n(int32(module.myConfiguration.Workers)))] <- r
+				module.workers[int(rand.Int31n(int32(module.numWorkers)))] <- r
 			case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
 				// Hash to a consistent worker
-				module.workers[int(xxhash.ChecksumString64(r.Cluster+r.Group)%uint64(module.myConfiguration.Workers))] <- r
+				module.workers[int(xxhash.ChecksumString64(r.Cluster+r.Group)%uint64(module.numWorkers))] <- r
 			default:
 				module.Log.Error("unknown storage request type",
 					zap.Int("request_type", int(r.RequestType)),
@@ -305,7 +306,7 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 
 	// Get or create the offsets ring for this partition
 	if consumerTopicMap[partition].offsets == nil {
-		consumerTopicMap[partition].offsets = ring.New(module.myConfiguration.Intervals)
+		consumerTopicMap[partition].offsets = ring.New(module.intervals)
 	}
 
 	return consumerTopicMap[partition].offsets
@@ -361,7 +362,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	if consumerPartitionRing.Prev().Value != nil {
 		// If the offset commit is faster than we are allowing (less than the min-distance config), rewind the ring by one spot
 		// This lets us store the offset commit without dropping an old one
-		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.myConfiguration.MinDistance * 1000) {
+		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.minDistance * 1000) {
 			// We have to change both pointers here, as we're essentially rewinding the ring one spot to add this commit
 			consumerPartitionRing = consumerPartitionRing.Prev()
 			consumerMap.topics[request.Topic][request.Partition].offsets = consumerPartitionRing
@@ -658,7 +659,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 	}
 
 	// Lazily purge consumers that haven't committed in longer than the defined interval. Return as a 404
-	if ((time.Now().Unix() - module.myConfiguration.ExpireGroup) * 1000) > consumerMap.lastCommit {
+	if ((time.Now().Unix() - module.expireGroup) * 1000) > consumerMap.lastCommit {
 		// Swap for a write lock
 		clusterMap.consumerLock.RUnlock()
 

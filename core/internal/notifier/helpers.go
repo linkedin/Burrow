@@ -13,9 +13,9 @@ package notifier
 import (
 	"encoding/json"
 	"text/template"
+	"time"
 
 	"github.com/linkedin/Burrow/core/protocol"
-	"time"
 )
 
 // Helper functions for templates
@@ -113,5 +113,5 @@ func maxLagHelper(a *protocol.PartitionStatus) int64 {
 }
 
 func formatTimestamp(timestamp int64, formatString string) string {
-	return time.Unix(0, timestamp * int64(time.Millisecond)).Format(formatString)
+	return time.Unix(0, timestamp*int64(time.Millisecond)).Format(formatString)
 }

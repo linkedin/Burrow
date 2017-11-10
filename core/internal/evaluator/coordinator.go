@@ -13,6 +13,7 @@ package evaluator
 import (
 	"errors"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
@@ -56,12 +57,14 @@ func (ec *Coordinator) Configure() {
 	ec.modules = make(map[string]protocol.Module)
 
 	// Create all configured evaluator modules, add to list of evaluators
-	if len(ec.App.Configuration.Evaluator) != 1 {
+	modules := viper.GetStringMap("evaluator")
+	if len(modules) != 1 {
 		panic("Only one evaluator module must be configured")
 	}
-	for name, config := range ec.App.Configuration.Evaluator {
-		module := GetModuleForClass(ec.App, config.ClassName)
-		module.Configure(name)
+	for name := range modules {
+		configRoot := "evaluator." + name
+		module := GetModuleForClass(ec.App, viper.GetString(configRoot+".class-name"))
+		module.Configure(name, configRoot)
 		ec.modules[name] = module
 	}
 }

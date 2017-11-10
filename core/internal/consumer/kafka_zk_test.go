@@ -12,16 +12,17 @@ package consumer
 
 import (
 	"errors"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/samuel/go-zookeeper/zk"
-	"github.com/stretchr/testify/assert"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"time"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {
@@ -29,19 +30,15 @@ func fixtureKafkaZkModule() *KafkaZkClient {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	module.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	module.App.Configuration.Cluster["test"] = &configuration.ClusterConfig{}
-
-	module.App.Configuration.Consumer = make(map[string]*configuration.ConsumerConfig)
-	module.App.Configuration.Consumer["test"] = &configuration.ConsumerConfig{
-		ClassName: "kafkazk",
-		Servers:   []string{"broker1.example.com:1234"},
-		Cluster:   "test",
-	}
+	viper.Reset()
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.class-name", "kafkazk")
+	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.cluster", "test")
 
 	return &module
 }
@@ -52,22 +49,15 @@ func TestKafkaZkClient_ImplementsModule(t *testing.T) {
 
 func TestKafkaZkClient_Configure(t *testing.T) {
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
-}
-
-func TestKafkaZkClient_Configure_Defaults(t *testing.T) {
-	module := fixtureKafkaZkModule()
-	module.App.Configuration.Consumer["test"].ZookeeperTimeout = 0
-	module.App.Configuration.Consumer["test"].ZookeeperPath = ""
-	module.Configure("test")
-	assert.Equal(t, "/consumers", module.myConfiguration.ZookeeperPath, "Expected ZookeeperPath to get set to '/consumers', not %v", module.myConfiguration.ZookeeperPath)
-	assert.Equal(t, int32(30), module.myConfiguration.ZookeeperTimeout, "Default ZookeeperTimeout value of 30 did not get set")
+	module.Configure("test", "consumer.test")
+	assert.Equal(t, "/consumers", module.zookeeperPath, "Expected ZookeeperPath to get set to '/consumers', not %v", module.zookeeperPath)
+	assert.Equal(t, int(30), module.zookeeperTimeout, "Default ZookeeperTimeout value of 30 did not get set")
 }
 
 func TestKafkaZkClient_Configure_BadRegexp(t *testing.T) {
 	module := fixtureModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "["
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	viper.Set("consumer.test.group-whitelist", "[")
+	assert.Panics(t, func() { module.Configure("test", "consumer.test") }, "The code did not panic")
 }
 
 func TestKafkaZkClient_Start(t *testing.T) {
@@ -76,11 +66,11 @@ func TestKafkaZkClient_Start(t *testing.T) {
 	}
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.connectFunc = mockZookeeper.MockZookeeperConnect
 
 	watchEventChan := make(chan zk.Event)
-	mockZookeeper.On("ChildrenW", module.myConfiguration.ZookeeperPath).Return([]string{}, &zk.Stat{}, func() <-chan zk.Event { return watchEventChan }(), nil)
+	mockZookeeper.On("ChildrenW", module.zookeeperPath).Return([]string{}, &zk.Stat{}, func() <-chan zk.Event { return watchEventChan }(), nil)
 	mockZookeeper.On("Close").Return()
 
 	err := module.Start()
@@ -91,8 +81,8 @@ func TestKafkaZkClient_Start(t *testing.T) {
 	module.Stop()
 
 	assert.Nil(t, err, "Expected Start to return no error")
-	assert.Equal(t, module.myConfiguration.Servers, mockZookeeper.Servers, "Expected ZookeeperConnect to be called with server list")
-	assert.Equal(t, time.Duration(module.myConfiguration.ZookeeperTimeout)*time.Second, mockZookeeper.SessionTimeout, "Expected ZookeeperConnect to be called with session timeout")
+	assert.Equal(t, module.servers, mockZookeeper.Servers, "Expected ZookeeperConnect to be called with server list")
+	assert.Equal(t, time.Duration(module.zookeeperTimeout)*time.Second, mockZookeeper.SessionTimeout, "Expected ZookeeperConnect to be called with session timeout")
 
 	watchEventChan <- zk.Event{
 		Type:  zk.EventNotWatching,
@@ -108,8 +98,8 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
-	module.Configure("test")
+	viper.Set("consumer.test.group-whitelist", "test.*")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	offsetStat := &zk.Stat{Mtime: 894859}
@@ -169,7 +159,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadPath(t *testing.T) {
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	module.resetOffsetWatchAndSend("testgroup", "testtopic", 0, false)
@@ -180,7 +170,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadOffset(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	offsetStat := &zk.Stat{Mtime: 894859}
@@ -205,7 +195,7 @@ func TestKafkaZkClient_resetPartitionListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets/testtopic").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	module.resetPartitionListWatchAndAdd("testgroup", "testtopic", false)
@@ -217,7 +207,7 @@ func TestKafkaZkClient_resetTopicListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	module.resetTopicListWatchAndAdd("testgroup", false)
@@ -229,7 +219,7 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
 
 	module := fixtureKafkaZkModule()
-	module.Configure("test")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	module.resetGroupListWatchAndAdd(false)
@@ -240,8 +230,8 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
-	module.App.Configuration.Consumer["test"].GroupWhitelist = "test.*"
-	module.Configure("test")
+	viper.Set("consumer.test.group-whitelist", "test.*")
+	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
 	offsetStat := &zk.Stat{Mtime: 894859}

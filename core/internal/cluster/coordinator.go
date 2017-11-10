@@ -13,6 +13,7 @@ package cluster
 import (
 	"errors"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
@@ -47,12 +48,14 @@ func (bc *Coordinator) Configure() {
 	bc.modules = make(map[string]protocol.Module)
 
 	// Create all configured cluster modules, add to list of clusters
-	if len(bc.App.Configuration.Cluster) == 0 {
+	modules := viper.GetStringMap("cluster")
+	if len(modules) == 0 {
 		panic("At least one cluster module must be configured")
 	}
-	for name, config := range bc.App.Configuration.Cluster {
-		module := GetModuleForClass(bc.App, config.ClassName)
-		module.Configure(name)
+	for name := range modules {
+		configRoot := "cluster." + name
+		module := GetModuleForClass(bc.App, viper.GetString(configRoot+".class-name"))
+		module.Configure(name, configRoot)
 		bc.modules[name] = module
 	}
 }

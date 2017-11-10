@@ -20,9 +20,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -30,61 +30,54 @@ type HttpNotifier struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
 
-	name            string
-	myConfiguration *configuration.NotifierConfig
-	profile         *configuration.HttpNotifierProfile
-
+	name           string
+	threshold      int
 	groupWhitelist *regexp.Regexp
 	extras         map[string]string
+	urlOpen        string
+	urlClose       string
+	methodOpen     string
+	methodClose    string
 	templateOpen   *template.Template
 	templateClose  *template.Template
+	sendClose      bool
 
 	HttpClient *http.Client
 }
 
-func (module *HttpNotifier) Configure(name string) {
+func (module *HttpNotifier) Configure(name string, configRoot string) {
 	module.name = name
-	module.myConfiguration = module.App.Configuration.Notifier[name]
-
-	if profile, ok := module.App.Configuration.HttpNotifierProfile[module.myConfiguration.Profile]; ok {
-		module.profile = profile
-	} else {
-		module.Log.Panic("unknown HTTP notifier profile")
-		panic(errors.New("configuration error"))
-	}
 
 	// Validate and set defaults for profile configs
-	if module.profile.UrlOpen == "" {
+	module.urlOpen = viper.GetString(configRoot + ".url-open")
+	if module.urlOpen == "" {
 		module.Log.Panic("no url-open specified")
 		panic(errors.New("configuration error"))
 	}
-	if module.profile.MethodOpen == "" {
-		module.profile.MethodOpen = "POST"
-	}
-	if module.myConfiguration.SendClose {
-		if module.profile.UrlClose == "" {
+	viper.SetDefault(configRoot+".method-open", "POST")
+	module.methodOpen = viper.GetString(configRoot + ".method-open")
+
+	module.sendClose = viper.GetBool(configRoot + ".send-close")
+	if module.sendClose {
+		module.urlClose = viper.GetString(configRoot + ".url-close")
+		if module.urlClose == "" {
 			module.Log.Panic("no url-close specified")
 			panic(errors.New("configuration error"))
 		}
-		if module.profile.MethodClose == "" {
-			module.profile.MethodClose = "POST"
-		}
+		viper.SetDefault(configRoot+".method-close", "POST")
+		module.methodClose = viper.GetString(configRoot + ".method-close")
 	}
 
 	// Set defaults for module-specific configs if needed
-	if module.App.Configuration.Notifier[module.name].Timeout == 0 {
-		module.App.Configuration.Notifier[module.name].Timeout = 5
-	}
-	if module.App.Configuration.Notifier[module.name].Keepalive == 0 {
-		module.App.Configuration.Notifier[module.name].Keepalive = 300
-	}
+	viper.SetDefault(configRoot+".timeout", 5)
+	viper.SetDefault(configRoot+".keepalive", 300)
 
 	// Set up HTTP client
 	module.HttpClient = &http.Client{
-		Timeout: time.Duration(module.myConfiguration.Timeout) * time.Second,
+		Timeout: viper.GetDuration(configRoot+".timeout") * time.Second,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				KeepAlive: time.Duration(module.myConfiguration.Keepalive) * time.Second,
+				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
 			Proxy: http.ProxyFromEnvironment,
 		},
@@ -103,10 +96,6 @@ func (module *HttpNotifier) Stop() error {
 
 func (module *HttpNotifier) GetName() string {
 	return module.name
-}
-
-func (module *HttpNotifier) GetConfig() *configuration.NotifierConfig {
-	return module.myConfiguration
 }
 
 func (module *HttpNotifier) GetGroupWhitelist() *regexp.Regexp {
@@ -136,12 +125,12 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 
 	if stateGood {
 		tmpl = module.templateClose
-		method = module.profile.MethodClose
-		url = module.profile.UrlClose
+		method = module.methodClose
+		url = module.urlClose
 	} else {
 		tmpl = module.templateOpen
-		method = module.profile.MethodOpen
-		url = module.profile.UrlOpen
+		method = module.methodOpen
+		url = module.urlOpen
 	}
 
 	bytesToSend, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
@@ -152,9 +141,10 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 
 	// Send request to HTTP endpoint
 	req, err := http.NewRequest(method, url, bytesToSend)
-	if module.profile.Username != "" {
+	username := viper.GetString("notifier." + module.name + ".username")
+	if username != "" {
 		// Add basic auth using the provided username and password
-		req.SetBasicAuth(module.profile.Username, module.profile.Password)
+		req.SetBasicAuth(viper.GetString("notifier."+module.name+".username"), viper.GetString("notifier."+module.name+".password"))
 	}
 	req.Header.Set("Content-Type", "application/json")
 

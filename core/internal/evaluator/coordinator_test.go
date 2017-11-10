@@ -11,13 +11,13 @@
 package evaluator
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -26,17 +26,14 @@ func fixtureCoordinator() *Coordinator {
 	}
 	coordinator.App = &protocol.ApplicationContext{
 		Logger:         zap.NewNop(),
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	coordinator.App.Configuration.Evaluator = make(map[string]*configuration.EvaluatorConfig)
-	coordinator.App.Configuration.Evaluator["test"] = &configuration.EvaluatorConfig{
-		ClassName:   "caching",
-		ExpireCache: 30,
-	}
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{}
+	viper.Reset()
+	viper.Set("evaluator.test.class-name", "caching")
+	viper.Set("evaluator.test.expire-cache", 30)
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
 
 	return &coordinator
 }
@@ -54,17 +51,17 @@ func TestCoordinator_Configure(t *testing.T) {
 
 func TestCoordinator_Configure_NoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	delete(coordinator.App.Configuration.Evaluator, "test")
+	viper.Reset()
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }
 
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Evaluator["anothertest"] = &configuration.EvaluatorConfig{
-		ClassName:   "caching",
-		ExpireCache: 30,
-	}
+	viper.Set("evaluator.anothertest.class-name", "caching")
+	viper.Set("evaluator.anothertest.expire-cache", 30)
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }

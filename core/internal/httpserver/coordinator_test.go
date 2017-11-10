@@ -20,9 +20,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -32,16 +32,14 @@ func fixtureConfiguredCoordinator() *Coordinator {
 	coordinator := Coordinator{
 		Log: zap.NewNop(),
 		App: &protocol.ApplicationContext{
-			Logger:   zap.NewNop(),
-			LogLevel: &logLevel,
-			Configuration: &configuration.Configuration{
-				HttpServer: make(map[string]*configuration.HttpServerConfig),
-			},
+			Logger:           zap.NewNop(),
+			LogLevel:         &logLevel,
 			StorageChannel:   make(chan *protocol.StorageRequest),
 			EvaluatorChannel: make(chan *protocol.EvaluatorRequest),
 		},
 	}
 
+	viper.Reset()
 	coordinator.Configure()
 	return &coordinator
 }

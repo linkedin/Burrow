@@ -11,14 +11,14 @@
 package consumer
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/configuration"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -27,27 +27,16 @@ func fixtureCoordinator() *Coordinator {
 	}
 	coordinator.App = &protocol.ApplicationContext{
 		Logger:         zap.NewNop(),
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	coordinator.App.Configuration.ClientProfile = make(map[string]*configuration.ClientProfile)
-	coordinator.App.Configuration.ClientProfile[""] = &configuration.ClientProfile{
-		ClientID: "testid",
-	}
-
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["test"] = &configuration.ClusterConfig{
-		ClassName: "kafka",
-		Servers:   []string{"broker1.example.com:1234"},
-	}
-
-	coordinator.App.Configuration.Consumer = make(map[string]*configuration.ConsumerConfig)
-	coordinator.App.Configuration.Consumer["test"] = &configuration.ConsumerConfig{
-		ClassName: "kafka",
-		Servers:   []string{"broker1.example.com:1234"},
-		Cluster:   "test",
-	}
+	viper.Reset()
+	viper.Set("client-profile..client-id", "testid")
+	viper.Set("cluster.test.class-name", "kafka")
+	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.class-name", "kafka")
+	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test.cluster", "test")
 
 	return &coordinator
 }
@@ -65,25 +54,23 @@ func TestCoordinator_Configure(t *testing.T) {
 
 func TestCoordinator_Configure_NoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	delete(coordinator.App.Configuration.Consumer, "test")
+	viper.Reset()
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }
 
 func TestCoordinator_Configure_BadCluster(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Consumer["test"].Cluster = "nocluster"
+	viper.Set("consumer.test.cluster", "nocluster")
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }
 
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Consumer["anothertest"] = &configuration.ConsumerConfig{
-		ClassName: "kafka",
-		Servers:   []string{"broker1.example.com:1234"},
-		Cluster:   "test",
-	}
+	viper.Set("consumer.anothertest.class-name", "kafka")
+	viper.Set("consumer.anothertest.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.anothertest.cluster", "test")
 	coordinator.Configure()
 }
 

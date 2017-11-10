@@ -19,8 +19,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"github.com/linkedin/Burrow/core"
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -53,24 +54,32 @@ func main() {
 	flag.Parse()
 
 	// Load the configuration from the file
+	viper.SetConfigName(*cfgfile)
 	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
-	appContext := &protocol.ApplicationContext{
-		Configuration: configuration.ReadConfig(*cfgfile),
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
 	}
+
+	appContext := &protocol.ApplicationContext{}
+
 	// Create the PID file to lock out other processes
-	if !core.CheckAndCreatePidFile(appContext.Configuration.General.PIDFile) {
+	viper.SetDefault("general.pidfile", "burrow.pid")
+	pidFile := viper.GetString("general.pidfile")
+	if !core.CheckAndCreatePidFile(pidFile) {
 		// Any error on checking or creating the PID file causes an immediate exit
 		panic(Exit{1})
 	}
-	defer core.RemovePidFile(appContext.Configuration.General.PIDFile)
+	defer core.RemovePidFile(pidFile)
 
 	// Set up stderr/stdout to go to a separate log file, if enabled
-	if appContext.Configuration.General.StdoutLogfile != "" {
-		core.OpenOutLog(appContext.Configuration.General.StdoutLogfile)
+	stdoutLogfile := viper.GetString("general.stdout-logfile")
+	if stdoutLogfile != "" {
+		core.OpenOutLog(stdoutLogfile)
 	}
 
 	// Set up the logger
-	appContext.Logger, appContext.LogLevel = core.ConfigureLogger(appContext.Configuration)
+	appContext.Logger, appContext.LogLevel = core.ConfigureLogger()
 	defer appContext.Logger.Sync()
 	appContext.Logger.Info("Started Burrow")
 

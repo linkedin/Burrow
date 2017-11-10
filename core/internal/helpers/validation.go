@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package configuration
+package helpers
 
 import (
 	"net"
@@ -45,7 +45,7 @@ func ValidateZookeeperPath(path string) bool {
 		if i == 0 {
 			continue
 		}
-		matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-\.]*$`, node)
+		matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`, node)
 		if !matches {
 			return false
 		}
@@ -54,7 +54,7 @@ func ValidateZookeeperPath(path string) bool {
 }
 
 func ValidateTopic(topic string) bool {
-	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\.-]+$`, topic)
+	matches, _ := regexp.MatchString(`^[a-zA-Z0-9_.-]+$`, topic)
 	return matches
 }
 

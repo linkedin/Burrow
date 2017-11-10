@@ -11,13 +11,13 @@
 package storage
 
 import (
-	"testing"
-
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
+	"testing"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -26,19 +26,13 @@ func fixtureCoordinator() *Coordinator {
 	}
 	coordinator.App = &protocol.ApplicationContext{
 		Logger:         zap.NewNop(),
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	coordinator.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
-	coordinator.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName:      "inmemory",
-		Intervals:      10,
-		MinDistance:    1,
-		GroupWhitelist: "",
-	}
-	coordinator.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	coordinator.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{}
+	viper.Reset()
+	viper.Set("storage.test.class-name", "inmemory")
+	viper.Set("cluster.testcluster.class-name", "kafka")
+	viper.Set("cluster.testcluster.servers", []string{"broker1.example.com:1234"})
 
 	return &coordinator
 }
@@ -56,19 +50,14 @@ func TestCoordinator_Configure(t *testing.T) {
 
 func TestCoordinator_Configure_NoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	delete(coordinator.App.Configuration.Storage, "test")
+	viper.Reset()
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }
 
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	coordinator.App.Configuration.Storage["anothertest"] = &configuration.StorageConfig{
-		ClassName:      "inmemory",
-		Intervals:      10,
-		MinDistance:    1,
-		GroupWhitelist: "",
-	}
+	viper.Set("storage.anothertest.class-name", "inmemory")
 
 	assert.Panics(t, coordinator.Configure, "Expected panic")
 }

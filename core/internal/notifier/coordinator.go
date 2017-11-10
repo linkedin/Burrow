@@ -11,19 +11,18 @@
 package notifier
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"regexp"
-	"strings"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/pborman/uuid"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"bytes"
-	"github.com/linkedin/Burrow/core/configuration"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
 )
@@ -31,7 +30,6 @@ import (
 type Module interface {
 	protocol.Module
 	GetName() string
-	GetConfig() *configuration.NotifierConfig
 	GetGroupWhitelist() *regexp.Regexp
 	GetLogger() *zap.Logger
 	AcceptConsumerGroup(*protocol.ConsumerGroupStatus) bool
@@ -156,22 +154,18 @@ func (nc *Coordinator) Configure() {
 	// Note - we do a lot more work here than for other coordinators. This is because the notifier modules really just
 	//        contain the logic to send the notification. Many of the parts, such as the whitelist and templates, are
 	//        common to all notifier modules
-	for name, config := range nc.App.Configuration.Notifier {
-		moduleConfig := nc.App.Configuration.Notifier[name]
+	for name := range viper.GetStringMap("notifier") {
+		configRoot := "notifier." + name
 
 		// Set some defaults for common module fields
-		if moduleConfig.Interval == 0 {
-			moduleConfig.Interval = 60
-		}
-		if moduleConfig.Threshold == 0 {
-			// protocol.StatusWarning
-			moduleConfig.Threshold = 2
-		}
+		viper.SetDefault(configRoot+".interval", 60)
+		viper.SetDefault(configRoot+".threshold", 2)
 
 		// Compile the whitelist for the consumer groups to notify for
 		var groupWhitelist *regexp.Regexp
-		if moduleConfig.GroupWhitelist != "" {
-			re, err := regexp.Compile(moduleConfig.GroupWhitelist)
+		whitelist := viper.GetString(configRoot + ".group-whitelist")
+		if whitelist != "" {
+			re, err := regexp.Compile(whitelist)
 			if err != nil {
 				nc.Log.Panic("Failed to compile group whitelist", zap.String("module", name))
 				panic(err)
@@ -180,27 +174,19 @@ func (nc *Coordinator) Configure() {
 		}
 
 		// Set up extra fields for the templates
-		extras := make(map[string]string)
-		for _, extra := range moduleConfig.Extras {
-			parts := strings.Split(extra, "=")
-			if len(parts) < 2 {
-				nc.Log.Panic("extras badly formatted", zap.String("module", name))
-				panic(errors.New("configuration error"))
-			}
-			extras[parts[0]] = strings.Join(parts[1:], "=")
-		}
+		extras := viper.GetStringMapString(configRoot + ".extras")
 
 		// Compile the templates
 		var templateOpen, templateClose *template.Template
-		tmpl, err := nc.templateParseFunc(moduleConfig.TemplateOpen)
+		tmpl, err := nc.templateParseFunc(viper.GetString(configRoot + ".template-open"))
 		if err != nil {
 			nc.Log.Panic("Failed to compile TemplateOpen", zap.Error(err), zap.String("module", name))
 			panic(err)
 		}
 		templateOpen = tmpl.Templates()[0]
 
-		if nc.App.Configuration.Notifier[name].SendClose {
-			tmpl, err = nc.templateParseFunc(moduleConfig.TemplateClose)
+		if viper.GetBool(configRoot + ".send-close") {
+			tmpl, err = nc.templateParseFunc(viper.GetString(configRoot + ".template-closen"))
 			if err != nil {
 				nc.Log.Panic("Failed to compile TemplateClose", zap.Error(err), zap.String("module", name))
 				panic(err)
@@ -208,12 +194,13 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := GetModuleForClass(nc.App, config.ClassName, groupWhitelist, extras, templateOpen, templateClose)
-		module.Configure(name)
+		module := GetModuleForClass(nc.App, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
+		module.Configure(name, configRoot)
 		nc.modules[name] = module
 
-		if moduleConfig.Interval < nc.minInterval {
-			nc.minInterval = moduleConfig.Interval
+		interval := viper.GetInt64(configRoot + ".interval")
+		if interval < nc.minInterval {
+			nc.minInterval = interval
 		}
 	}
 
@@ -340,9 +327,7 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 }
 
 func moduleAcceptConsumerGroup(module Module, status *protocol.ConsumerGroupStatus) bool {
-	moduleConfiguration := module.GetConfig()
-
-	if int(status.Status) < moduleConfiguration.Threshold {
+	if int(status.Status) < viper.GetInt("notifier."+module.GetName()+".threshold") {
 		return false
 	}
 
@@ -461,8 +446,8 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	defer nc.running.Done()
 
 	currentTime := time.Now()
-	moduleConfiguration := module.GetConfig()
-	stateGood := (status.Status == protocol.StatusOK) || (int(status.Status) < moduleConfiguration.Threshold)
+	moduleName := module.GetName()
+	stateGood := (status.Status == protocol.StatusOK) || (int(status.Status) < viper.GetInt("notifier."+moduleName+".threshold"))
 
 	cgroup, ok := nc.clusters[status.Cluster].Groups[status.Group]
 	if !ok {
@@ -475,13 +460,13 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	}
 
 	if stateGood {
-		if moduleConfiguration.SendClose {
+		if viper.GetBool("notifier." + moduleName + ".send-close") {
 			module.Notify(status, eventId, startTime, stateGood)
 		}
 		cgroup.Last[module.GetName()] = time.Time{}
 	} else {
 		// Only send the notification if it's been at least our Interval since the last one for this group
-		if currentTime.Sub(cgroup.Last[module.GetName()]) > (time.Duration(moduleConfiguration.Interval) * time.Second) {
+		if currentTime.Sub(cgroup.Last[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
 			module.Notify(status, eventId, startTime, stateGood)
 			cgroup.Last[module.GetName()] = currentTime
 		}

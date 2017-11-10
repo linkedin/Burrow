@@ -11,14 +11,15 @@
 package storage
 
 import (
-	"testing"
-
-	"github.com/linkedin/Burrow/core/configuration"
-	"github.com/linkedin/Burrow/core/protocol"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"testing"
+
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"time"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureModule(whitelist string) *InMemoryStorage {
@@ -26,17 +27,12 @@ func fixtureModule(whitelist string) *InMemoryStorage {
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{
-		Configuration:  &configuration.Configuration{},
 		StorageChannel: make(chan *protocol.StorageRequest),
 	}
 
-	module.App.Configuration.Storage = make(map[string]*configuration.StorageConfig)
-	module.App.Configuration.Storage["test"] = &configuration.StorageConfig{
-		ClassName:      "inmemory",
-		Intervals:      10,
-		MinDistance:    1,
-		GroupWhitelist: whitelist,
-	}
+	viper.Reset()
+	viper.Set("storage.test.class-name", "inmemory")
+	viper.Set("storage.test.group-whitelist", whitelist)
 
 	return &module
 }
@@ -45,9 +41,9 @@ func startWithTestCluster(whitelist string) *InMemoryStorage {
 	module := fixtureModule(whitelist)
 
 	// Start needs at least one cluster defined, but it only needs to have a name here
-	module.App.Configuration.Cluster = make(map[string]*configuration.ClusterConfig)
-	module.App.Configuration.Cluster["testcluster"] = &configuration.ClusterConfig{}
-	module.Configure("test")
+	viper.Set("cluster.testcluster.class-name", "kafka")
+	viper.Set("cluster.testcluster.servers", []string{"broker1.example.com:1234"})
+	module.Configure("test", "storage.test")
 	module.Start()
 	return module
 }
@@ -96,20 +92,20 @@ func TestInMemoryStorage_ImplementsStorageModule(t *testing.T) {
 
 func TestInMemoryStorage_Configure(t *testing.T) {
 	module := fixtureModule("")
-	module.Configure("test")
+	module.Configure("test", "storage.test")
 }
 
 func TestInMemoryStorage_Configure_DefaultIntervals(t *testing.T) {
 	module := fixtureModule("")
-	module.App.Configuration.Storage["test"].Intervals = 0
-	module.Configure("test")
-	assert.Equal(t, 10, module.myConfiguration.Intervals, "Default Intervals value of 10 did not get set")
+	module.Configure("test", "storage.test")
+	assert.Equal(t, 10, module.intervals, "Default Intervals value of 10 did not get set")
 }
 
 func TestInMemoryStorage_Configure_BadRegexp(t *testing.T) {
 	module := fixtureModule("")
-	module.App.Configuration.Storage["test"].GroupWhitelist = "["
-	assert.Panics(t, func() { module.Configure("test") }, "The code did not panic")
+	viper.Set("storage.test.group-whitelist", "[")
+
+	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
 }
 
 func TestInMemoryStorage_Start(t *testing.T) {
@@ -119,6 +115,7 @@ func TestInMemoryStorage_Start(t *testing.T) {
 
 func TestInMemoryStorage_Stop(t *testing.T) {
 	module := startWithTestCluster("")
+	time.Sleep(10 * time.Millisecond)
 	module.Stop()
 }
 
@@ -308,7 +305,7 @@ var whitelist_tests = []testset{
 func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 	for i, testSet := range whitelist_tests {
 		module := fixtureModule(testSet.whitelist)
-		module.Configure("test")
+		module.Configure("test", "storage.test")
 
 		for _, group := range testSet.passGroups {
 			result := module.acceptConsumerGroup(group)
