@@ -67,20 +67,25 @@ type Coordinator struct {
 }
 
 func GetModuleForClass(app *protocol.ApplicationContext,
+	moduleName string,
 	className string,
 	groupWhitelist *regexp.Regexp,
 	extras map[string]string,
 	templateOpen *template.Template,
 	templateClose *template.Template) protocol.Module {
+
+	logger := app.Logger.With(
+		zap.String("type", "module"),
+		zap.String("coordinator", "notifier"),
+		zap.String("class", className),
+		zap.String("name", moduleName),
+	)
+
 	switch className {
 	case "http":
 		return &HttpNotifier{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "notifier"),
-				zap.String("name", "http"),
-			),
+			App:            app,
+			Log:            logger,
 			groupWhitelist: groupWhitelist,
 			extras:         extras,
 			templateOpen:   templateOpen,
@@ -88,12 +93,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "email":
 		return &EmailNotifier{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "notifier"),
-				zap.String("name", "email"),
-			),
+			App:            app,
+			Log:            logger,
 			groupWhitelist: groupWhitelist,
 			extras:         extras,
 			templateOpen:   templateOpen,
@@ -101,12 +102,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "slack":
 		return &SlackNotifier{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "notifier"),
-				zap.String("name", "slack"),
-			),
+			App:            app,
+			Log:            logger,
 			groupWhitelist: groupWhitelist,
 			extras:         extras,
 			templateOpen:   templateOpen,
@@ -114,12 +111,8 @@ func GetModuleForClass(app *protocol.ApplicationContext,
 		}
 	case "null":
 		return &NullNotifier{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "notifier"),
-				zap.String("name", "null"),
-			),
+			App:            app,
+			Log:            logger,
 			groupWhitelist: groupWhitelist,
 			extras:         extras,
 			templateOpen:   templateOpen,
@@ -194,7 +187,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := GetModuleForClass(nc.App, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
+		module := GetModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 

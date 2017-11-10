@@ -189,7 +189,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 					topics: make(map[string]*PartitionCount),
 					lock:   &sync.Mutex{},
 				}
-				module.Log.Info("add group",
+				module.Log.Debug("add group",
 					zap.String("group", group),
 				)
 				module.resetTopicListWatchAndAdd(group, false)
@@ -213,8 +213,8 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	// Get the current group topic list and reset our watch
 	groupTopics, _, topicListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets")
 	if err != nil {
-		// Can't read the offsets path. Bail for now
-		module.Log.Error("failed to read offsets",
+		// Can't read the offsets path. usually this just means that this isn't an active ZK consumer
+		module.Log.Debug("failed to read topic list",
 			zap.String("group", group),
 			zap.String("error", err.Error()),
 		)
@@ -258,7 +258,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 	topicPartitions, _, partitionListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets/" + topic)
 	if err != nil {
 		// Can't read the consumers path. Bail for now
-		module.Log.Error("failed to read partitions",
+		module.Log.Warn("failed to read partitions",
 			zap.String("group", group),
 			zap.String("topic", topic),
 			zap.String("error", err.Error()),
@@ -301,7 +301,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 	offsetString, offsetStat, offsetEventChan, err := module.zk.GetW(module.zookeeperPath + "/" + group + "/offsets/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
 	if err != nil {
 		// Can't read the partition ofset path. Bail for now
-		module.Log.Error("failed to read offset",
+		module.Log.Warn("failed to read offset",
 			zap.String("group", group),
 			zap.String("topic", topic),
 			zap.Int32("partition", partition),

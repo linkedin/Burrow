@@ -26,25 +26,24 @@ type Coordinator struct {
 	modules map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, className string) protocol.Module {
+func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
+	logger := app.Logger.With(
+		zap.String("type", "module"),
+		zap.String("coordinator", "consumer"),
+		zap.String("class", className),
+		zap.String("name", moduleName),
+	)
+
 	switch className {
 	case "kafka":
 		return &KafkaClient{
 			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "consumer"),
-				zap.String("name", "kafka"),
-			),
+			Log: logger,
 		}
-	case "kafkazk":
+	case "kafka_zk":
 		return &KafkaZkClient{
 			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "module"),
-				zap.String("coordinator", "consumer"),
-				zap.String("name", "kafka_zk"),
-			),
+			Log: logger,
 		}
 	default:
 		panic("Unknown consumer className provided: " + className)
@@ -66,7 +65,7 @@ func (cc *Coordinator) Configure() {
 		if !viper.IsSet("cluster." + viper.GetString(configRoot+".cluster")) {
 			panic("Consumer '" + name + "' references an unknown cluster '" + viper.GetString(configRoot+".cluster") + "'")
 		}
-		module := GetModuleForClass(cc.App, viper.GetString(configRoot+".class-name"))
+		module := GetModuleForClass(cc.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		cc.modules[name] = module
 	}

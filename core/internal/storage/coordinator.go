@@ -50,7 +50,7 @@ type Coordinator struct {
 	running     sync.WaitGroup
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, className string) Module {
+func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) Module {
 	switch className {
 	case "inmemory":
 		return &InMemoryStorage{
@@ -58,7 +58,8 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) Modul
 			Log: app.Logger.With(
 				zap.String("type", "module"),
 				zap.String("coordinator", "storage"),
-				zap.String("name", "inmemory"),
+				zap.String("class", className),
+				zap.String("name", moduleName),
 			),
 		}
 	default:
@@ -79,7 +80,7 @@ func (sc *Coordinator) Configure() {
 	}
 	for name := range modules {
 		configRoot := "storage." + name
-		module := GetModuleForClass(sc.App, viper.GetString(configRoot+".class-name"))
+		module := GetModuleForClass(sc.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		sc.modules[name] = module
 	}

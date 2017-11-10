@@ -34,7 +34,7 @@ type Coordinator struct {
 	modules     map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, className string) protocol.Module {
+func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	switch className {
 	case "caching":
 		return &CachingEvaluator{
@@ -42,7 +42,8 @@ func GetModuleForClass(app *protocol.ApplicationContext, className string) proto
 			Log: app.Logger.With(
 				zap.String("type", "module"),
 				zap.String("coordinator", "evaluator"),
-				zap.String("name", "caching"),
+				zap.String("class", className),
+				zap.String("name", moduleName),
 			),
 		}
 	default:
@@ -63,7 +64,7 @@ func (ec *Coordinator) Configure() {
 	}
 	for name := range modules {
 		configRoot := "evaluator." + name
-		module := GetModuleForClass(ec.App, viper.GetString(configRoot+".class-name"))
+		module := GetModuleForClass(ec.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		ec.modules[name] = module
 	}

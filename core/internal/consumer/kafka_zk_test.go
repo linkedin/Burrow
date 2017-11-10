@@ -36,7 +36,7 @@ func fixtureKafkaZkModule() *KafkaZkClient {
 	viper.Reset()
 	viper.Set("cluster.test.class-name", "kafka")
 	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
-	viper.Set("consumer.test.class-name", "kafkazk")
+	viper.Set("consumer.test.class-name", "kafka_zk")
 	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
 	viper.Set("consumer.test.cluster", "test")
 
