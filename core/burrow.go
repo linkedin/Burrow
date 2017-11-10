@@ -127,8 +127,15 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	}
 
 	// Start the coordinators in order
-	for _, coordinator := range coordinators {
-		coordinator.Start()
+	for i, coordinator := range coordinators {
+		err := coordinator.Start()
+		if err != nil {
+			// Reverse our way out, stopping coordinators, then exit
+			for j := i - 1; j >= 0; j-- {
+				coordinators[j].Stop()
+			}
+			return 1
+		}
 	}
 
 	// Wait until we're told to exit
