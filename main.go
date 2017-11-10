@@ -50,15 +50,17 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// The only command line arg is the config file
-	var cfgfile = flag.String("config", "burrow.cfg", "Full path to the configuration file")
+	configPath := flag.String("config-dir", ".", "Directory that contains the configuration file")
 	flag.Parse()
 
 	// Load the configuration from the file
-	viper.SetConfigName(*cfgfile)
-	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
+	viper.SetConfigName("burrow")
+	viper.AddConfigPath(*configPath)
+	fmt.Fprintln(os.Stderr, "Reading configuration from", *configPath)
 	err := viper.ReadInConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
+		panic(Exit{1})
 	}
 
 	appContext := &protocol.ApplicationContext{}

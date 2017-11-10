@@ -85,12 +85,14 @@ func (module *KafkaClient) Start() error {
 	// Connect Kafka client
 	client, err := sarama.NewClient(module.servers, module.saramaConfig)
 	if err != nil {
+		module.Log.Error("failed to start client", zap.Error(err))
 		return err
 	}
 
 	// Start the consumers
 	err = module.startKafkaConsumer(&helpers.BurrowSaramaClient{Client: client})
 	if err != nil {
+		module.Log.Error("failed to start consumer", zap.Error(err))
 		client.Close()
 		return err
 	}
@@ -132,6 +134,7 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 	// Create the consumer from the client
 	consumer, err := client.NewConsumerFromClient()
 	if err != nil {
+		module.Log.Error("failed to get new consumer", zap.Error(err))
 		client.Close()
 		return err
 	}

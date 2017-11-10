@@ -71,6 +71,7 @@ func (module *KafkaCluster) Start() error {
 	// Connect Kafka client
 	client, err := sarama.NewClient(module.servers, module.saramaConfig)
 	if err != nil {
+		module.Log.Error("failed to start client", zap.Error(err))
 		return err
 	}
 
