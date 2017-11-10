@@ -31,7 +31,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	viper.SetDefault(configRoot+".kafka-version", "0.8")
 
 	saramaConfig := sarama.NewConfig()
-	saramaConfig.ClientID = viper.GetString(configRoot + "client-id")
+	saramaConfig.ClientID = viper.GetString(configRoot + ".client-id")
 
 	kafkaVersion := viper.GetString(configRoot + ".kafka-version")
 	switch kafkaVersion {
