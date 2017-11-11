@@ -328,14 +328,11 @@ func moduleAcceptConsumerGroup(module Module, status *protocol.ConsumerGroupStat
 
 	// No whitelist means everything passes
 	groupWhitelist := module.GetGroupWhitelist()
-	if groupWhitelist == nil {
-		return true
-	}
-	if groupWhitelist.MatchString(status.Group) {
+	if (groupWhitelist == nil) || (groupWhitelist.MatchString(status.Group)) {
 		return module.AcceptConsumerGroup(status)
-	} else {
-		return false
 	}
+
+	return false
 }
 
 func (nc *Coordinator) responseLoop() {
