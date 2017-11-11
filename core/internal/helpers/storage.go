@@ -8,13 +8,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package helpers
 
 import (
-	"testing"
+	"time"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
-// This is just a dummy test function to have a base to start with for Travis
-func Test_dummy(t *testing.T) {
-	t.Log("Dummy test passed")
+func TimeoutSendStorageRequest(storageChannel chan *protocol.StorageRequest, request *protocol.StorageRequest, maxTime int) {
+	timeout := time.After(time.Duration(maxTime) * time.Second)
+	select {
+	case storageChannel <- request:
+	case <-timeout:
+	}
 }

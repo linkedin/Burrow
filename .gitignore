@@ -1,8 +1,10 @@
 burrow-src
-Burrow
 .*.swp
 !config
 log
 .idea
+Burrow
+Burrow.exe
 Burrow.iml
 tmp
+vendor

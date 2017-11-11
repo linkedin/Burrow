@@ -8,13 +8,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package main
+package helpers
 
 import (
+	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-// This is just a dummy test function to have a base to start with for Travis
-func Test_dummy(t *testing.T) {
-	t.Log("Dummy test passed")
+func TestBurrowZookeeperClient_ImplementsZookeeperClient(t *testing.T) {
+	assert.Implements(t, (*protocol.ZookeeperClient)(nil), new(BurrowZookeeperClient))
+}
+
+func TestMockZookeeperClient_ImplementsZookeeperClient(t *testing.T) {
+	assert.Implements(t, (*protocol.ZookeeperClient)(nil), new(MockZookeeperClient))
 }
