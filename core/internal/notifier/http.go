@@ -141,6 +141,10 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 
 	// Send request to HTTP endpoint
 	req, err := http.NewRequest(method, url, bytesToSend)
+	if err != nil {
+		logger.Error("failed to create request", zap.Error(err))
+		return
+	}
 	username := viper.GetString("notifier." + module.name + ".username")
 	if username != "" {
 		// Add basic auth using the provided username and password

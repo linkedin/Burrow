@@ -142,6 +142,21 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 	module.running.Add(1)
 	defer module.running.Done()
 
+	// Using a map for the request types avoids a bit of complexity below
+	var requestTypeMap = map[protocol.StorageRequestConstant]func(*protocol.StorageRequest, *zap.Logger){
+		protocol.StorageSetBrokerOffset:     module.addBrokerOffset,
+		protocol.StorageSetConsumerOffset:   module.addConsumerOffset,
+		protocol.StorageSetConsumerOwner:    module.addConsumerOwner,
+		protocol.StorageSetDeleteTopic:      module.deleteTopic,
+		protocol.StorageSetDeleteGroup:      module.deleteGroup,
+		protocol.StorageFetchClusters:       module.fetchClusterList,
+		protocol.StorageFetchConsumers:      module.fetchConsumerList,
+		protocol.StorageFetchTopics:         module.fetchTopicList,
+		protocol.StorageFetchConsumer:       module.fetchConsumer,
+		protocol.StorageFetchTopic:          module.fetchTopic,
+		protocol.StorageClearConsumerOwners: module.clearConsumerOwners,
+	}
+
 	workerLogger := module.Log.With(zap.Int("worker", workerNum))
 	for {
 		select {
@@ -150,41 +165,17 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 				return
 			}
 
-			// Easier to set up the structured logger once for the request
-			requestLogger := workerLogger.With(
-				zap.String("cluster", r.Cluster),
-				zap.String("consumer", r.Group),
-				zap.String("topic", r.Topic),
-				zap.Int32("partition", r.Partition),
-				zap.Int32("topic_partition_count", r.TopicPartitionCount),
-				zap.Int64("offset", r.Offset),
-				zap.Int64("timestamp", r.Timestamp),
-				zap.String("owner", r.Owner),
-			)
-
-			switch r.RequestType {
-			case protocol.StorageSetBrokerOffset:
-				module.addBrokerOffset(r, requestLogger.With(zap.String("request", "StorageSetBrokerOffset")))
-			case protocol.StorageSetConsumerOffset:
-				module.addConsumerOffset(r, requestLogger.With(zap.String("request", "StorageSetConsumerOffset")))
-			case protocol.StorageSetConsumerOwner:
-				module.addConsumerOwner(r, requestLogger.With(zap.String("request", "StorageSetConsumerOwner")))
-			case protocol.StorageSetDeleteTopic:
-				module.deleteTopic(r, requestLogger.With(zap.String("request", "StorageSetDeleteTopic")))
-			case protocol.StorageSetDeleteGroup:
-				module.deleteGroup(r, requestLogger.With(zap.String("request", "StorageSetDeleteGroup")))
-			case protocol.StorageFetchClusters:
-				module.fetchClusterList(r, requestLogger.With(zap.String("request", "StorageFetchClusters")))
-			case protocol.StorageFetchConsumers:
-				module.fetchConsumerList(r, requestLogger.With(zap.String("request", "StorageFetchConsumers")))
-			case protocol.StorageFetchTopics:
-				module.fetchTopicList(r, requestLogger.With(zap.String("request", "StorageFetchTopics")))
-			case protocol.StorageFetchConsumer:
-				module.fetchConsumer(r, requestLogger.With(zap.String("request", "StorageFetchConsumer")))
-			case protocol.StorageFetchTopic:
-				module.fetchTopic(r, requestLogger.With(zap.String("request", "StorageFetchTopic")))
-			case protocol.StorageClearConsumerOwners:
-				module.clearConsumerOwners(r, requestLogger.With(zap.String("request", "StorageClearConsumerOwners")))
+			if requestFunc, ok := requestTypeMap[r.RequestType]; ok {
+				requestFunc(r, workerLogger.With(
+					zap.String("cluster", r.Cluster),
+					zap.String("consumer", r.Group),
+					zap.String("topic", r.Topic),
+					zap.Int32("partition", r.Partition),
+					zap.Int32("topic_partition_count", r.TopicPartitionCount),
+					zap.Int64("offset", r.Offset),
+					zap.Int64("timestamp", r.Timestamp),
+					zap.String("owner", r.Owner),
+					zap.String("request", r.RequestType.String())))
 			}
 		}
 	}

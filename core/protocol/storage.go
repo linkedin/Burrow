@@ -10,6 +10,8 @@
 
 package protocol
 
+import "encoding/json"
+
 type StorageRequestConstant int
 
 const (
@@ -25,6 +27,35 @@ const (
 	StorageFetchTopic          StorageRequestConstant = 9
 	StorageClearConsumerOwners StorageRequestConstant = 10
 )
+
+// Strings are used for logging
+var StorageRequestStrings = [...]string{
+	"StorageSetBrokerOffset",
+	"StorageSetConsumerOffset",
+	"StorageSetConsumerOwner",
+	"StorageSetDeleteTopic",
+	"StorageSetDeleteGroup",
+	"StorageFetchClusters",
+	"StorageFetchConsumers",
+	"StorageFetchTopics",
+	"StorageFetchConsumer",
+	"StorageFetchTopic",
+	"StorageClearConsumerOwners",
+}
+
+func (c StorageRequestConstant) String() string {
+	if (c >= 0) && (c < StorageRequestConstant(len(StorageRequestStrings))) {
+		return StorageRequestStrings[c]
+	} else {
+		return "UNKNOWN"
+	}
+}
+func (c StorageRequestConstant) MarshalText() ([]byte, error) {
+	return []byte(c.String()), nil
+}
+func (c StorageRequestConstant) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
 
 type StorageRequest struct {
 	RequestType         StorageRequestConstant
