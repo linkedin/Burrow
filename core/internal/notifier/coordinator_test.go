@@ -12,12 +12,14 @@ package notifier
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -489,9 +491,48 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 	assert.True(t, module.CalledAcceptConsumerGroup, "Expected module 'test' AcceptConsumerGroup to be called")
 }
 
-func TestCoordinator_notifyModule_NoIncidentOK(t *testing.T) {
+var notifyModuleTests = []struct {
+	Threshold   int
+	Status      protocol.StatusConstant
+	Existing    bool
+	SendClose   bool
+	ExpectSend  bool
+	ExpectClose bool
+	ExpectID    bool
+}{
+	/*{1, 0, false, false, false, false, false},
+	{2, 0, false, false, false, false, false},
+	{1, 0, true, false, false, false, false},
+	{1, 0, false, true, false, false, false},
+	{1, 0, true, true, false, false, false}, */
+
+	{1, 1, false, false, true, false, false},
+	{1, 1, false, true, true, false, false},
+	{1, 1, true, false, true, false, false},
+	{1, 1, true, true, true, true, false},
+
+	{1, 2, false, false, true, false, true},
+	{1, 2, false, true, true, false, true},
+	{1, 2, true, false, true, false, true},
+	{1, 2, true, true, true, false, true},
+
+	{3, 2, false, false, false, false, true},
+	{3, 2, false, true, false, false, true},
+	{3, 2, true, false, false, false, true},
+	{3, 2, true, true, false, false, true},
+
+	{2, 1, false, false, false, false, false},
+	{2, 1, false, true, false, false, false},
+	{2, 1, true, false, false, false, false},
+	{2, 1, true, true, true, true, false},
+}
+
+func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
+	// We don't need to configure the coordinator - just set up the data structures
 	coordinator := fixtureCoordinator()
-	coordinator.Configure()
+	coordinator.modules = make(map[string]protocol.Module)
+	coordinator.clusters = make(map[string]*ClusterGroups)
+	coordinator.notifyModuleFunc = coordinator.notifyModule
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
 	coordinator.clusters["testcluster"] = &ClusterGroups{
@@ -502,181 +543,70 @@ func TestCoordinator_notifyModule_NoIncidentOK(t *testing.T) {
 		Last: make(map[string]time.Time),
 	}
 
-	responseOK := &protocol.ConsumerGroupStatus{
-		Cluster: "testcluster",
-		Group:   "testgroup",
-		Status:  protocol.StatusOK,
-	}
-	mockModule := &helpers.MockModule{}
-	mockModule.On("GetName").Return("test")
-
-	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
-
-	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to remain unset")
-	mockModule.AssertExpectations(t)
-}
-
-func TestCoordinator_notifyModule_HaveIncidentOK(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.Configure()
-
-	// A test cluster and group to send notification for (so the func can check/set last time)
 	mockStartTime, _ := time.Parse(time.RFC3339, "2012-11-01T22:08:41+00:00")
-	coordinator.clusters["testcluster"] = &ClusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+
+	for i, testSet := range notifyModuleTests {
+		fmt.Printf("Running test %v - %v\n", i, testSet)
+
+		// Set the module threshold and send-close configs
+		viper.Reset()
+		viper.Set("notifier.test.threshold", testSet.Threshold)
+		viper.Set("notifier.test.send-close", testSet.SendClose)
+
+		// Should there be an existing incident for this test?
+		group := coordinator.clusters["testcluster"].Groups["testgroup"]
+		delete(group.Last, "test")
+		if testSet.Existing {
+			group.Id = "testidstring"
+			group.Start = mockStartTime
+		} else {
+			group.Id = ""
+			group.Start = time.Time{}
+		}
+
+		// Set up the response status to send
+		// Sending i as the TotalPartitions is a hack to make mock errors a little easier to understand
+		response := &protocol.ConsumerGroupStatus{
+			Cluster:         "testcluster",
+			Group:           "testgroup",
+			Status:          testSet.Status,
+			TotalPartitions: i,
+		}
+
+		// Set up the mock module and expected calls
+		mockModule := &helpers.MockModule{}
+		coordinator.modules["test"] = mockModule
+		mockModule.On("GetName").Return("test")
+		mockModule.On("GetGroupWhitelist").Return((*regexp.Regexp)(nil))
+		mockModule.On("AcceptConsumerGroup", response).Return(true)
+		if testSet.ExpectSend {
+			mockModule.On("Notify", response, mock.MatchedBy(func(s string) bool { return true }), mock.MatchedBy(func(t time.Time) bool { return true }), testSet.ExpectClose).Return()
+		}
+
+		// Call the func with a response that has the appropriate status
+		coordinator.checkAndSendResponseToModules(response)
+
+		mockModule.AssertExpectations(t)
+		if testSet.ExpectSend && (!testSet.ExpectClose) {
+			assert.Falsef(t, group.Last["test"].IsZero(), "Test %v: Expected group last time to be set", i)
+		} else {
+			assert.Truef(t, group.Last["test"].IsZero(), "Test %v: Expected group last time to remain unset", i)
+		}
+
+		// Check whether or not the incident is as expected afterwards
+		if testSet.ExpectID {
+			if testSet.Existing {
+				assert.Equalf(t, "testidstring", group.Id, "Test %v: Expected group incident ID to be testidstring, not %v", i, group.Id)
+				assert.Equalf(t, mockStartTime, group.Start, "Test %v: Expected group incident start time to be mock time, not %v", i, group.Start)
+			} else {
+				assert.NotEqualf(t, "", group.Id, "Test %v: Expected group incident ID to be not empty", i)
+				assert.Falsef(t, group.Start.IsZero(), "Test %v: Expected group incident start time to be set", i)
+			}
+		} else {
+			assert.Equalf(t, "", group.Id, "Test %v: Expected group incident ID to be empty, not %v", i, group.Id)
+			assert.Truef(t, group.Start.IsZero(), "Test %v: Expected group incident start time to be unset", i)
+		}
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"].Last["test"] = mockStartTime
-
-	// SendClose is not set, so we still expect no notification to be sent
-	responseOK := &protocol.ConsumerGroupStatus{
-		Cluster: "testcluster",
-		Group:   "testgroup",
-		Status:  protocol.StatusOK,
-	}
-	mockModule := &helpers.MockModule{}
-	mockModule.On("GetName").Return("test")
-
-	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
-
-	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be set to the zero value")
-	mockModule.AssertExpectations(t)
-}
-
-func TestCoordinator_notifyModule_HaveIncidentOK_SendClose(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	viper.Set("notifier.test.send-close", true)
-	coordinator.Configure()
-
-	// A test cluster and group to send notification for (so the func can check/set last time)
-	mockStartTime, _ := time.Parse(time.RFC3339, "2012-11-01T22:08:41+00:00")
-	coordinator.clusters["testcluster"] = &ClusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"].Last["test"] = mockStartTime
-
-	// SendClose is set, so we expect a notification
-	responseOK := &protocol.ConsumerGroupStatus{
-		Cluster: "testcluster",
-		Group:   "testgroup",
-		Status:  protocol.StatusOK,
-	}
-	mockModule := &helpers.MockModule{}
-	mockModule.On("GetName").Return("test")
-	mockModule.On("Notify", responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Id, coordinator.clusters["testcluster"].Groups["testgroup"].Start, true)
-
-	coordinator.notifyModule(mockModule, responseOK, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
-
-	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be set to the zero value")
-	mockModule.AssertExpectations(t)
-}
-
-func TestCoordinator_notifyModule_IntervalTooShort(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	viper.Set("notifier.test.send-close", true)
-	coordinator.Configure()
-
-	// A test cluster and group to send notification for (so the func can check/set last time)
-	mockStartTime := time.Now()
-	coordinator.clusters["testcluster"] = &ClusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"].Last["test"] = mockStartTime
-
-	// Because our interval is 60 seconds, and we said we sent a notification "now", there should be no notification sent
-	responseError := &protocol.ConsumerGroupStatus{
-		Cluster: "testcluster",
-		Group:   "testgroup",
-		Status:  protocol.StatusError,
-	}
-	mockModule := &helpers.MockModule{}
-	mockModule.On("GetName").Return("test")
-
-	coordinator.notifyModule(mockModule, responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
-
-	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.Equal(t, mockStartTime, group.Last["test"], "Expected group last time to remain set to the start time")
-	mockModule.AssertExpectations(t)
-}
-
-func TestCoordinator_notifyModule_Warning(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	viper.Set("notifier.test.send-close", true)
-	coordinator.Configure()
-
-	// A test cluster and group to send notification for (so the func can check/set last time)
-	mockStartTime := time.Now().Add(-100 * time.Second)
-	coordinator.clusters["testcluster"] = &ClusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"].Last["test"] = mockStartTime
-
-	// Last notification happened 100 seconds ago, so we expect a notification to be sent now
-	responseError := &protocol.ConsumerGroupStatus{
-		Cluster: "testcluster",
-		Group:   "testgroup",
-		Status:  protocol.StatusError,
-	}
-	mockModule := &helpers.MockModule{}
-	mockModule.On("GetName").Return("test")
-	mockModule.On("Notify", responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Id, coordinator.clusters["testcluster"].Groups["testgroup"].Start, false)
-
-	coordinator.notifyModule(mockModule, responseError, coordinator.clusters["testcluster"].Groups["testgroup"].Start, coordinator.clusters["testcluster"].Groups["testgroup"].Id)
-
-	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.True(t, group.Last["test"].After(mockStartTime), "Expected group last time to be updated")
-	mockModule.AssertExpectations(t)
-}
-
-func TestCoordinator_AcceptConsumerGroup(t *testing.T) {
-	module := fixtureHttpNotifier()
-
-	viper.Set("notifier.test.threshold", 2)
-	viper.Set("notifier.test.group-whitelist", "test.*")
-	module.groupWhitelist, _ = regexp.Compile("test.*")
-	module.Configure("test", "notifier.test")
-
-	status := &protocol.ConsumerGroupStatus{
-		Status: protocol.StatusOK,
-		Group:  "testgroup",
-	}
-
-	assert.False(t, moduleAcceptConsumerGroup(module, status), "Expected StatusOK,testgroup to return False")
-
-	status.Status = protocol.StatusWarning
-	assert.True(t, moduleAcceptConsumerGroup(module, status), "Expected StatusWarning,testgroup to return True")
-
-	status.Status = protocol.StatusError
-	assert.True(t, moduleAcceptConsumerGroup(module, status), "Expected StatusError,testgroup to return True")
-
-	status.Group = "notagroup"
-	assert.False(t, moduleAcceptConsumerGroup(module, status), "Expected StatusError,notagroup to return False")
 }
 
 func TestCoordinator_ExecuteTemplate(t *testing.T) {

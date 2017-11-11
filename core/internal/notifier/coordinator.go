@@ -321,23 +321,6 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 	nc.clusterLock.RUnlock()
 }
 
-func moduleAcceptConsumerGroup(module Module, status *protocol.ConsumerGroupStatus) bool {
-	if int(status.Status) < viper.GetInt("notifier."+module.GetName()+".threshold") {
-		return false
-	}
-
-	// No whitelist means everything passes
-	groupWhitelist := module.GetGroupWhitelist()
-	if groupWhitelist == nil {
-		return true
-	}
-	if groupWhitelist.MatchString(status.Group) {
-		return module.AcceptConsumerGroup(status)
-	} else {
-		return false
-	}
-}
-
 func (nc *Coordinator) responseLoop() {
 	for {
 		select {
@@ -349,35 +332,44 @@ func (nc *Coordinator) responseLoop() {
 
 			// As long as the response is not NotFound, send it to the modules
 			if response.Status != protocol.StatusNotFound {
-				clusterGroups := nc.clusters[response.Cluster].Groups
-				cgroup, ok := clusterGroups[response.Group]
-				if !ok {
-					// The group must have just been deleted
-					continue
-				}
-
-				if cgroup.Start.IsZero() && (response.Status > protocol.StatusOK) {
-					// New incident - assign an ID and start time
-					cgroup.Id = uuid.NewRandom().String()
-					cgroup.Start = time.Now()
-				}
-
-				for _, genericModule := range nc.modules {
-					module := genericModule.(Module)
-					if moduleAcceptConsumerGroup(module, response) {
-						go nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
-					}
-				}
-
-				if response.Status == protocol.StatusOK {
-					// Incident closed - clear the start time and event ID
-					cgroup.Id = ""
-					cgroup.Start = time.Time{}
-				}
+				go nc.checkAndSendResponseToModules(response)
 			}
 		case <-nc.quitChannel:
 			return
 		}
+	}
+}
+
+func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.ConsumerGroupStatus) {
+	clusterGroups := nc.clusters[response.Cluster].Groups
+	cgroup, ok := clusterGroups[response.Group]
+	if !ok {
+		// The group must have just been deleted
+		return
+	}
+
+	if cgroup.Start.IsZero() && (response.Status > protocol.StatusOK) {
+		// New incident - assign an ID and start time
+		cgroup.Id = uuid.NewRandom().String()
+		cgroup.Start = time.Now()
+	}
+
+	for _, genericModule := range nc.modules {
+		module := genericModule.(Module)
+
+		// No whitelist means everything passes
+		groupWhitelist := module.GetGroupWhitelist()
+		if (groupWhitelist == nil) || (groupWhitelist.MatchString(response.Group)) {
+			if module.AcceptConsumerGroup(response) {
+				nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
+			}
+		}
+	}
+
+	if response.Status == protocol.StatusOK {
+		// Incident closed - clear the start time and event ID
+		cgroup.Id = ""
+		cgroup.Start = time.Time{}
 	}
 }
 
@@ -450,31 +442,30 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	nc.running.Add(1)
 	defer nc.running.Done()
 
-	currentTime := time.Now()
-	moduleName := module.GetName()
-	stateGood := (status.Status == protocol.StatusOK) || (int(status.Status) < viper.GetInt("notifier."+moduleName+".threshold"))
-
 	cgroup, ok := nc.clusters[status.Cluster].Groups[status.Group]
 	if !ok {
 		// The group must have just been deleted
 		return
 	}
-	lastTime := cgroup.Last[module.GetName()]
-	if stateGood && lastTime.IsZero() {
+
+	// Closed incidents get sent regardless of the threshold for the module
+	moduleName := module.GetName()
+	if (!startTime.IsZero()) && (status.Status == protocol.StatusOK) && viper.GetBool("notifier."+moduleName+".send-close") {
+		module.Notify(status, eventId, startTime, true)
+		cgroup.Last[module.GetName()] = time.Time{}
 		return
 	}
 
-	if stateGood {
-		if viper.GetBool("notifier." + moduleName + ".send-close") {
-			module.Notify(status, eventId, startTime, stateGood)
-		}
-		cgroup.Last[module.GetName()] = time.Time{}
-	} else {
-		// Only send the notification if it's been at least our Interval since the last one for this group
-		if currentTime.Sub(cgroup.Last[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
-			module.Notify(status, eventId, startTime, stateGood)
-			cgroup.Last[module.GetName()] = currentTime
-		}
+	// Only send a notification if the current status is above the module's threshold
+	if int(status.Status) < viper.GetInt("notifier."+module.GetName()+".threshold") {
+		return
+	}
+
+	// Only send the notification if it's been at least our Interval since the last one for this group
+	currentTime := time.Now()
+	if currentTime.Sub(cgroup.Last[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
+		module.Notify(status, eventId, startTime, false)
+		cgroup.Last[module.GetName()] = currentTime
 	}
 }
 

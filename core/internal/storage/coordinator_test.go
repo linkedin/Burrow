@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/linkedin/Burrow/core/protocol"
+	"time"
 )
 
 func fixtureCoordinator() *Coordinator {
@@ -83,6 +84,7 @@ func TestCoordinator_Start(t *testing.T) {
 	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 
+	time.Sleep(10 * time.Millisecond)
 	coordinator.Stop()
 }
 
