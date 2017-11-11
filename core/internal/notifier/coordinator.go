@@ -25,6 +25,7 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"math/rand"
 )
 
 type Module interface {
@@ -37,9 +38,10 @@ type Module interface {
 }
 
 type ConsumerGroup struct {
-	Id    string
-	Start time.Time
-	Last  map[string]time.Time
+	Id         string
+	Start      time.Time
+	LastNotify map[string]time.Time
+	LastEval   time.Time
 }
 
 type ClusterGroups struct {
@@ -54,7 +56,7 @@ type Coordinator struct {
 
 	minInterval       int64
 	groupRefresh      helpers.Ticker
-	evalInterval      helpers.Ticker
+	doEvaluations     bool
 	evaluatorResponse chan *protocol.ConsumerGroupStatus
 	running           sync.WaitGroup
 	quitChannel       chan struct{}
@@ -205,7 +207,6 @@ func (nc *Coordinator) Configure() {
 	// Set up the tickers but do not start them
 	// TODO - should probably be configurable
 	nc.groupRefresh = helpers.NewPausableTicker(60 * time.Second)
-	nc.evalInterval = helpers.NewPausableTicker(time.Duration(nc.minInterval) * time.Second)
 }
 
 func (nc *Coordinator) Start() error {
@@ -236,7 +237,7 @@ func (nc *Coordinator) Stop() error {
 	nc.Log.Info("stopping")
 
 	nc.groupRefresh.Stop()
-	nc.evalInterval.Stop()
+	nc.doEvaluations = false
 
 	close(nc.quitChannel)
 
@@ -256,15 +257,16 @@ func (nc *Coordinator) manageEvalLoop() {
 			continue
 		}
 
-		// We've got the lock, start the evaluation ticker
-		nc.evalInterval.Start()
+		// We've got the lock, start the evaluation loop
+		nc.doEvaluations = true
+		go nc.sendEvaluatorRequests()
 		nc.Log.Info("starting evaluations", zap.Error(err))
 
-		// Wait for ZK session expiration, and stop sending notifications if it happens
+		// Wait for ZK session expiration, and stop doing evaluations if it happens
 		nc.App.ZookeeperExpired.L.Lock()
 		nc.App.ZookeeperExpired.Wait()
 		nc.App.ZookeeperExpired.L.Unlock()
-		nc.evalInterval.Stop()
+		nc.doEvaluations = false
 		nc.Log.Info("stopping evaluations", zap.Error(err))
 
 		// Wait for the ZK connection to come back before trying again
@@ -280,8 +282,6 @@ func (nc *Coordinator) tickerLoop() {
 		select {
 		case <-nc.groupRefresh.GetChannel():
 			nc.sendClusterRequest()
-		case <-nc.evalInterval.GetChannel():
-			nc.sendEvaluatorRequests()
 		case <-nc.quitChannel:
 			return
 		}
@@ -303,22 +303,37 @@ func (nc *Coordinator) sendClusterRequest() {
 }
 
 func (nc *Coordinator) sendEvaluatorRequests() {
-	// Fire off evaluation requests for every group we know about
-	nc.clusterLock.RLock()
-	for cluster, consumerGroup := range nc.clusters {
-		consumerGroup.Lock.RLock()
-		for consumer := range consumerGroup.Groups {
-			go func(sendCluster string, sendConsumer string) {
-				nc.App.EvaluatorChannel <- &protocol.EvaluatorRequest{
-					Reply:   nc.evaluatorResponse,
-					Cluster: sendCluster,
-					Group:   sendConsumer,
+	nc.running.Add(1)
+	defer nc.running.Done()
+
+	for nc.doEvaluations {
+		// Loop through all clusters and groups and send any evaluation requests that are due
+		timeNow := time.Now()
+		sendBefore := timeNow.Add(-time.Duration(nc.minInterval) * time.Second)
+
+		// Fire off evaluation requests for every group we know about
+		nc.clusterLock.RLock()
+		for cluster, consumerGroup := range nc.clusters {
+			consumerGroup.Lock.RLock()
+			for consumer, groupInfo := range consumerGroup.Groups {
+				if groupInfo.LastEval.Before(sendBefore) {
+					go func(sendCluster string, sendConsumer string) {
+						nc.App.EvaluatorChannel <- &protocol.EvaluatorRequest{
+							Reply:   nc.evaluatorResponse,
+							Cluster: sendCluster,
+							Group:   sendConsumer,
+						}
+					}(cluster, consumer)
+					groupInfo.LastEval = timeNow
 				}
-			}(cluster, consumer)
+			}
+			consumerGroup.Lock.RUnlock()
 		}
-		consumerGroup.Lock.RUnlock()
+		nc.clusterLock.RUnlock()
+
+		// Sleep briefly to prevent a tight loop
+		time.Sleep(time.Millisecond)
 	}
-	nc.clusterLock.RUnlock()
 }
 
 func (nc *Coordinator) responseLoop() {
@@ -424,7 +439,8 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 		for _, group := range consumerList {
 			consumerMap[group] = struct{}{}
 			nc.clusters[cluster].Groups[group] = &ConsumerGroup{
-				Last: make(map[string]time.Time),
+				LastNotify: make(map[string]time.Time),
+				LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval * 1000)) * time.Millisecond),
 			}
 		}
 
@@ -452,7 +468,7 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	moduleName := module.GetName()
 	if (!startTime.IsZero()) && (status.Status == protocol.StatusOK) && viper.GetBool("notifier."+moduleName+".send-close") {
 		module.Notify(status, eventId, startTime, true)
-		cgroup.Last[module.GetName()] = time.Time{}
+		cgroup.LastNotify[module.GetName()] = time.Time{}
 		return
 	}
 
@@ -463,9 +479,9 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 
 	// Only send the notification if it's been at least our Interval since the last one for this group
 	currentTime := time.Now()
-	if currentTime.Sub(cgroup.Last[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
+	if currentTime.Sub(cgroup.LastNotify[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
 		module.Notify(status, eventId, startTime, false)
-		cgroup.Last[module.GetName()] = currentTime
+		cgroup.LastNotify[module.GetName()] = currentTime
 	}
 }
 
