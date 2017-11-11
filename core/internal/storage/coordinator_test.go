@@ -80,7 +80,7 @@ func TestCoordinator_Start(t *testing.T) {
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testcluster", "Expected return value to be 'testcluster', not %v", val[0])
 
-	response, ok := <-request.Reply
+	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 
 	coordinator.Stop()

@@ -20,6 +20,31 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
+	switch kafkaVersion {
+	case "0.8", "0.8.0":
+		return sarama.V0_8_2_0
+	case "0.8.1":
+		return sarama.V0_8_2_1
+	case "0.8.2":
+		return sarama.V0_8_2_2
+	case "0.9", "0.9.0", "0.9.0.0":
+		return sarama.V0_9_0_0
+	case "0.9.0.1":
+		return sarama.V0_9_0_1
+	case "0.10", "0.10.0", "0.10.0.0":
+		return sarama.V0_10_0_0
+	case "0.10.0.1":
+		return sarama.V0_10_0_1
+	case "0.10.1", "0.10.1.0":
+		return sarama.V0_10_1_0
+	case "", "0.10.2", "0.10.2.0":
+		return sarama.V0_10_2_0
+	default:
+		panic("Unknown Kafka Version: " + kafkaVersion)
+	}
+}
+
 func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	// Set config root and defaults
 	configRoot := "client-profile." + profileName
@@ -32,30 +57,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = viper.GetString(configRoot + ".client-id")
-
-	kafkaVersion := viper.GetString(configRoot + ".kafka-version")
-	switch kafkaVersion {
-	case "0.8", "0.8.0":
-		saramaConfig.Version = sarama.V0_8_2_0
-	case "0.8.1":
-		saramaConfig.Version = sarama.V0_8_2_1
-	case "0.8.2":
-		saramaConfig.Version = sarama.V0_8_2_2
-	case "0.9", "0.9.0", "0.9.0.0":
-		saramaConfig.Version = sarama.V0_9_0_0
-	case "0.9.0.1":
-		saramaConfig.Version = sarama.V0_9_0_1
-	case "0.10", "0.10.0", "0.10.0.0":
-		saramaConfig.Version = sarama.V0_10_0_0
-	case "0.10.0.1":
-		saramaConfig.Version = sarama.V0_10_0_1
-	case "0.10.1", "0.10.1.0":
-		saramaConfig.Version = sarama.V0_10_1_0
-	case "", "0.10.2", "0.10.2.0":
-		saramaConfig.Version = sarama.V0_10_2_0
-	default:
-		panic("Unknown Kafka Version: " + kafkaVersion)
-	}
+	saramaConfig.Version = parseKafkaVersion(viper.GetString(configRoot + ".kafka-version"))
 
 	// Configure TLS if enabled
 	if viper.IsSet(configRoot + ".tls") {

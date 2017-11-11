@@ -179,7 +179,7 @@ func (nc *Coordinator) Configure() {
 		templateOpen = tmpl.Templates()[0]
 
 		if viper.GetBool(configRoot + ".send-close") {
-			tmpl, err = nc.templateParseFunc(viper.GetString(configRoot + ".template-closen"))
+			tmpl, err = nc.templateParseFunc(viper.GetString(configRoot + ".template-close"))
 			if err != nil {
 				nc.Log.Panic("Failed to compile TemplateClose", zap.Error(err), zap.String("module", name))
 				panic(err)
@@ -258,12 +258,14 @@ func (nc *Coordinator) manageEvalLoop() {
 
 		// We've got the lock, start the evaluation ticker
 		nc.evalInterval.Start()
+		nc.Log.Info("starting evaluations", zap.Error(err))
 
 		// Wait for ZK session expiration, and stop sending notifications if it happens
 		nc.App.ZookeeperExpired.L.Lock()
 		nc.App.ZookeeperExpired.Wait()
 		nc.App.ZookeeperExpired.L.Unlock()
 		nc.evalInterval.Stop()
+		nc.Log.Info("stopping evaluations", zap.Error(err))
 
 		// Wait for the ZK connection to come back before trying again
 		for !nc.App.ZookeeperConnected {
@@ -340,6 +342,11 @@ func (nc *Coordinator) responseLoop() {
 	for {
 		select {
 		case response := <-nc.evaluatorResponse:
+			// If response is nil, the group no longer exists
+			if response == nil {
+				continue
+			}
+
 			// As long as the response is not NotFound, send it to the modules
 			if response.Status != protocol.StatusNotFound {
 				clusterGroups := nc.clusters[response.Cluster].Groups
@@ -376,61 +383,66 @@ func (nc *Coordinator) responseLoop() {
 
 func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
 	response := <-replyChan
-	switch response.(type) {
-	case []string:
-		clusterList, _ := response.([]string)
-		requestMap := make(map[string]*protocol.StorageRequest)
+	clusterList, _ := response.([]string)
+	requestMap := make(map[string]*protocol.StorageRequest)
 
-		nc.clusterLock.Lock()
-		for _, cluster := range clusterList {
-			// Make sure we have a map entry for the cluster
-			if _, ok := nc.clusters[cluster]; !ok {
-				nc.clusters[cluster] = &ClusterGroups{
-					Lock:   &sync.RWMutex{},
-					Groups: make(map[string]*ConsumerGroup),
-				}
-			}
-
-			// Create a request for the group list for this cluster
-			requestMap[cluster] = &protocol.StorageRequest{
-				RequestType: protocol.StorageFetchConsumers,
-				Reply:       make(chan interface{}),
-				Cluster:     cluster,
+	nc.clusterLock.Lock()
+	for _, cluster := range clusterList {
+		// Make sure we have a map entry for the cluster
+		if _, ok := nc.clusters[cluster]; !ok {
+			nc.clusters[cluster] = &ClusterGroups{
+				Lock:   &sync.RWMutex{},
+				Groups: make(map[string]*ConsumerGroup),
 			}
 		}
 
-		// Delete clusters that no longer exist
-		for cluster := range nc.clusters {
-			if _, ok := requestMap[cluster]; !ok {
-				delete(nc.clusters, cluster)
-			}
+		// Create a request for the group list for this cluster
+		requestMap[cluster] = &protocol.StorageRequest{
+			RequestType: protocol.StorageFetchConsumers,
+			Reply:       make(chan interface{}),
+			Cluster:     cluster,
 		}
-		nc.clusterLock.Unlock()
+	}
 
-		// Fire off requests for group lists to the storage module, with goroutines to process the responses
-		for cluster, request := range requestMap {
-			go nc.processConsumerList(cluster, request.Reply)
-			helpers.TimeoutSendStorageRequest(nc.App.StorageChannel, request, 1)
+	// Delete clusters that no longer exist
+	for cluster := range nc.clusters {
+		if _, ok := requestMap[cluster]; !ok {
+			delete(nc.clusters, cluster)
 		}
+	}
+	nc.clusterLock.Unlock()
+
+	// Fire off requests for group lists to the storage module, with goroutines to process the responses
+	for cluster, request := range requestMap {
+		go nc.processConsumerList(cluster, request.Reply)
+		helpers.TimeoutSendStorageRequest(nc.App.StorageChannel, request, 1)
 	}
 }
 
 func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interface{}) {
 	response := <-replyChan
-	switch response.(type) {
-	case []string:
-		consumerList, _ := response.([]string)
-		nc.clusterLock.RLock()
-		if _, ok := nc.clusters[cluster]; ok {
-			nc.clusters[cluster].Lock.Lock()
-			for _, group := range consumerList {
-				nc.clusters[cluster].Groups[group] = &ConsumerGroup{
-					Last: make(map[string]time.Time),
-				}
+	consumerList, _ := response.([]string)
+
+	nc.clusterLock.RLock()
+	defer nc.clusterLock.RUnlock()
+
+	if _, ok := nc.clusters[cluster]; ok {
+		nc.clusters[cluster].Lock.Lock()
+		consumerMap := make(map[string]struct{})
+		for _, group := range consumerList {
+			consumerMap[group] = struct{}{}
+			nc.clusters[cluster].Groups[group] = &ConsumerGroup{
+				Last: make(map[string]time.Time),
 			}
-			nc.clusters[cluster].Lock.Unlock()
 		}
-		nc.clusterLock.RUnlock()
+
+		// Use the map we just made to delete consumers that no longer exist
+		for group := range nc.clusters[cluster].Groups {
+			if _, ok := consumerMap[group]; !ok {
+				delete(nc.clusters[cluster].Groups, group)
+			}
+		}
+		nc.clusters[cluster].Lock.Unlock()
 	}
 }
 

@@ -435,7 +435,7 @@ func TestInMemoryStorage_deleteTopic(t *testing.T) {
 
 	_, ok := module.offsets["testcluster"].broker["testtopic"]
 	assert.False(t, ok, "Topic not deleted from broker offsets")
-	consumerMap, ok := module.offsets["testcluster"].consumer["testgroup"]
+	consumerMap := module.offsets["testcluster"].consumer["testgroup"]
 	_, ok = consumerMap.topics["testtopic"]
 	assert.False(t, ok, "Topic not deleted from group offsets")
 }
@@ -467,7 +467,7 @@ func TestInMemoryStorage_deleteTopic_NoTopic(t *testing.T) {
 
 	_, ok := module.offsets["testcluster"].broker["testtopic"]
 	assert.True(t, ok, "Wrong topic deleted from broker offsets")
-	consumerMap, ok := module.offsets["testcluster"].consumer["testgroup"]
+	consumerMap := module.offsets["testcluster"].consumer["testgroup"]
 	_, ok = consumerMap.topics["testtopic"]
 	assert.True(t, ok, "Wrong topic deleted from group offsets")
 }
@@ -532,7 +532,7 @@ func TestInMemoryStorage_fetchClusterList(t *testing.T) {
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testcluster", "Expected return value to be 'testcluster', not %v", val[0])
 
-	response, ok := <-request.Reply
+	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -554,7 +554,7 @@ func TestInMemoryStorage_fetchTopicList(t *testing.T) {
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testtopic", "Expected return value to be 'testtopic', not %v", val[0])
 
-	response, ok := <-request.Reply
+	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -593,7 +593,7 @@ func TestInMemoryStorage_fetchConsumerList(t *testing.T) {
 	assert.Len(t, val, 1, "One entry not returned")
 	assert.Equalf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %v", val[0])
 
-	response, ok := <-request.Reply
+	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -633,7 +633,7 @@ func TestInMemoryStorage_fetchTopic(t *testing.T) {
 	assert.Len(t, val, 1, "One partition not returned")
 	assert.Equalf(t, val[0], int64(4321), "Expected return value to be 4321, not %v", val[0])
 
-	response, ok := <-request.Reply
+	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
@@ -722,7 +722,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.Equalf(t, lagValue, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
 
-	response, ok = <-request.Reply
+	_, ok = <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
 }
 

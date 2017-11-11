@@ -87,9 +87,6 @@ func TestCoordinator_Start(t *testing.T) {
 	assert.Equalf(t, "testgroup", response.Group, "Expected group to be testgroup, not %v", response.Group)
 	assert.Lenf(t, response.Partitions, 1, "Expected 1 partition status objects, not %v", len(response.Partitions))
 
-	response, ok := <-request.Reply
-	assert.False(t, ok, "Expected channel to be closed")
-
 	evaluatorCoordinator.Stop()
 	storageCoordinator.Stop()
 }

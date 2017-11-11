@@ -160,6 +160,10 @@ func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 
 	// Send POST to HTTP endpoint
 	req, err := http.NewRequest("POST", module.postURL, bytes.NewBuffer(data))
+	if err != nil {
+		logger.Error("failed to create request", zap.Error(err))
+		return
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+module.token)
 

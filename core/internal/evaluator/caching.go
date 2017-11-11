@@ -158,7 +158,6 @@ func (module *CachingEvaluator) getConsumerStatus(request *protocol.EvaluatorReq
 		requestLogger.Debug("ok")
 		request.Reply <- status
 	}
-	close(request.Reply)
 }
 
 func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string) (interface{}, error) {
@@ -258,6 +257,11 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.Pa
 	status := &protocol.PartitionStatus{
 		Status:     protocol.StatusOK,
 		CurrentLag: partition.CurrentLag,
+	}
+
+	// If there are no offsets, we can't do anything
+	if len(partition.Offsets) == 0 {
+		return status
 	}
 
 	// Slice the offsets to remove all nil entries (they'll be at the start)
