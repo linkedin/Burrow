@@ -655,7 +655,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		clusterMap.consumerLock.RUnlock()
 
 		clusterMap.consumerLock.Lock()
-		requestLogger.Info("purge expired consumer", zap.Int64("last_commit", consumerMap.lastCommit))
+		requestLogger.Debug("purge expired consumer", zap.Int64("last_commit", consumerMap.lastCommit))
 		delete(clusterMap.consumer, request.Group)
 		clusterMap.consumerLock.Unlock()
 		return
