@@ -49,13 +49,6 @@ func TestCoordinator_Configure(t *testing.T) {
 	assert.Lenf(t, coordinator.modules, 1, "Expected 1 module configured, not %v", len(coordinator.modules))
 }
 
-func TestCoordinator_Configure_NoModules(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	viper.Reset()
-
-	assert.Panics(t, coordinator.Configure, "Expected panic")
-}
-
 func TestCoordinator_Configure_TwoModules(t *testing.T) {
 	coordinator := fixtureCoordinator()
 	viper.Set("cluster.anothertest.class-name", "kafka")

@@ -57,9 +57,6 @@ func (cc *Coordinator) Configure() {
 
 	// Create all configured cluster modules, add to list of clusters
 	modules := viper.GetStringMap("consumer")
-	if len(modules) == 0 {
-		panic("At least one consumer module must be configured")
-	}
 	for name := range modules {
 		configRoot := "consumer." + name
 		if !viper.IsSet("cluster." + viper.GetString(configRoot+".cluster")) {
