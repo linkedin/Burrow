@@ -47,6 +47,7 @@ func (hc *Coordinator) Configure() {
 	servers := viper.GetStringMap("httpserver")
 	if len(servers) == 0 {
 		viper.Set("httpserver.default.address", ":0")
+		servers = viper.GetStringMap("httpserver")
 	}
 
 	// Validate provided HTTP server configs
