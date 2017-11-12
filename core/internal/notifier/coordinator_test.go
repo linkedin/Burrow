@@ -583,6 +583,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		coordinator.modules["test"] = mockModule
 		mockModule.On("GetName").Return("test")
 		mockModule.On("GetGroupWhitelist").Return((*regexp.Regexp)(nil))
+		mockModule.On("GetGroupBlacklist").Return((*regexp.Regexp)(nil))
 		mockModule.On("AcceptConsumerGroup", response).Return(true)
 		if testSet.ExpectSend {
 			mockModule.On("Notify", response, mock.MatchedBy(func(s string) bool { return true }), mock.MatchedBy(func(t time.Time) bool { return true }), testSet.ExpectClose).Return()
