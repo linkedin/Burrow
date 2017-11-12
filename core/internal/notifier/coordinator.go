@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"errors"
 	"math"
+	"math/rand"
 	"regexp"
 	"sync"
 	"text/template"
@@ -25,7 +26,6 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"math/rand"
 )
 
 type Module interface {
