@@ -57,11 +57,20 @@ func (ec *Coordinator) Configure() {
 	ec.quitChannel = make(chan struct{})
 	ec.modules = make(map[string]protocol.Module)
 
-	// Create all configured evaluator modules, add to list of evaluators
 	modules := viper.GetStringMap("evaluator")
-	if len(modules) != 1 {
+	switch len(modules) {
+	case 0:
+		// Create a default module
+		viper.Set("evaluator.default.class-name", "caching")
+		modules = viper.GetStringMap("evaluator")
+	case 1:
+		// Have one module. Just continue
+		break
+	default:
 		panic("Only one evaluator module must be configured")
 	}
+
+	// Create all configured evaluator modules, add to list of evaluators
 	for name := range modules {
 		configRoot := "evaluator." + name
 		module := GetModuleForClass(ec.App, name, viper.GetString(configRoot+".class-name"))
