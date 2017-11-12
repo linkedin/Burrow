@@ -34,7 +34,7 @@ type Coordinator struct {
 	modules     map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	switch className {
 	case "caching":
 		return &CachingEvaluator{
@@ -73,7 +73,7 @@ func (ec *Coordinator) Configure() {
 	// Create all configured evaluator modules, add to list of evaluators
 	for name := range modules {
 		configRoot := "evaluator." + name
-		module := GetModuleForClass(ec.App, name, viper.GetString(configRoot+".class-name"))
+		module := getModuleForClass(ec.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		ec.modules[name] = module
 	}

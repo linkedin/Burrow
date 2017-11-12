@@ -26,7 +26,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func NewCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
+func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	// This order is important - it makes sure that the things taking requests start up before things sending requests
 	return [7]protocol.Coordinator{
 		&zookeeper.Coordinator{
@@ -109,7 +109,7 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	log := app.Logger.With(zap.String("type", "main"), zap.String("name", "burrow"))
 
 	// Set up an array of coordinators in the order they are to be loaded (and closed)
-	coordinators := NewCoordinators(app)
+	coordinators := newCoordinators(app)
 
 	// Set up two main channels to use for the evaluator and storage coordinators. This is how burrow communicates
 	// internally:

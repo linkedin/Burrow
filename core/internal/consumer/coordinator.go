@@ -26,7 +26,7 @@ type Coordinator struct {
 	modules map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	logger := app.Logger.With(
 		zap.String("type", "module"),
 		zap.String("coordinator", "consumer"),
@@ -65,7 +65,7 @@ func (cc *Coordinator) Configure() {
 		if !viper.IsSet("cluster." + viper.GetString(configRoot+".cluster")) {
 			panic("Consumer '" + name + "' references an unknown cluster '" + viper.GetString(configRoot+".cluster") + "'")
 		}
-		module := GetModuleForClass(cc.App, name, viper.GetString(configRoot+".class-name"))
+		module := getModuleForClass(cc.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		cc.modules[name] = module
 	}

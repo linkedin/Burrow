@@ -23,16 +23,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/linkedin/Burrow/core/internal/helpers"
 )
 
 func CheckAndCreatePidFile(filename string) bool {
-	if !helpers.ValidateFilename(filename) {
-		fmt.Fprintln(os.Stderr, "PID filename is invalid")
-		return false
-	}
-
 	// Check if the PID file exists
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		// The file exists, so read it and check if the PID specified is running

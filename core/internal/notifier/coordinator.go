@@ -68,7 +68,7 @@ type Coordinator struct {
 	clusterLock *sync.RWMutex
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext,
+func getModuleForClass(app *protocol.ApplicationContext,
 	moduleName string,
 	className string,
 	groupWhitelist *regexp.Regexp,
@@ -189,7 +189,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := GetModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
+		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 
