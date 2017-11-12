@@ -25,12 +25,12 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-// exit code handler
-type Exit struct{ Code int }
+// exitCode wraps a return value for the application
+type exitCode struct{ Code int }
 
 func handleExit() {
 	if e := recover(); e != nil {
-		if exit, ok := e.(Exit); ok == true {
+		if exit, ok := e.(exitCode); ok == true {
 			if exit.Code != 0 {
 				fmt.Fprintln(os.Stderr, "Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
 			} else {
@@ -39,7 +39,7 @@ func handleExit() {
 
 			os.Exit(exit.Code)
 		}
-		panic(e) // not an Exit, bubble up
+		panic(e) // not an exitCode, bubble up
 	}
 }
 
@@ -60,7 +60,7 @@ func main() {
 	err := viper.ReadInConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
-		panic(Exit{1})
+		panic(exitCode{1})
 	}
 
 	appContext := &protocol.ApplicationContext{}
@@ -70,7 +70,7 @@ func main() {
 	pidFile := viper.GetString("general.pidfile")
 	if !core.CheckAndCreatePidFile(pidFile) {
 		// Any error on checking or creating the PID file causes an immediate exit
-		panic(Exit{1})
+		panic(exitCode{1})
 	}
 	defer core.RemovePidFile(pidFile)
 
@@ -90,5 +90,5 @@ func main() {
 	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 
 	// This triggers handleExit (after other defers), which will then call os.Exit properly
-	panic(Exit{core.Start(appContext, exitChannel)})
+	panic(exitCode{core.Start(appContext, exitChannel)})
 }

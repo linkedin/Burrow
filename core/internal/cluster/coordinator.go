@@ -26,7 +26,7 @@ type Coordinator struct {
 	modules map[string]protocol.Module
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	switch className {
 	case "kafka":
 		return &KafkaCluster{
@@ -55,7 +55,7 @@ func (bc *Coordinator) Configure() {
 	}
 	for name := range modules {
 		configRoot := "cluster." + name
-		module := GetModuleForClass(bc.App, name, viper.GetString(configRoot+".class-name"))
+		module := getModuleForClass(bc.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		bc.modules[name] = module
 	}

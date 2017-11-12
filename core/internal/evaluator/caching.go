@@ -218,6 +218,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 			partitionStatus := evaluatePartitionStatus(partition)
 			partitionStatus.Topic = topic
 			partitionStatus.Partition = int32(partitionId)
+			partitionStatus.Owner = partition.Owner
 
 			if partitionStatus.Status > status.Status {
 				// If the partition status is greater than StatusError, we just mark it as StatusError

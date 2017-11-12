@@ -50,7 +50,7 @@ type Coordinator struct {
 	running     sync.WaitGroup
 }
 
-func GetModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) Module {
 	switch className {
 	case "inmemory":
 		return &InMemoryStorage{
@@ -73,14 +73,23 @@ func (sc *Coordinator) Configure() {
 	sc.modules = make(map[string]protocol.Module)
 	sc.running = sync.WaitGroup{}
 
-	// Create all configured storage modules, add to list of storage
 	modules := viper.GetStringMap("storage")
-	if len(modules) != 1 {
+	switch len(modules) {
+	case 0:
+		// Create a default module
+		viper.Set("storage.default.class-name", "inmemory")
+		modules = viper.GetStringMap("storage")
+	case 1:
+		// Have one module. Just continue
+		break
+	default:
 		panic("Only one storage module must be configured")
 	}
+
+	// Create all configured storage modules, add to list of storage
 	for name := range modules {
 		configRoot := "storage." + name
-		module := GetModuleForClass(sc.App, name, viper.GetString(configRoot+".class-name"))
+		module := getModuleForClass(sc.App, name, viper.GetString(configRoot+".class-name"))
 		module.Configure(name, configRoot)
 		sc.modules[name] = module
 	}
