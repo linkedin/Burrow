@@ -52,6 +52,7 @@ func fixtureCoordinator() *Coordinator {
 	viper.Set("notifier.test.class-name", "null")
 	viper.Set("notifier.test.group-whitelist", ".*")
 	viper.Set("notifier.test.threshold", 1)
+	viper.Set("notifier.test.interval", 5)
 	viper.Set("notifier.test.timeout", 2)
 	viper.Set("notifier.test.keepalive", 10)
 	viper.Set("notifier.test.template-open", "template_open")
@@ -203,16 +204,19 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
+		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
 	}
 	coordinator.clusters["testcluster2"] = &ClusterGroups{
 		Lock:   &sync.RWMutex{},
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster2"].Groups["testgroup2"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
+		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
 	}
 
+	coordinator.doEvaluations = true
 	go coordinator.sendEvaluatorRequests()
 
 	// We expect to get 2 requests
@@ -238,6 +242,7 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 	default:
 		// All is good - we didn't expect to find another request
 	}
+	coordinator.doEvaluations = false
 }
 
 // Note, we do not check the calls to the module here, just that the response loop sets the event properly
@@ -257,7 +262,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
 	}
 
 	// Test a NotFound response - we shouldn't do anything here
@@ -282,7 +287,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be unset")
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be unset")
+	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 }
 
 func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
@@ -309,7 +314,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
 	}
 
 	// Test an OK response
@@ -329,7 +334,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be unset")
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be unset")
+	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 
 	module := coordinator.modules["test"].(*NullNotifier)
 	assert.True(t, module.CalledAcceptConsumerGroup, "Expected module 'test' AcceptConsumerGroup to be called")
@@ -360,9 +365,9 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
+		Start:      mockStartTime,
+		Id:         "testidstring",
+		LastNotify: make(map[string]time.Time),
 	}
 
 	// Test an OK response
@@ -382,7 +387,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be cleared")
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be unset")
+	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 
 	module := coordinator.modules["test"].(*NullNotifier)
 	assert.True(t, module.CalledAcceptConsumerGroup, "Expected module 'test' AcceptConsumerGroup to be called")
@@ -412,7 +417,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
 	}
 
 	// Test an Error response
@@ -432,7 +437,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.NotEqual(t, "", group.Id, "Expected group incident ID to be set, not empty")
 	assert.False(t, group.Start.IsZero(), "Expected group incident start time to be set")
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
+	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
 
 	module := coordinator.modules["test"].(*NullNotifier)
 	assert.True(t, module.CalledAcceptConsumerGroup, "Expected module 'test' AcceptConsumerGroup to be called")
@@ -463,9 +468,9 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Start: mockStartTime,
-		Id:    "testidstring",
-		Last:  make(map[string]time.Time),
+		Start:      mockStartTime,
+		Id:         "testidstring",
+		LastNotify: make(map[string]time.Time),
 	}
 
 	// Test an Error response
@@ -485,7 +490,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.Equal(t, mockStartTime, group.Start, "Expected group incident start time to be unchanged")
 	assert.Equalf(t, "testidstring", group.Id, "Expected group incident ID to be 'testidstring', not %v", group.Id)
-	assert.True(t, group.Last["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
+	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
 
 	module := coordinator.modules["test"].(*NullNotifier)
 	assert.True(t, module.CalledAcceptConsumerGroup, "Expected module 'test' AcceptConsumerGroup to be called")
@@ -540,7 +545,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		Groups: make(map[string]*ConsumerGroup),
 	}
 	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
-		Last: make(map[string]time.Time),
+		LastNotify: make(map[string]time.Time),
 	}
 
 	mockStartTime, _ := time.Parse(time.RFC3339, "2012-11-01T22:08:41+00:00")
@@ -555,7 +560,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 
 		// Should there be an existing incident for this test?
 		group := coordinator.clusters["testcluster"].Groups["testgroup"]
-		delete(group.Last, "test")
+		delete(group.LastNotify, "test")
 		if testSet.Existing {
 			group.Id = "testidstring"
 			group.Start = mockStartTime
@@ -588,9 +593,9 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 
 		mockModule.AssertExpectations(t)
 		if testSet.ExpectSend && (!testSet.ExpectClose) {
-			assert.Falsef(t, group.Last["test"].IsZero(), "Test %v: Expected group last time to be set", i)
+			assert.Falsef(t, group.LastNotify["test"].IsZero(), "Test %v: Expected group last time to be set", i)
 		} else {
-			assert.Truef(t, group.Last["test"].IsZero(), "Test %v: Expected group last time to remain unset", i)
+			assert.Truef(t, group.LastNotify["test"].IsZero(), "Test %v: Expected group last time to remain unset", i)
 		}
 
 		// Check whether or not the incident is as expected afterwards
@@ -627,9 +632,7 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 
 func TestCoordinator_manageEvalLoop_Start(t *testing.T) {
 	coordinator := fixtureCoordinator()
-
-	mockTicker := helpers.MockTicker{}
-	mockTicker.On("Start")
+	coordinator.Configure()
 
 	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
 	mockLock := &helpers.MockZookeeperLock{}
@@ -637,21 +640,17 @@ func TestCoordinator_manageEvalLoop_Start(t *testing.T) {
 	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
 	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
 
-	coordinator.evalInterval = &mockTicker
 	go coordinator.manageEvalLoop()
 	time.Sleep(200 * time.Millisecond)
 
-	mockTicker.AssertExpectations(t)
 	mockLock.AssertExpectations(t)
 	mockZk.AssertExpectations(t)
+	assert.True(t, coordinator.doEvaluations, "Expected doEvaluations to be true")
 }
 
 func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
 	coordinator := fixtureCoordinator()
-
-	mockTicker := helpers.MockTicker{}
-	mockTicker.On("Start").Once()
-	mockTicker.On("Stop").Once()
+	coordinator.Configure()
 
 	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
 	mockLock := &helpers.MockZookeeperLock{}
@@ -659,7 +658,6 @@ func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
 	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
 	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
 
-	coordinator.evalInterval = &mockTicker
 	go coordinator.manageEvalLoop()
 	time.Sleep(200 * time.Millisecond)
 
@@ -668,17 +666,14 @@ func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
 	coordinator.App.ZookeeperExpired.Broadcast()
 	time.Sleep(300 * time.Millisecond)
 
-	mockTicker.AssertExpectations(t)
 	mockLock.AssertExpectations(t)
 	mockZk.AssertExpectations(t)
+	assert.False(t, coordinator.doEvaluations, "Expected doEvaluations to be false")
 }
 
 func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
 	coordinator := fixtureCoordinator()
-
-	mockTicker := helpers.MockTicker{}
-	mockTicker.On("Start").Twice()
-	mockTicker.On("Stop").Once()
+	coordinator.Configure()
 
 	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
 	mockLock := &helpers.MockZookeeperLock{}
@@ -686,7 +681,6 @@ func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
 	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
 	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
 
-	coordinator.evalInterval = &mockTicker
 	go coordinator.manageEvalLoop()
 	time.Sleep(200 * time.Millisecond)
 
@@ -699,7 +693,7 @@ func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
 	coordinator.App.ZookeeperConnected = true
 	time.Sleep(300 * time.Millisecond)
 
-	mockTicker.AssertExpectations(t)
 	mockLock.AssertExpectations(t)
 	mockZk.AssertExpectations(t)
+	assert.True(t, coordinator.doEvaluations, "Expected doEvaluations to be true")
 }
