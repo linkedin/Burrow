@@ -19,11 +19,11 @@ import (
 
 type ApplicationContext struct {
 	// These fields need to be populated before Start is called
-	ConfigurationValid bool
 	Logger             *zap.Logger
 	LogLevel           *zap.AtomicLevel
 
 	// These fields will be created by Start after it is called
+	ConfigurationValid bool
 	Zookeeper          ZookeeperClient
 	ZookeeperRoot      string
 	ZookeeperConnected bool
