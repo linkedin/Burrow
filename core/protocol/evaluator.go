@@ -22,6 +22,7 @@ type EvaluatorRequest struct {
 type PartitionStatus struct {
 	Topic      string          `json:"topic"`
 	Partition  int32           `json:"partition"`
+	Owner      string          `json:"owner"`
 	Status     StatusConstant  `json:"status"`
 	Start      *ConsumerOffset `json:"start"`
 	End        *ConsumerOffset `json:"end"`
