@@ -158,6 +158,7 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
 	client.On("Leader", "testtopic", int32(1)).Return(broker, nil)
+	client.On("RefreshMetadata", []string{"testtopic"}).Return(nil)
 
 	requests, brokers := module.generateOffsetRequests(client)
 
@@ -191,6 +192,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
 	client.On("Leader", "testtopic", int32(1)).Return(nilBroker, errors.New("no leader error"))
+	client.On("RefreshMetadata", []string{"testtopic"}).Return(nil)
 
 	go module.getOffsets(client)
 	request := <-module.App.StorageChannel
