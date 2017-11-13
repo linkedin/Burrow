@@ -50,9 +50,6 @@ func (bc *Coordinator) Configure() {
 
 	// Create all configured cluster modules, add to list of clusters
 	modules := viper.GetStringMap("cluster")
-	if len(modules) == 0 {
-		panic("At least one cluster module must be configured")
-	}
 	for name := range modules {
 		configRoot := "cluster." + name
 		module := getModuleForClass(bc.App, name, viper.GetString(configRoot+".class-name"))

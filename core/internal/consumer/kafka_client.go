@@ -36,6 +36,7 @@ type KafkaClient struct {
 	startLatest    bool
 	saramaConfig   *sarama.Config
 	groupWhitelist *regexp.Regexp
+	groupBlacklist *regexp.Regexp
 
 	quitChannel chan struct{}
 	running     sync.WaitGroup
@@ -76,6 +77,16 @@ func (module *KafkaClient) Configure(name string, configRoot string) {
 			panic(err)
 		}
 		module.groupWhitelist = re
+	}
+
+	blacklist := viper.GetString(configRoot + ".group-blacklist")
+	if blacklist != "" {
+		re, err := regexp.Compile(blacklist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group blacklist")
+			panic(err)
+		}
+		module.groupBlacklist = re
 	}
 }
 
@@ -259,10 +270,13 @@ type MetadataMember struct {
 
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
 	// No whitelist means everything passes
-	if module.groupWhitelist == nil {
-		return true
+	if (module.groupWhitelist != nil) && (! module.groupWhitelist.MatchString(group)) {
+		return false
 	}
-	return module.groupWhitelist.MatchString(group)
+	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+		return false
+	}
+	return true
 }
 
 func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {

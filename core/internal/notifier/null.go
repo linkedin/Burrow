@@ -29,6 +29,7 @@ type NullNotifier struct {
 	name           string
 	threshold      int
 	groupWhitelist *regexp.Regexp
+	groupBlacklist *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
@@ -61,6 +62,10 @@ func (module *NullNotifier) GetName() string {
 
 func (module *NullNotifier) GetGroupWhitelist() *regexp.Regexp {
 	return module.groupWhitelist
+}
+
+func (module *NullNotifier) GetGroupBlacklist() *regexp.Regexp {
+	return module.groupBlacklist
 }
 
 func (module *NullNotifier) GetLogger() *zap.Logger {

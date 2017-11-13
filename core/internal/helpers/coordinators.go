@@ -62,6 +62,10 @@ func (m *MockModule) GetGroupWhitelist() *regexp.Regexp {
 	args := m.Called()
 	return args.Get(0).(*regexp.Regexp)
 }
+func (m *MockModule) GetGroupBlacklist() *regexp.Regexp {
+	args := m.Called()
+	return args.Get(0).(*regexp.Regexp)
+}
 func (m *MockModule) GetLogger() *zap.Logger {
 	args := m.Called()
 	return args.Get(0).(*zap.Logger)

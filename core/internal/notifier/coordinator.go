@@ -32,6 +32,7 @@ type Module interface {
 	protocol.Module
 	GetName() string
 	GetGroupWhitelist() *regexp.Regexp
+	GetGroupBlacklist() *regexp.Regexp
 	GetLogger() *zap.Logger
 	AcceptConsumerGroup(*protocol.ConsumerGroupStatus) bool
 	Notify(*protocol.ConsumerGroupStatus, string, time.Time, bool)
@@ -72,6 +73,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 	moduleName string,
 	className string,
 	groupWhitelist *regexp.Regexp,
+	groupBlacklist *regexp.Regexp,
 	extras map[string]string,
 	templateOpen *template.Template,
 	templateClose *template.Template) protocol.Module {
@@ -89,6 +91,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 			App:            app,
 			Log:            logger,
 			groupWhitelist: groupWhitelist,
+			groupBlacklist: groupBlacklist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -98,6 +101,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 			App:            app,
 			Log:            logger,
 			groupWhitelist: groupWhitelist,
+			groupBlacklist: groupBlacklist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -107,6 +111,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 			App:            app,
 			Log:            logger,
 			groupWhitelist: groupWhitelist,
+			groupBlacklist: groupBlacklist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -116,6 +121,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 			App:            app,
 			Log:            logger,
 			groupWhitelist: groupWhitelist,
+			groupBlacklist: groupBlacklist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -168,6 +174,18 @@ func (nc *Coordinator) Configure() {
 			groupWhitelist = re
 		}
 
+		// Compile the blacklist for the consumer groups to not notify for
+		var groupBlacklist *regexp.Regexp
+		blacklist := viper.GetString(configRoot + ".group-blacklist")
+		if blacklist != "" {
+			re, err := regexp.Compile(blacklist)
+			if err != nil {
+				nc.Log.Panic("Failed to compile group blacklist", zap.String("module", name))
+				panic(err)
+			}
+			groupBlacklist = re
+		}
+
 		// Set up extra fields for the templates
 		extras := viper.GetStringMapString(configRoot + ".extras")
 
@@ -189,7 +207,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, extras, templateOpen, templateClose)
+		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 
@@ -374,10 +392,15 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 
 		// No whitelist means everything passes
 		groupWhitelist := module.GetGroupWhitelist()
-		if (groupWhitelist == nil) || (groupWhitelist.MatchString(response.Group)) {
-			if module.AcceptConsumerGroup(response) {
-				nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
-			}
+		groupBlacklist := module.GetGroupBlacklist()
+		if (groupWhitelist != nil) && (! groupWhitelist.MatchString(response.Group)) {
+			continue
+		}
+		if (groupBlacklist != nil) && groupBlacklist.MatchString(response.Group) {
+			continue
+		}
+		if module.AcceptConsumerGroup(response) {
+			nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
 		}
 	}
 

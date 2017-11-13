@@ -33,6 +33,7 @@ type HttpNotifier struct {
 	name           string
 	threshold      int
 	groupWhitelist *regexp.Regexp
+	groupBlacklist *regexp.Regexp
 	extras         map[string]string
 	urlOpen        string
 	urlClose       string
@@ -100,6 +101,10 @@ func (module *HttpNotifier) GetName() string {
 
 func (module *HttpNotifier) GetGroupWhitelist() *regexp.Regexp {
 	return module.groupWhitelist
+}
+
+func (module *HttpNotifier) GetGroupBlacklist() *regexp.Regexp {
+	return module.groupBlacklist
 }
 
 func (module *HttpNotifier) GetLogger() *zap.Logger {

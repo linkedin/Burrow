@@ -48,6 +48,7 @@ type KafkaZkClient struct {
 	groupLock      *sync.Mutex
 	groupList      map[string]*TopicList
 	groupWhitelist *regexp.Regexp
+	groupBlacklist *regexp.Regexp
 	connectFunc    func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 }
 
@@ -84,6 +85,16 @@ func (module *KafkaZkClient) Configure(name string, configRoot string) {
 			panic(err)
 		}
 		module.groupWhitelist = re
+	}
+
+	blacklist := viper.GetString(configRoot + ".group-blacklist")
+	if blacklist != "" {
+		re, err := regexp.Compile(blacklist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group blacklist")
+			panic(err)
+		}
+		module.groupBlacklist = re
 	}
 }
 
@@ -144,10 +155,13 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 
 func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
 	// No whitelist means everything passes
-	if module.groupWhitelist == nil {
-		return true
+	if (module.groupWhitelist != nil) && (! module.groupWhitelist.MatchString(group)) {
+		return false
 	}
-	return module.groupWhitelist.MatchString(group)
+	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+		return false
+	}
+	return true
 }
 
 func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
