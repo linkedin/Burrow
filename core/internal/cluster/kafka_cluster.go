@@ -191,7 +191,8 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 
 	// Send out the OffsetRequest to each broker for all the partitions it is leader for
 	// The results go to the offset storage module
-	var wg sync.WaitGroup
+	var wg = sync.WaitGroup{}
+	var errorTopics = sync.Map{}
 
 	getBrokerOffsets := func(brokerID int32, request *sarama.OffsetRequest) {
 		defer wg.Done()
@@ -214,6 +215,9 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 						zap.String("topic", topic),
 						zap.Int32("partition", partition),
 					)
+
+					// Gather a list of topics that had errors
+					errorTopics.Store(topic, true)
 					continue
 				}
 				offset := &protocol.StorageRequest{
@@ -236,4 +240,15 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 	}
 
 	wg.Wait()
+
+	// If there are any topics that had errors, explicitly update metadata for them so we potentially delete the topic
+	// on the next topic list refresh
+	topicsToUpdate := make([]string, 0)
+	errorTopics.Range(func (key, value interface{}) bool {
+		topicsToUpdate = append(topicsToUpdate, key.(string))
+		return true
+	})
+	if len(topicsToUpdate) > 0 {
+		client.RefreshMetadata(topicsToUpdate...)
+	}
 }
