@@ -165,11 +165,16 @@ func (module *KafkaCluster) generateOffsetRequests(client helpers.SaramaClient) 
 	brokers := make(map[int32]helpers.SaramaBroker)
 
 	// Generate an OffsetRequest for each topic:partition and bucket it to the leader broker
+	errorTopics := make(map[string]bool)
 	for topic, partitions := range module.topicMap {
 		for i := 0; i < partitions; i++ {
 			broker, err := client.Leader(topic, int32(i))
 			if err != nil {
-				module.Log.Error("failed to fetch leader for partition", zap.String("sarama_error", err.Error()))
+				module.Log.Warn("failed to fetch leader for partition",
+					zap.String("topic", topic),
+					zap.Int("partition", i),
+					zap.String("sarama_error", err.Error()))
+				errorTopics[topic] = true
 				continue
 			}
 			if _, ok := requests[broker.ID()]; !ok {
@@ -178,6 +183,16 @@ func (module *KafkaCluster) generateOffsetRequests(client helpers.SaramaClient) 
 			brokers[broker.ID()] = broker
 			requests[broker.ID()].AddBlock(topic, int32(i), sarama.OffsetNewest, 1)
 		}
+	}
+
+	// If there are any topics that had errors, explicitly update metadata for them so we potentially delete the topic
+	// on the next topic list refresh
+	if len(errorTopics) > 0 {
+		topicsToUpdate := make([]string, 0, len(errorTopics))
+		for topic := range errorTopics {
+			topicsToUpdate = append(topicsToUpdate, topic)
+		}
+		client.RefreshMetadata(topicsToUpdate...)
 	}
 
 	return requests, brokers
