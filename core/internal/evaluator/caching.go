@@ -206,7 +206,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	for _, partitions := range topics {
 		for _, partition := range partitions {
 			status.TotalPartitions += 1
-			status.TotalLag += uint64(partition.CurrentLag)
+			status.TotalLag += partition.CurrentLag
 		}
 	}
 	status.Partitions = make([]*protocol.PartitionStatus, status.TotalPartitions)
@@ -293,7 +293,7 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.Pa
 	return status
 }
 
-func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, currentLag int64, timeNow int64) protocol.StatusConstant {
+func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, currentLag uint64, timeNow int64) protocol.StatusConstant {
 	// First check if the lag was zero at any point, and skip the rest of the checks if this is true
 	if (currentLag > 0) && isLagAlwaysNotZero(offsets) {
 		// Check for errors, in order of severity starting with the worst. If any check comes back true, skip the rest

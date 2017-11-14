@@ -172,7 +172,7 @@ func TestCachingEvaluator_SingleRequest_Incomplete(t *testing.T) {
 
 type testset struct {
 	offsets                 []*protocol.ConsumerOffset
-	currentLag              int64
+	currentLag              uint64
 	timeNow                 int64
 	isLagAlwaysNotZero      bool
 	checkIfOffsetsRewind    bool

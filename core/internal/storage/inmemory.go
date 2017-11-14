@@ -365,11 +365,13 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		}
 	}
 	// Calculate the lag against the brokerOffset
-	partitionLag := brokerOffset - request.Offset
-	if partitionLag < 0 {
+	var partitionLag uint64
+	if brokerOffset < request.Offset {
 		// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
 		// is. In this case, just mark it as zero lag.
 		partitionLag = 0
+	} else {
+		partitionLag = uint64(brokerOffset - request.Offset)
 	}
 
 	// Update or create the ring value at the current pointer
@@ -388,7 +390,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	consumerMap.lastCommit = request.Timestamp
 
 	// Advance the ring pointer
-	requestLogger.Debug("ok", zap.Int64("lag", partitionLag))
+	requestLogger.Debug("ok", zap.Uint64("lag", partitionLag))
 	consumerMap.topics[request.Topic][request.Partition].offsets = consumerMap.topics[request.Topic][request.Partition].offsets.Next()
 }
 
@@ -675,8 +677,18 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		}
 
 		for p, partition := range partitions {
-			if (len(partition.Offsets) > 0) && (partition.Offsets[len(partition.Offsets)-1] != nil) {
-				partition.CurrentLag = topicMap[p].Offset - partition.Offsets[len(partition.Offsets)-1].Offset
+			if len(partition.Offsets) > 0 {
+				brokerOffset := topicMap[p].Offset
+				lastOffset := partition.Offsets[len(partition.Offsets)-1]
+				if lastOffset != nil {
+					if brokerOffset < lastOffset.Offset {
+						// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
+						// is. In this case, just mark it as zero lag.
+						partition.CurrentLag = 0
+					} else {
+						partition.CurrentLag = uint64(brokerOffset - lastOffset.Offset)
+					}
+				}
 			}
 		}
 	}

@@ -73,13 +73,13 @@ type StorageRequest struct {
 type ConsumerPartition struct {
 	Offsets    []*ConsumerOffset `json:"offsets"`
 	Owner      string            `json:"owner"`
-	CurrentLag int64             `json:"current-lag"`
+	CurrentLag uint64            `json:"current-lag"`
 }
 
 type ConsumerOffset struct {
-	Offset    int64 `json:"offset"`
-	Timestamp int64 `json:"timestamp"`
-	Lag       int64 `json:"lag"`
+	Offset    int64  `json:"offset"`
+	Timestamp int64  `json:"timestamp"`
+	Lag       uint64 `json:"lag"`
 }
 
 type ConsumerTopics map[string]ConsumerPartitions

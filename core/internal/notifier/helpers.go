@@ -104,7 +104,7 @@ func templateDivide(a, b int) int {
 	return a / b
 }
 
-func maxLagHelper(a *protocol.PartitionStatus) int64 {
+func maxLagHelper(a *protocol.PartitionStatus) uint64 {
 	if a == nil {
 		return 0
 	} else {

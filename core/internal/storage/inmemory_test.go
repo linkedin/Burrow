@@ -271,7 +271,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1100 + (i * 100))
 		timestampValue := startTime + 10000 + int64(i*10000)
-		lagValue := int64(4321) - offsetValue
+		lagValue := uint64(int64(4321) - offsetValue)
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
@@ -354,7 +354,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 			// The last offset in the ring is the one that got the min-distance update
 			offsetValue = 2000
 		}
-		lagValue := int64(4321) - offsetValue
+		lagValue := uint64(int64(4321) - offsetValue)
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
@@ -705,7 +705,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	_, ok := val["testtopic"]
 	assert.True(t, ok, "Expected response to contain topic testtopic")
 	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
-	assert.Equalf(t, int64(2421), val["testtopic"][0].CurrentLag, "Expected current lag to be 2421, not %v", val["testtopic"][0].CurrentLag)
+	assert.Equalf(t, uint64(2421), val["testtopic"][0].CurrentLag, "Expected current lag to be 2421, not %v", val["testtopic"][0].CurrentLag)
 	assert.Equalf(t, "testhost.example.com", val["testtopic"][0].Owner, "Expected owner to be testhost.example.com, not %v", val["testtopic"][0].Owner)
 
 	offsets := val["testtopic"][0].Offsets
@@ -715,7 +715,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 
 		offsetValue := int64(1000 + (i * 100))
 		timestampValue := startTime + int64(i*10000)
-		lagValue := int64(4321) - offsetValue
+		lagValue := uint64(int64(4321) - offsetValue)
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
 		assert.Equalf(t, timestampValue, offsets[i].Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offsets[i].Timestamp)
