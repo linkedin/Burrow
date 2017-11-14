@@ -302,11 +302,11 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 	assert.True(t, ok, "Expected topic name to be testtopic")
 	assert.Lenf(t, topic, 1, "Expected topic to contain exactly one partition, not %v", len(topic))
 	assert.Equalf(t, "somehost", topic[0].Owner, "Expected partition Owner to be somehost, not %v", topic[0].Owner)
-	assert.Equalf(t, int64(2345), topic[0].CurrentLag, "Expected partition CurrentLag to be 2345, not %v", topic[0].CurrentLag)
+	assert.Equalf(t, uint64(2345), topic[0].CurrentLag, "Expected partition CurrentLag to be 2345, not %v", topic[0].CurrentLag)
 	assert.Lenf(t, topic[0].Offsets, 1, "Expected partition to have exactly one offset, not %v", topic[0].Offsets)
 	assert.Equalf(t, int64(9837458), topic[0].Offsets[0].Offset, "Expected Offset to be 9837458, not %v", topic[0].Offsets[0].Offset)
 	assert.Equalf(t, int64(12837487), topic[0].Offsets[0].Timestamp, "Expected Timestamp to be 12837487, not %v", topic[0].Offsets[0].Timestamp)
-	assert.Equalf(t, int64(2355), topic[0].Offsets[0].Lag, "Expected Lag to be 2355, not %v", topic[0].Offsets[0].Lag)
+	assert.Equalf(t, uint64(2355), topic[0].Offsets[0].Lag, "Expected Lag to be 2355, not %v", topic[0].Offsets[0].Lag)
 
 	// Call again for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer/testgroup", nil)

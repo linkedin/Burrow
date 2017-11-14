@@ -26,7 +26,7 @@ type PartitionStatus struct {
 	Status     StatusConstant  `json:"status"`
 	Start      *ConsumerOffset `json:"start"`
 	End        *ConsumerOffset `json:"end"`
-	CurrentLag int64           `json:"current_lag"`
+	CurrentLag uint64          `json:"current_lag"`
 	Complete   float32         `json:"complete"`
 }
 
