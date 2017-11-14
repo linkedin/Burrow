@@ -374,8 +374,13 @@ func (nc *Coordinator) responseLoop() {
 }
 
 func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.ConsumerGroupStatus) {
-	clusterGroups := nc.clusters[response.Cluster].Groups
-	cgroup, ok := clusterGroups[response.Group]
+	nc.clusterLock.RLock()
+	defer nc.clusterLock.RUnlock()
+	cluster := nc.clusters[response.Cluster]
+
+	cluster.Lock.RLock()
+	defer cluster.Lock.RUnlock()
+	cgroup, ok := cluster.Groups[response.Group]
 	if !ok {
 		// The group must have just been deleted
 		return
@@ -393,7 +398,7 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 		// No whitelist means everything passes
 		groupWhitelist := module.GetGroupWhitelist()
 		groupBlacklist := module.GetGroupBlacklist()
-		if (groupWhitelist != nil) && (! groupWhitelist.MatchString(response.Group)) {
+		if (groupWhitelist != nil) && (!groupWhitelist.MatchString(response.Group)) {
 			continue
 		}
 		if (groupBlacklist != nil) && groupBlacklist.MatchString(response.Group) {
@@ -463,7 +468,7 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 			consumerMap[group] = struct{}{}
 			nc.clusters[cluster].Groups[group] = &ConsumerGroup{
 				LastNotify: make(map[string]time.Time),
-				LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval * 1000)) * time.Millisecond),
+				LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval*1000)) * time.Millisecond),
 			}
 		}
 
@@ -481,6 +486,7 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	nc.running.Add(1)
 	defer nc.running.Done()
 
+	// Note - it is assumed that a read lock is already held when calling notifyModule
 	cgroup, ok := nc.clusters[status.Cluster].Groups[status.Group]
 	if !ok {
 		// The group must have just been deleted

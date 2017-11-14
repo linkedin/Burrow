@@ -538,6 +538,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 	coordinator.modules = make(map[string]protocol.Module)
 	coordinator.clusters = make(map[string]*ClusterGroups)
 	coordinator.notifyModuleFunc = coordinator.notifyModule
+	coordinator.clusterLock = &sync.RWMutex{}
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
 	coordinator.clusters["testcluster"] = &ClusterGroups{
