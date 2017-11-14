@@ -57,6 +57,13 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 				zap.String("name", "httpserver"),
 			),
 		},
+		&notifier.Coordinator{
+			App: app,
+			Log: app.Logger.With(
+				zap.String("type", "coordinator"),
+				zap.String("name", "notifier"),
+			),
+		},
 		&cluster.Coordinator{
 			App: app,
 			Log: app.Logger.With(
@@ -69,13 +76,6 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 			Log: app.Logger.With(
 				zap.String("type", "coordinator"),
 				zap.String("name", "consumer"),
-			),
-		},
-		&notifier.Coordinator{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "coordinator"),
-				zap.String("name", "notifier"),
 			),
 		},
 	}
