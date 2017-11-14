@@ -206,7 +206,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	for _, partitions := range topics {
 		for _, partition := range partitions {
 			status.TotalPartitions += 1
-			status.TotalLag += uint64(partition.CurrentLag)
+			status.TotalLag += partition.CurrentLag
 		}
 	}
 	status.Partitions = make([]*protocol.PartitionStatus, status.TotalPartitions)
