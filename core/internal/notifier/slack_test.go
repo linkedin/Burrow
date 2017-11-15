@@ -11,17 +11,16 @@
 package notifier
 
 import (
-	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"testing"
 	"text/template"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
-	"testing"
-
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"
@@ -38,10 +37,7 @@ func fixtureSlackNotifier() *SlackNotifier {
 	viper.Set("notifier.test.template-open", "template_open")
 	viper.Set("notifier.test.template-close", "template_close")
 	viper.Set("notifier.test.send-close", false)
-	viper.Set("notifier.test.token", "testtoken")
-	viper.Set("notifier.test.channel", "#testchannel")
-	viper.Set("notifier.test.username", "testuser")
-	viper.Set("notifier.test.icon-emoji", ":shrug:")
+	viper.Set("notifier.test.url", "http://example.co")
 
 	return &module
 }
@@ -58,16 +54,9 @@ func TestSlackNotifier_Configure(t *testing.T) {
 	assert.NotNil(t, module.HttpClient, "Expected HttpClient to be set with a client object")
 }
 
-func TestSlackNotifier_Configure_NoToken(t *testing.T) {
+func TestSlackNotifier_Configure_NoURL(t *testing.T) {
 	module := fixtureSlackNotifier()
-	viper.Set("notifier.test.token", "")
-
-	assert.Panics(t, func() { module.Configure("test", "notifier.test") }, "The code did not panic")
-}
-
-func TestSlackNotifier_Configure_NoChannel(t *testing.T) {
-	module := fixtureSlackNotifier()
-	viper.Set("notifier.test.channel", "")
+	viper.Set("notifier.test.url", "")
 
 	assert.Panics(t, func() { module.Configure("test", "notifier.test") }, "The code did not panic")
 }
@@ -93,32 +82,14 @@ func TestSlackNotifier_AcceptConsumerGroup(t *testing.T) {
 func TestSlackNotifier_Notify_Open(t *testing.T) {
 	// handler that validates that we get the right values
 	requestHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Must get an appropriate Authorization header
-		headers, ok := r.Header["Authorization"]
-		assert.True(t, ok, "Expected to receive Authorization header")
-		assert.Len(t, headers, 1, "Expected to receive exactly one Authorization header")
-		assert.Equalf(t, "Bearer testtoken", headers[0], "Expected Authorization header to be 'Bearer testtoken', not '%v'", headers[0])
-
 		// Must get an appropriate Content-Type header
-		headers, ok = r.Header["Content-Type"]
+		headers, ok := r.Header["Content-Type"]
 		assert.True(t, ok, "Expected to receive Content-Type header")
 		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
-		decoder := json.NewDecoder(r.Body)
-		var req SlackMessage
-		err := decoder.Decode(&req)
-		if err != nil {
-			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Validate each field we expect to receive
-		assert.Equalf(t, "#testchannel", req.Channel, "Expected Channel to be #testchannel, not %v", req.Channel)
-		assert.Equalf(t, "testuser", req.Username, "Expected Username to be testuser, not %v", req.Username)
-		assert.Equalf(t, ":shrug:", req.IconEmoji, "Expected IconEmoji to be :shrug:, not %v", req.IconEmoji)
-		assert.Equalf(t, "testidstring testcluster testgroup WARN", req.Text, "Expected Text to be 'testidstring testcluster testgroup WARN', not '%v'", req.Text)
+		body, _ := ioutil.ReadAll(r.Body)
+		assert.Equalf(t, "testidstring testcluster testgroup WARN", string(body), "Expected Text to be 'testidstring testcluster testgroup WARN', not '%v'", string(body))
 
 		fmt.Fprint(w, "ok")
 	}
@@ -128,7 +99,7 @@ func TestSlackNotifier_Notify_Open(t *testing.T) {
 	defer ts.Close()
 
 	module := fixtureSlackNotifier()
-	module.postURL = ts.URL
+	viper.Set("notifier.test.url", ts.URL)
 
 	// Template sends the ID, cluster, and group
 	module.templateOpen, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
@@ -147,32 +118,15 @@ func TestSlackNotifier_Notify_Open(t *testing.T) {
 func TestSlackNotifier_Notify_Close(t *testing.T) {
 	// handler that validates that we get the right values
 	requestHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Must get an appropriate Authorization header
-		headers, ok := r.Header["Authorization"]
-		assert.True(t, ok, "Expected to receive Authorization header")
-		assert.Len(t, headers, 1, "Expected to receive exactly one Authorization header")
-		assert.Equalf(t, "Bearer testtoken", headers[0], "Expected Authorization header to be 'Bearer testtoken', not '%v'", headers[0])
-
 		// Must get an appropriate Content-Type header
-		headers, ok = r.Header["Content-Type"]
+		headers, ok := r.Header["Content-Type"]
 		assert.True(t, ok, "Expected to receive Content-Type header")
 		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
-		decoder := json.NewDecoder(r.Body)
-		var req SlackMessage
-		err := decoder.Decode(&req)
-		if err != nil {
-			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		body, _ := ioutil.ReadAll(r.Body)
 
-		// Validate each field we expect to receive
-		assert.Equalf(t, "#testchannel", req.Channel, "Expected Channel to be #testchannel, not %v", req.Channel)
-		assert.Equalf(t, "testuser", req.Username, "Expected Username to be testuser, not %v", req.Username)
-		assert.Equalf(t, ":shrug:", req.IconEmoji, "Expected IconEmoji to be :shrug:, not %v", req.IconEmoji)
-		assert.Equalf(t, "testidstring testcluster testgroup WARN", req.Text, "Expected Text to be 'testidstring testcluster testgroup WARN', not '%v'", req.Text)
+		assert.Equalf(t, "testidstring testcluster testgroup WARN", string(body), "Expected Text to be 'testidstring testcluster testgroup WARN', not '%v'", string(body))
 
 		fmt.Fprint(w, "ok")
 	}
@@ -182,8 +136,8 @@ func TestSlackNotifier_Notify_Close(t *testing.T) {
 	defer ts.Close()
 
 	module := fixtureSlackNotifier()
+	viper.Set("notifier.test.url", ts.URL)
 	viper.Set("notifier.test.send-close", true)
-	module.postURL = ts.URL
 
 	// Template sends the ID, cluster, and group
 	module.templateClose, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")

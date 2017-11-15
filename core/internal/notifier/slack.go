@@ -11,8 +11,6 @@
 package notifier
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -39,39 +37,19 @@ type SlackNotifier struct {
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
-	token          string
-	channel        string
-	username       string
-	iconUrl        string
-	iconEmoji      string
+	postURL        string
 
 	HttpClient *http.Client
-	postURL    string
 }
 
 func (module *SlackNotifier) Configure(name string, configRoot string) {
 	module.name = name
 
-	// Set the Slack chat.postMessage URL (unless it's been set for testing)
+	module.postURL = viper.GetString(configRoot + ".url")
 	if module.postURL == "" {
-		module.postURL = "https://slack.com/api/chat.postMessage"
-	}
-
-	module.token = viper.GetString(configRoot + ".token")
-	if module.token == "" {
-		module.Log.Panic("missing auth token")
+		module.Log.Panic("missing url")
 		panic(errors.New("configuration error"))
 	}
-
-	module.channel = viper.GetString(configRoot + ".channel")
-	if module.channel == "" {
-		module.Log.Panic("missing channel")
-		panic(errors.New("configuration error"))
-	}
-
-	module.username = viper.GetString(configRoot + ".username")
-	module.iconUrl = viper.GetString(configRoot + ".icon-url")
-	module.iconEmoji = viper.GetString(configRoot + ".icon-emoji")
 
 	// Set defaults for module-specific configs if needed
 	viper.SetDefault(configRoot+".timeout", 5)
@@ -120,14 +98,6 @@ func (module *SlackNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupS
 	return true
 }
 
-type SlackMessage struct {
-	Channel   string `json:"channel"`
-	Username  string `json:"username,omitempty"`
-	IconUrl   string `json:"icon-url,omitempty"`
-	IconEmoji string `json:"icon-emoji,omitempty"`
-	Text      string `json:"text,omitempty"`
-}
-
 func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
@@ -150,27 +120,13 @@ func (module *SlackNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 		return
 	}
 
-	// Encode JSON payload
-	data, err := json.Marshal(SlackMessage{
-		Channel:   module.channel,
-		Username:  module.username,
-		IconUrl:   module.iconUrl,
-		IconEmoji: module.iconEmoji,
-		Text:      messageBytes.String(),
-	})
-	if err != nil {
-		logger.Error("failed to encode", zap.Error(err))
-		return
-	}
-
 	// Send POST to HTTP endpoint
-	req, err := http.NewRequest("POST", module.postURL, bytes.NewBuffer(data))
+	req, err := http.NewRequest("POST", module.postURL, messageBytes)
 	if err != nil {
 		logger.Error("failed to create request", zap.Error(err))
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+module.token)
 
 	resp, err := module.HttpClient.Do(req)
 	if err != nil {
