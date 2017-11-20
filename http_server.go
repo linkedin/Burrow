@@ -29,7 +29,7 @@ type HttpServer struct {
 
 type appHandler struct {
 	app     *ApplicationContext
-	handler func(*ApplicationContext, http.ResponseWriter, *http.Request) (int, string)
+	handler func(*ApplicationContext, http.ResponseWriter, *http.Request) int
 }
 
 
@@ -101,18 +101,10 @@ func (ah appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case r.Method == "GET":
-		if status, err := ah.handler(ah.app, w, r); status != 200 {
-			http.Error(w, err, status)
-		} else {
-			io.WriteString(w, err)
-		}
+		ah.handler(ah.app, w, r)
 	case r.Method == "DELETE":
 		// Later we can add authentication here
-		if status, err := ah.handler(ah.app, w, r); status != 200 {
-			http.Error(w, err, status)
-		} else {
-			io.WriteString(w, err)
-		}
+		ah.handler(ah.app, w, r)
 	default:
 		http.Error(w, "{\"error\":true,\"message\":\"request method not supported\",\"result\":{}}", http.StatusMethodNotAllowed)
 	}
@@ -195,23 +187,34 @@ func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
 		Host: hostname,
 	}
 }
-func makeErrorResponse(errValue int, message string, w http.ResponseWriter, r *http.Request) (int, string) {
+
+func writeJSONResponse(w http.ResponseWriter, r *http.Request, status int, value  interface{}) int {
+	var jsonStr []byte
+	var err error
+	if r.URL.Query().Get("pretty")=="true" {
+		jsonStr, err = json.MarshalIndent(value, "", "\t")
+	} else {
+		jsonStr, err = json.Marshal(value)
+	}
+	if err != nil {
+		http.Error(w, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}", http.StatusInternalServerError)
+	}
+	w.WriteHeader(status)
+	w.Write(jsonStr)
+	return status
+}
+
+func makeErrorResponse(errValue int, message string, w http.ResponseWriter, r *http.Request) int {
 	rv := HTTPResponseError{
 		Error:   true,
 		Message: message,
 		Request: makeRequestInfo(r),
 	}
 
-	jsonStr, err := json.Marshal(rv)
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	} else {
-		w.Write(jsonStr)
-		return errValue, ""
-	}
+	return writeJSONResponse(w, r, errValue, rv)
 }
 
-func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.Request) (int, string) {
+func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.Request) int {
 	if r.Method != "GET" {
 		return makeErrorResponse(http.StatusMethodNotAllowed, "request method not supported", w, r)
 	}
@@ -223,22 +226,16 @@ func handleClusterList(app *ApplicationContext, w http.ResponseWriter, r *http.R
 		i++
 	}
 	requestInfo := makeRequestInfo(r)
-	jsonStr, err := json.Marshal(HTTPResponseClusterList{
+	return writeJSONResponse(w, r, 200, HTTPResponseClusterList{
 		Error:    false,
 		Message:  "cluster list returned",
 		Clusters: clusterList,
 		Request:  requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 // This is a router for all requests that operate against Kafka clusters (/v2/kafka/...)
-func handleKafka(app *ApplicationContext, w http.ResponseWriter, r *http.Request) (int, string) {
+func handleKafka(app *ApplicationContext, w http.ResponseWriter, r *http.Request) int {
 	pathParts := strings.Split(r.URL.Path[1:], "/")
 	if _, ok := app.Config.Kafka[pathParts[2]]; !ok {
 		return makeErrorResponse(http.StatusNotFound, "cluster not found", w, r)
@@ -301,7 +298,7 @@ func handleKafka(app *ApplicationContext, w http.ResponseWriter, r *http.Request
 	return makeErrorResponse(http.StatusNotFound, "unknown API call", w, r)
 }
 
-func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) (int, string) {
+func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) int {
 	// Clearly show the root path in ZK (which we have a blank for after config)
 	zkPath := app.Config.Kafka[cluster].ZookeeperPath
 	if zkPath == "" {
@@ -310,7 +307,7 @@ func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseClusterDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseClusterDetail{
 		Request: requestInfo,
 		Error:   false,
 		Message: "cluster detail returned",
@@ -323,36 +320,23 @@ func handleClusterDetail(app *ApplicationContext, w http.ResponseWriter, r *http
 			OffsetsTopic:  app.Config.Kafka[cluster].OffsetsTopic,
 		},
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleConsumerList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) (int, string) {
+func handleConsumerList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) int {
 	storageRequest := &RequestConsumerList{Result: make(chan []string), Cluster: cluster}
 	app.Storage.requestChannel <- storageRequest
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseConsumerList{
+	return writeJSONResponse(w, r, 200, HTTPResponseConsumerList{
 		Error:     false,
 		Request:   requestInfo,
 		Message:   "consumer list returned",
 		Consumers: <-storageRequest.Result,
 	})
-
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
+func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) int {
 	storageRequest := &RequestTopicList{Result: make(chan *ResponseTopicList), Cluster: cluster, Group: group}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
@@ -363,20 +347,15 @@ func handleConsumerTopicList(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseTopicList{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "consumer topic list returned",
 		Topics:  result.TopicList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, topic string) (int, string) {
+func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, topic string) int {
 	storageRequest := &RequestOffsets{Result: make(chan *ResponseOffsets), Cluster: cluster, Topic: topic, Group: group}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
@@ -391,21 +370,15 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
 	requestInfo.Topic = topic
-	jsonStr, err := json.Marshal(HTTPResponseTopicDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "consumer group topic offsets returned",
 		Offsets: result.OffsetList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, showall bool) (int, string) {
+func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string, showall bool) int {
 	storageRequest := &RequestConsumerStatus{Result: make(chan *protocol.ConsumerGroupStatus), Cluster: cluster, Group: group, Showall: showall}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
@@ -416,20 +389,15 @@ func handleConsumerStatus(app *ApplicationContext, w http.ResponseWriter, r *htt
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseConsumerStatus{
+	return writeJSONResponse(w, r, 200, HTTPResponseConsumerStatus{
 		Error:   false,
 		Message: "consumer group status returned",
 		Status:  *result,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) (int, string) {
+func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, group string) int {
 	storageRequest := &RequestConsumerDrop{Result: make(chan protocol.StatusConstant), Cluster: cluster, Group: group}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
@@ -440,41 +408,29 @@ func handleConsumerDrop(app *ApplicationContext, w http.ResponseWriter, r *http.
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Group = group
-	jsonStr, err := json.Marshal(HTTPResponseError{
+	return writeJSONResponse(w, r, 200, HTTPResponseError{
 		Error:   false,
 		Message: "consumer group removed",
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	} else {
-		w.Write(jsonStr)
-		return 200, ""
-	}
 }
 
-func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) (int, string) {
+func handleBrokerTopicList(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string) int {
 	storageRequest := &RequestTopicList{Result: make(chan *ResponseTopicList), Cluster: cluster}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
 
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
-	jsonStr, err := json.Marshal(HTTPResponseTopicList{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicList{
 		Error:   false,
 		Message: "broker topic list returned",
 		Topics:  result.TopicList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
-func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, topic string) (int, string) {
+func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *http.Request, cluster string, topic string) int {
 	storageRequest := &RequestOffsets{Result: make(chan *ResponseOffsets), Cluster: cluster, Topic: topic}
 	app.Storage.requestChannel <- storageRequest
 	result := <-storageRequest.Result
@@ -485,18 +441,12 @@ func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *
 	requestInfo := makeRequestInfo(r)
 	requestInfo.Cluster = cluster
 	requestInfo.Topic = topic
-	jsonStr, err := json.Marshal(HTTPResponseTopicDetail{
+	return writeJSONResponse(w, r, 200, HTTPResponseTopicDetail{
 		Error:   false,
 		Message: "broker topic offsets returned",
 		Offsets: result.OffsetList,
 		Request: requestInfo,
 	})
-	if err != nil {
-		return http.StatusInternalServerError, "{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"
-	}
-
-	w.Write(jsonStr)
-	return 200, ""
 }
 
 func (server *HttpServer) Stop() {
