@@ -24,14 +24,15 @@ import (
 )
 
 type NotifyCenter struct {
-	app            *ApplicationContext
-	interval       int64
-	notifiers      []notifier.Notifier
-	refreshTicker  *time.Ticker
-	quitChan       chan struct{}
-	groupList      map[string]map[string]bool
-	groupLock      sync.RWMutex
-	resultsChannel chan *protocol.ConsumerGroupStatus
+	app                      *ApplicationContext
+	interval                 int64
+	notifiers                []notifier.Notifier
+	refreshTicker            *time.Ticker
+	quitChan                 chan struct{}
+	groupList                map[string]map[string]bool
+	groupLock                sync.RWMutex
+	resultsChannel           chan *protocol.ConsumerGroupStatus
+	analyzeHealthyPartitions bool
 }
 
 func LoadNotifiers(app *ApplicationContext) error {
@@ -54,14 +55,23 @@ func LoadNotifiers(app *ApplicationContext) error {
 		}
 	}
 
+	analyzeHealthyPartitions := false
+	if app.Config.Graphitenotifier.Enable {
+		if graphiteNotifier, err := NewGraphiteNotifier(app); err == nil {
+			notifiers = append(notifiers, graphiteNotifier)
+			analyzeHealthyPartitions = true
+		}
+	}
+
 	nc := &NotifyCenter{
-		app:            app,
-		notifiers:      notifiers,
-		interval:       app.Config.Notify.Interval,
-		quitChan:       make(chan struct{}),
-		groupList:      make(map[string]map[string]bool),
-		groupLock:      sync.RWMutex{},
-		resultsChannel: make(chan *protocol.ConsumerGroupStatus),
+		app:                      app,
+		notifiers:                notifiers,
+		interval:                 app.Config.Notify.Interval,
+		quitChan:                 make(chan struct{}),
+		groupList:                make(map[string]map[string]bool),
+		groupLock:                sync.RWMutex{},
+		resultsChannel:           make(chan *protocol.ConsumerGroupStatus),
+		analyzeHealthyPartitions: analyzeHealthyPartitions,
 	}
 
 	app.NotifyCenter = nc
@@ -174,7 +184,11 @@ func (nc *NotifyCenter) startConsumerGroupEvaluator(group string, cluster string
 		nc.groupLock.RUnlock()
 
 		// Send requests for group status - responses are handled by the main loop (for now)
-		storageRequest := &RequestConsumerStatus{Result: nc.resultsChannel, Cluster: cluster, Group: group}
+		storageRequest := &RequestConsumerStatus{
+			Result: nc.resultsChannel,
+			Cluster: cluster,
+			Group: group,
+			Showall: nc.analyzeHealthyPartitions}
 		nc.app.Storage.requestChannel <- storageRequest
 
 		// Sleep for the check interval
@@ -264,4 +278,15 @@ func NewSlackNotifier(app *ApplicationContext) (*notifier.SlackNotifier, error) 
 			},
 		},
 	}, nil
+}
+
+func NewGraphiteNotifier(app *ApplicationContext) (*notifier.GraphiteNotifier, error) {
+	log.Info("Start Graphite Notify")
+
+	return notifier.NewGraphiteNotifier(
+		app.Config.Graphitenotifier.Addr,
+		app.Config.Graphitenotifier.Prefix,
+		app.Config.Graphitenotifier.Interval,
+		app.Config.Graphitenotifier.Threshold,
+	)
 }
