@@ -98,6 +98,8 @@ type BurrowConfig struct {
 		Groups    []string `gcfg:"group"`
 		Interval  int64    `gcfg:"interval"`
 		Threshold int      `gcfg:"threshold"`
+		To        string   `gcfg:"to"`
+		OnSingleFail bool  `gcfg:"on-single-fail"`
 	}
 	Httpnotifier struct {
 		Enable         bool     `gcfg:"enable"`
@@ -386,9 +388,9 @@ func ValidateConfig(app *ApplicationContext) error {
 		// Username and password are not validated - they're optional
 
 		// Email configs
-		for email, cfg := range app.Config.Emailnotifier {
-			if !validateEmail(email) {
-				errs = append(errs, "Email address is invalid")
+		for name, cfg := range app.Config.Emailnotifier {
+      if !validateEmail(cfg.To) {
+				errs = append(errs, "Email address is invalid for " + name)
 			}
 			if len(cfg.Groups) == 0 {
 				errs = append(errs, "Email notification configured with no groups")

@@ -12,8 +12,8 @@ package main
 
 import (
 	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/notifier"
-	"github.com/linkedin/Burrow/protocol"
+	"github.com/jeffmontagna/Burrow/notifier"
+	"github.com/jeffmontagna/Burrow/protocol"
 	"math/rand"
 	"net"
 	"net/http"
@@ -185,7 +185,7 @@ func (nc *NotifyCenter) startConsumerGroupEvaluator(group string, cluster string
 func NewEmailNotifier(app *ApplicationContext) ([]*notifier.EmailNotifier, error) {
 	log.Info("Start email notify")
 	emailers := []*notifier.EmailNotifier{}
-	for to, cfg := range app.Config.Emailnotifier {
+	for _, cfg := range app.Config.Emailnotifier {
 		if cfg.Enable {
 			emailer := &notifier.EmailNotifier{
 				Threshold:    cfg.Threshold,
@@ -197,8 +197,9 @@ func NewEmailNotifier(app *ApplicationContext) ([]*notifier.EmailNotifier, error
 				AuthType:     app.Config.Smtp.AuthType,
 				Interval:     cfg.Interval,
 				From:         app.Config.Smtp.From,
-				To:           to,
+				To:           cfg.To,
 				Groups:       cfg.Groups,
+				OnSingleFail: cfg.OnSingleFail,
 			}
 			emailers = append(emailers, emailer)
 		}
