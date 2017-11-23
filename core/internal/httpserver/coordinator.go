@@ -27,8 +27,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/internal/helpers"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 type Coordinator struct {

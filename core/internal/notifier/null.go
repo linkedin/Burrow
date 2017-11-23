@@ -17,7 +17,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 // This notifier is only used for testing. It is used in place of a mock when testing the coordinator so that there is

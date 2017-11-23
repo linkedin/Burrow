@@ -13,8 +13,8 @@ package cluster
 import (
 	"testing"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/internal/helpers"
+	"github.com/linkedin/burrow/core/protocol"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"

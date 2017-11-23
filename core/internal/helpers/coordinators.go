@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func StartCoordinatorModules(modules map[string]protocol.Module) error {

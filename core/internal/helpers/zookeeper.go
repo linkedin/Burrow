@@ -13,7 +13,7 @@ package helpers
 import (
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"

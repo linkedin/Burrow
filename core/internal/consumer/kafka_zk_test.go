@@ -21,8 +21,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/internal/helpers"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {

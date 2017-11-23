@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func TestTimeoutSendStorageRequest(t *testing.T) {
