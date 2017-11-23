@@ -16,7 +16,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

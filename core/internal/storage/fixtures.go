@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 // This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot

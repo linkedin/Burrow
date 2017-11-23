@@ -15,7 +15,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 // Helper functions for templates

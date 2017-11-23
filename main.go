@@ -21,8 +21,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/linkedin/Burrow/core"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 // exitCode wraps a return value for the application

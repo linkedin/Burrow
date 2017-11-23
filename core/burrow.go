@@ -16,14 +16,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/cluster"
-	"github.com/linkedin/Burrow/core/internal/consumer"
-	"github.com/linkedin/Burrow/core/internal/evaluator"
-	"github.com/linkedin/Burrow/core/internal/httpserver"
-	"github.com/linkedin/Burrow/core/internal/notifier"
-	"github.com/linkedin/Burrow/core/internal/storage"
-	"github.com/linkedin/Burrow/core/internal/zookeeper"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/internal/cluster"
+	"github.com/linkedin/burrow/core/internal/consumer"
+	"github.com/linkedin/burrow/core/internal/evaluator"
+	"github.com/linkedin/burrow/core/internal/httpserver"
+	"github.com/linkedin/burrow/core/internal/notifier"
+	"github.com/linkedin/burrow/core/internal/storage"
+	"github.com/linkedin/burrow/core/internal/zookeeper"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {

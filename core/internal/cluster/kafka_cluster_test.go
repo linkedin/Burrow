@@ -22,8 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/burrow/core/internal/helpers"
+	"github.com/linkedin/burrow/core/protocol"
 )
 
 func fixtureModule() *KafkaCluster {
