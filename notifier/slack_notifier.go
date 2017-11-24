@@ -82,6 +82,16 @@ func (slack *SlackNotifier) Notify(msg Message) error {
 	return nil
 }
 
+func getFailPartitions(partitions []*protocol.PartitionStatus) []*protocol.PartitionStatus {
+	var failPartitions []*protocol.PartitionStatus
+	for _, p := range partitions {
+		if p.Status != protocol.StatusOK {
+			failPartitions = append(failPartitions, p)
+		}
+	}
+	return failPartitions
+}
+
 func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 	msgs := make([]attachment, len(slack.Groups))
 	i := 0
@@ -100,14 +110,16 @@ func (slack *SlackNotifier) sendConsumerGroupStatusNotify() error {
 			color = "danger"
 		}
 
+		failPartitions := getFailPartitions(msg.Partitions)
+
 		title := "Burrow monitoring report"
 		fallback := fmt.Sprintf("%s is %s", msg.Group, msg.Status)
 		pretext := fmt.Sprintf("%s Group `%s` in Cluster `%s` is *%s*", emoji, msg.Group, msg.Cluster, msg.Status)
 
 		detailedBody := fmt.Sprintf("*Detail:* Total Partition = `%d` Fail Partition = `%d`\n",
-			msg.TotalPartitions, len(msg.Partitions))
+			msg.TotalPartitions, len(failPartitions))
 
-		for _, p := range msg.Partitions {
+		for _, p := range failPartitions {
 			detailedBody += fmt.Sprintf("*%s* *[%s:%d]* (%d, %d) -> (%d, %d)\n",
 				p.Status.String(), p.Topic, p.Partition, p.Start.Offset, p.Start.Lag, p.End.Offset, p.End.Lag)
 		}
