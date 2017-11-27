@@ -8,6 +8,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Common Zookeeper subsystem.
+// The zookeeper subsystem provides a Zookeeper client that is common across all of Burrow, and can be used by other
+// subsystems to store metadata or coordinate operations between multiple Burrow instances. It is used primarily to
+// assure that only one Burrow instance is sending notifications at any time.
 package zookeeper
 
 import (
@@ -23,6 +27,14 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// Coordinator (zookeeper) manages a single Zookeeper connection for other coordinators and modules to make use of in
+// order to store metadata for Burrow itself. This is not required to connect to the same Zookeeper ensemble as any
+// specific Kafka cluster. The ZookeeperClient is stored in the application context, as well as the root path that
+// any modules should create their metadata underneath.
+//
+// The coordinator monitors the connection state transitions and signals when the session is expired, and then when it
+// reconnects. Code that must be aware of session expirations, such as code that makes use of watches, should have a
+// structure as in the example.
 type Coordinator struct {
 	App *protocol.ApplicationContext
 	Log *zap.Logger
@@ -32,6 +44,8 @@ type Coordinator struct {
 	running     sync.WaitGroup
 }
 
+// Configure validates that the configuration has a list of servers provided for the Zookeeper ensemble, of the form
+// host:port. It also checks the provided root path, using a default of "/burrow" if none has been provided.
 func (zc *Coordinator) Configure() {
 	zc.Log.Info("configuring")
 
@@ -58,6 +72,9 @@ func (zc *Coordinator) Configure() {
 	zc.running = sync.WaitGroup{}
 }
 
+// Start creates the connection to the Zookeeper ensemble, and assures that the root path exists. Once that is done,
+// it sets the ZookeeperConnected flag in the application context to true, and creates the ZookeeperExpired condition
+// flag. It then starts a main loop to watch for connection state changes.
 func (zc *Coordinator) Start() error {
 	zc.Log.Info("starting")
 
@@ -85,6 +102,8 @@ func (zc *Coordinator) Start() error {
 	return nil
 }
 
+// Stop closes the connection to the Zookeeper ensemble and waits for the connection state monitor to exit (which it
+// will because the event channel will be closed).
 func (zc *Coordinator) Stop() error {
 	zc.Log.Info("stopping")
 

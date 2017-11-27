@@ -15,12 +15,38 @@ import (
 	"text/template"
 	"time"
 
+	"bytes"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// executeTemplate provides a common interface for notifier modules to call to process a text/template in the context
+// of a protocol.ConsumerGroupStatus and create a message to use in a notification.
+func executeTemplate(tmpl *template.Template, extras map[string]string, status *protocol.ConsumerGroupStatus, eventID string, startTime time.Time) (*bytes.Buffer, error) {
+	bytesToSend := new(bytes.Buffer)
+	err := tmpl.Execute(bytesToSend, struct {
+		Cluster string
+		Group   string
+		ID      string
+		Start   time.Time
+		Extras  map[string]string
+		Result  protocol.ConsumerGroupStatus
+	}{
+		Cluster: status.Cluster,
+		Group:   status.Group,
+		ID:      eventID,
+		Start:   startTime,
+		Extras:  extras,
+		Result:  *status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return bytesToSend, nil
+}
+
 // Helper functions for templates
 var helperFunctionMap = template.FuncMap{
-	"jsonencoder":     templateJsonEncoder,
+	"jsonencoder":     templateJSONEncoder,
 	"topicsbystatus":  classifyTopicsByStatus,
 	"partitioncounts": templateCountPartitions,
 	"add":             templateAdd,
@@ -32,7 +58,7 @@ var helperFunctionMap = template.FuncMap{
 }
 
 // Helper function for the templates to encode an object into a JSON string
-func templateJsonEncoder(encodeMe interface{}) string {
+func templateJSONEncoder(encodeMe interface{}) string {
 	jsonStr, _ := json.Marshal(encodeMe)
 	return string(jsonStr)
 }
@@ -107,9 +133,8 @@ func templateDivide(a, b int) int {
 func maxLagHelper(a *protocol.PartitionStatus) uint64 {
 	if a == nil {
 		return 0
-	} else {
-		return a.CurrentLag
 	}
+	return a.CurrentLag
 }
 
 func formatTimestamp(timestamp int64, formatString string) string {

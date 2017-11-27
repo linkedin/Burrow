@@ -8,6 +8,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Kafka cluster subsystem.
+// The cluster subsystem is responsible for getting topic and partition information, as well as current broker offsets,
+// from Kafka clusters and sending that information to the storage subsystem. It does not handle any consumer group
+// information.
+//
+// Modules
+//
+// Currently, the following modules are provided:
+//
+// * kafka - Fetch topic, partition, and offset information from a Kafka cluster
 package cluster
 
 import (
@@ -20,12 +30,26 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// A "cluster" is a single Kafka cluster that is going to be monitored by Burrow. The cluster module is responsible for
+// connecting to the Kafka cluster, monitoring the topic list, and periodically fetching the broker end offset (latest
+// offset) for each partition. This information is sent to the storage subsystem, where it can be retrieved by the
+// evaluator and HTTP server.
+
+// Coordinator manages all cluster modules, making sure they are configured, started, and stopped at the appropriate
+// time.
 type Coordinator struct {
-	App     *protocol.ApplicationContext
-	Log     *zap.Logger
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
+	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
+	Log *zap.Logger
+
 	modules map[string]protocol.Module
 }
 
+// getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
+// is any error, it will panic with an appropriate message describing the problem.
 func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	switch className {
 	case "kafka":
@@ -43,6 +67,9 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName string, clas
 	}
 }
 
+// Configure is called to create each of the configured cluster modules and call their Configure funcs to validate
+// their individual configurations and set them up. If there are any problems, it is expected that these funcs will
+// panic with a descriptive error message, as configuration failures are not recoverable errors.
 func (bc *Coordinator) Configure() {
 	bc.Log.Info("configuring")
 
@@ -58,6 +85,9 @@ func (bc *Coordinator) Configure() {
 	}
 }
 
+// Start calls each of the configured cluster modules' underlying Start funcs. As the coordinator itself has no ongoing
+// work to do, it does not start any other goroutines. If any module Start returns an error, this func stops immediately
+// and returns that error to the caller. No further modules will be loaded after that.
 func (bc *Coordinator) Start() error {
 	bc.Log.Info("starting")
 
@@ -69,6 +99,9 @@ func (bc *Coordinator) Start() error {
 	return nil
 }
 
+// Stop calls each of the configured cluster modules' underlying Stop funcs. It is expected that the module Stop will
+// not return until the module has been completely stopped. While an error can be returned, this func always returns no
+// error, as a failure during stopping is not a critical failure
 func (bc *Coordinator) Stop() error {
 	bc.Log.Info("stopping")
 

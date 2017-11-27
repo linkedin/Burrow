@@ -24,17 +24,24 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type TopicList struct {
-	topics map[string]*PartitionCount
+type topicList struct {
+	topics map[string]*partitionCount
 	lock   *sync.Mutex
 }
-type PartitionCount struct {
+type partitionCount struct {
 	count int32
 	lock  *sync.Mutex
 }
 
+// KafkaZkClient is a consumer module which connects to the Zookeeper ensemble where an Apache Kafka cluster maintains
+// metadata, and reads consumer group information from the /consumers tree (older ZK-based consumers). It uses watches
+// to monitor every group and offset, and the information is forwarded to the storage subsystem for use in evaluations.
 type KafkaZkClient struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name             string
@@ -46,18 +53,22 @@ type KafkaZkClient struct {
 	zk             protocol.ZookeeperClient
 	areWatchesSet  bool
 	groupLock      *sync.Mutex
-	groupList      map[string]*TopicList
+	groupList      map[string]*topicList
 	groupWhitelist *regexp.Regexp
 	groupBlacklist *regexp.Regexp
 	connectFunc    func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 }
 
+// Configure validates the configuration for the consumer. At minimum, there must be a cluster name to which these
+// consumers belong, as well as a list of servers provided for the Zookeeper ensemble, of the form host:port. If not
+// explicitly configured, it is assumed that the Kafka cluster metadata is present in the ensemble root path. If the
+// cluster name is unknown, or if the server list is missing or invalid, this func will panic.
 func (module *KafkaZkClient) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
 	module.groupLock = &sync.Mutex{}
-	module.groupList = make(map[string]*TopicList)
+	module.groupList = make(map[string]*topicList)
 	module.connectFunc = helpers.ZookeeperConnect
 
 	module.servers = viper.GetStringSlice(configRoot + ".servers")
@@ -98,6 +109,10 @@ func (module *KafkaZkClient) Configure(name string, configRoot string) {
 	}
 }
 
+// Start connects to the Zookeeper ensemble configured. Any error connecting to the cluster is returned to the caller.
+// Once the client is set up, the consumer group list is enumerated and watches are set up for each group, topic,
+// partition, and offset. A goroutine is also started to monitor the Zookeeper connection state, and reset the watches
+// in the case the the session expires.
 func (module *KafkaZkClient) Start() error {
 	module.Log.Info("starting")
 
@@ -117,6 +132,7 @@ func (module *KafkaZkClient) Start() error {
 	return nil
 }
 
+// Stop closes the Zookeeper client.
 func (module *KafkaZkClient) Stop() error {
 	module.Log.Info("stopping")
 
@@ -143,7 +159,7 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 					if !module.areWatchesSet {
 						module.Log.Info("reinitializing watches")
 						module.groupLock.Lock()
-						module.groupList = make(map[string]*TopicList)
+						module.groupList = make(map[string]*topicList)
 						module.groupLock.Unlock()
 						go module.resetGroupListWatchAndAdd(false)
 					}
@@ -155,7 +171,7 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 
 func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
 	// No whitelist means everything passes
-	if (module.groupWhitelist != nil) && (! module.groupWhitelist.MatchString(group)) {
+	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
 		return false
 	}
 	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
@@ -199,8 +215,8 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 			}
 
 			if module.groupList[group] == nil {
-				module.groupList[group] = &TopicList{
-					topics: make(map[string]*PartitionCount),
+				module.groupList[group] = &topicList{
+					topics: make(map[string]*partitionCount),
 					lock:   &sync.Mutex{},
 				}
 				module.Log.Debug("add group",
@@ -242,7 +258,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 		defer module.groupList[group].lock.Unlock()
 		for _, topic := range groupTopics {
 			if module.groupList[group].topics[topic] == nil {
-				module.groupList[group].topics[topic] = &PartitionCount{
+				module.groupList[group].topics[topic] = &partitionCount{
 					count: 0,
 					lock:  &sync.Mutex{},
 				}

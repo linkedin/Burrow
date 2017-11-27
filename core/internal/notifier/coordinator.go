@@ -8,10 +8,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Status notification subsystem.
+// The notifier subsystem watches the status for all consumer groups and uses the configured modules to send
+// information about the status of those groups to outside systems, such as via email or calls to HTTP endpoints. The
+// message bodies are built using templates, and notifications can be sent for both active problems as well as when
+// those problems close.
+//
+// Modules
+//
+// Currently, the following modules are provided:
+//
+// * email - Send an email
+//
+// * http - Call a remote HTTP endpoint
+//
+// * null - This is a no-op notifier that is used for testing only
 package notifier
 
 import (
-	"bytes"
 	"errors"
 	"math"
 	"math/rand"
@@ -28,6 +42,10 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// Module defines a means of sending out notifications of consumer group status (such as email), as well as regular
+// expressions describing what groups to notify for. The module itself only provides the logic for how to send a
+// notification in the Notify func - timing loops, and handling requests for group evaluation, are handled in the
+// coordinator centrally.
 type Module interface {
 	protocol.Module
 	GetName() string
@@ -38,21 +56,28 @@ type Module interface {
 	Notify(*protocol.ConsumerGroupStatus, string, time.Time, bool)
 }
 
-type ConsumerGroup struct {
-	Id         string
+type consumerGroup struct {
+	ID         string
 	Start      time.Time
 	LastNotify map[string]time.Time
 	LastEval   time.Time
 }
 
-type ClusterGroups struct {
-	Groups map[string]*ConsumerGroup
+type clusterGroups struct {
+	Groups map[string]*consumerGroup
 	Lock   *sync.RWMutex
 }
 
+// Coordinator manages all notifier modules, making sure they are configured, started, and stopped at the
+// appropriate time. Unlike other coordinators, it also performs a significant amount of ongoing work.
 type Coordinator struct {
-	App     *protocol.ApplicationContext
-	Log     *zap.Logger
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
+	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
+	Log *zap.Logger
+
 	modules map[string]protocol.Module
 
 	minInterval       int64
@@ -65,10 +90,12 @@ type Coordinator struct {
 	templateParseFunc func(...string) (*template.Template, error)
 	notifyModuleFunc  func(Module, *protocol.ConsumerGroupStatus, time.Time, string)
 
-	clusters    map[string]*ClusterGroups
+	clusters    map[string]*clusterGroups
 	clusterLock *sync.RWMutex
 }
 
+// getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
+// is any error, it will panic with an appropriate message describing the problem.
 func getModuleForClass(app *protocol.ApplicationContext,
 	moduleName string,
 	className string,
@@ -87,7 +114,7 @@ func getModuleForClass(app *protocol.ApplicationContext,
 
 	switch className {
 	case "http":
-		return &HttpNotifier{
+		return &HTTPNotifier{
 			App:            app,
 			Log:            logger,
 			groupWhitelist: groupWhitelist,
@@ -121,11 +148,14 @@ func getModuleForClass(app *protocol.ApplicationContext,
 	}
 }
 
+// Configure is called to create each of the configured notifier modules and call their Configure funcs to validate
+// their individual configurations and set them up. If there are any problems, it is expected that these funcs will
+// panic with a descriptive error message, as configuration failures are not recoverable errors.
 func (nc *Coordinator) Configure() {
 	nc.Log.Info("configuring")
 	nc.modules = make(map[string]protocol.Module)
 
-	nc.clusters = make(map[string]*ClusterGroups)
+	nc.clusters = make(map[string]*clusterGroups)
 	nc.clusterLock = &sync.RWMutex{}
 	nc.minInterval = math.MaxInt64
 
@@ -217,6 +247,12 @@ func (nc *Coordinator) Configure() {
 	nc.groupRefresh = helpers.NewPausableTicker(60 * time.Second)
 }
 
+// Start calls each of the configured notifier modules' underlying Start funcs. If any module Start returns an error,
+// this func stops immediately and returns that error to the caller. No further modules will be loaded after that.
+//
+// We also start a timer to periodically update the list of known clusters and consumer groups, as well as the
+// goroutine which manages whether or not we are performing group evaluation requests. We also start the responseLoop
+// func that handles all evaluation replies and calls the module Notify methods as appropriate.
 func (nc *Coordinator) Start() error {
 	nc.Log.Info("starting")
 
@@ -241,6 +277,10 @@ func (nc *Coordinator) Start() error {
 	return nil
 }
 
+// Stop stops the group refresh ticker, and causes the evaluation response handler and the evaluation request manager to
+// both stop. It then calls each of the configured notifier modules' underlying Stop funcs. It is expected that the
+// module Stop will not return until the module has been completely stopped. While an error can be returned, this func
+// always returns no error, as a failure during stopping is not a critical failure
 func (nc *Coordinator) Stop() error {
 	nc.Log.Info("stopping")
 
@@ -378,7 +418,7 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 
 	if cgroup.Start.IsZero() && (response.Status > protocol.StatusOK) {
 		// New incident - assign an ID and start time
-		cgroup.Id = uuid.NewRandom().String()
+		cgroup.ID = uuid.NewRandom().String()
 		cgroup.Start = time.Now()
 	}
 
@@ -395,13 +435,13 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 			continue
 		}
 		if module.AcceptConsumerGroup(response) {
-			nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.Id)
+			nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.ID)
 		}
 	}
 
 	if response.Status == protocol.StatusOK {
 		// Incident closed - clear the start time and event ID
-		cgroup.Id = ""
+		cgroup.ID = ""
 		cgroup.Start = time.Time{}
 	}
 }
@@ -415,9 +455,9 @@ func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
 	for _, cluster := range clusterList {
 		// Make sure we have a map entry for the cluster
 		if _, ok := nc.clusters[cluster]; !ok {
-			nc.clusters[cluster] = &ClusterGroups{
+			nc.clusters[cluster] = &clusterGroups{
 				Lock:   &sync.RWMutex{},
-				Groups: make(map[string]*ConsumerGroup),
+				Groups: make(map[string]*consumerGroup),
 			}
 		}
 
@@ -456,7 +496,7 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 		consumerMap := make(map[string]struct{})
 		for _, group := range consumerList {
 			consumerMap[group] = struct{}{}
-			nc.clusters[cluster].Groups[group] = &ConsumerGroup{
+			nc.clusters[cluster].Groups[group] = &consumerGroup{
 				LastNotify: make(map[string]time.Time),
 				LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval*1000)) * time.Millisecond),
 			}
@@ -472,7 +512,7 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 	}
 }
 
-func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventID string) {
 	nc.running.Add(1)
 	defer nc.running.Done()
 
@@ -486,7 +526,7 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	// Closed incidents get sent regardless of the threshold for the module
 	moduleName := module.GetName()
 	if (!startTime.IsZero()) && (status.Status == protocol.StatusOK) && viper.GetBool("notifier."+moduleName+".send-close") {
-		module.Notify(status, eventId, startTime, true)
+		module.Notify(status, eventID, startTime, true)
 		cgroup.LastNotify[module.GetName()] = time.Time{}
 		return
 	}
@@ -499,31 +539,7 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 	// Only send the notification if it's been at least our Interval since the last one for this group
 	currentTime := time.Now()
 	if currentTime.Sub(cgroup.LastNotify[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
-		module.Notify(status, eventId, startTime, false)
+		module.Notify(status, eventID, startTime, false)
 		cgroup.LastNotify[module.GetName()] = currentTime
 	}
-}
-
-// Common method for executing a template in modules
-func ExecuteTemplate(tmpl *template.Template, extras map[string]string, status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time) (*bytes.Buffer, error) {
-	bytesToSend := new(bytes.Buffer)
-	err := tmpl.Execute(bytesToSend, struct {
-		Cluster string
-		Group   string
-		Id      string
-		Start   time.Time
-		Extras  map[string]string
-		Result  protocol.ConsumerGroupStatus
-	}{
-		Cluster: status.Cluster,
-		Group:   status.Group,
-		Id:      eventId,
-		Start:   startTime,
-		Extras:  extras,
-		Result:  *status,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return bytesToSend, nil
 }

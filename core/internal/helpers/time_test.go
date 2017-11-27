@@ -51,7 +51,7 @@ func TestPausableTicker_StartStop(t *testing.T) {
 		for {
 			select {
 			case <-channel:
-				numEvents += 1
+				numEvents++
 			case <-quitChan:
 				return
 			}
@@ -77,7 +77,7 @@ func TestPausableTicker_Restart(t *testing.T) {
 		for {
 			select {
 			case <-channel:
-				numEvents += 1
+				numEvents++
 			case <-quitChan:
 				return
 			}

@@ -8,6 +8,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// HTTP server subsystem.
+// The httpserver subsystem provides an HTTP interface to Burrow that can be used to fetch information about the
+// clusters and consumers it is monitoring. More documentation on the requests and responses is provided at
+// https://github.com/linkedin/Burrow/wiki/HTTP-Endpoint.
 package httpserver
 
 import (
@@ -31,14 +35,25 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// Coordinator runs the HTTP interface for Burrow, managing all configured listeners.
 type Coordinator struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	router  *httprouter.Router
 	servers map[string]*http.Server
 }
 
+// Configure is called to configure the HTTP server. This includes validating all configurations for each configured
+// listener (which are not treated as separate modules, as opposed to other coordinators), as well as setting up the
+// request router. Any configuration failure will cause the func to panic with an appropriate error message.
+//
+// If no listener has been configured, the coordinator will set up a default listener on a random port greater than
+// 1024, as selected by the net.Listener call. This listener will be logged so that the port chosen will be known.
 func (hc *Coordinator) Configure() {
 	hc.Log.Info("configuring")
 	hc.router = httprouter.New()
@@ -103,7 +118,7 @@ func (hc *Coordinator) Configure() {
 	// Configure URL routes here
 
 	// This is a catchall for undefined URLs
-	hc.router.NotFound = &DefaultHandler{}
+	hc.router.NotFound = &defaultHandler{}
 
 	// This is a healthcheck URL. Please don't change it
 	hc.router.GET("/burrow/admin", hc.handleAdmin)
@@ -136,6 +151,10 @@ func (hc *Coordinator) Configure() {
 	hc.router.POST("/v3/admin/loglevel", hc.setLogLevel)
 }
 
+// Start is responsible for starting the listener on each configured address. If any listener fails to start, the error
+// is logged, and the listeners that have already been started are stopped. The func then returns the error encountered
+// to the caller. Once the listeners are all started, the HTTP server itself is started on each listener to respond to
+// requests.
 func (hc *Coordinator) Start() error {
 	hc.Log.Info("starting")
 
@@ -169,6 +188,9 @@ func (hc *Coordinator) Start() error {
 	return nil
 }
 
+// Stop calls the Close func for each configured HTTP server listener. This stops the underlying HTTP server without
+// waiting for client calls to complete. If there are any errors while shutting down the listeners, this does not stop
+// other listeners from being closed. A generic error will be returned to the caller in this case.
 func (hc *Coordinator) Stop() error {
 	hc.Log.Info("shutdown")
 
@@ -184,9 +206,8 @@ func (hc *Coordinator) Stop() error {
 	if len(collectedErrors) > 0 {
 		hc.Log.Error("errors shutting down", collectedErrors...)
 		return errors.New("error shutting down HTTP servers")
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted connections. It's used by ListenAndServe and
@@ -209,9 +230,9 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-func makeRequestInfo(r *http.Request) HTTPResponseRequestInfo {
+func makeRequestInfo(r *http.Request) httpResponseRequestInfo {
 	hostname, _ := os.Hostname()
-	return HTTPResponseRequestInfo{
+	return httpResponseRequestInfo{
 		URI:  r.URL.Path,
 		Host: hostname,
 	}
@@ -227,7 +248,6 @@ func (hc *Coordinator) writeResponse(w http.ResponseWriter, r *http.Request, sta
 	if jsonBytes, err := json.Marshal(jsonObj); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"))
-		return
 	} else {
 		w.WriteHeader(statusCode)
 		w.Write(jsonBytes)
@@ -235,7 +255,7 @@ func (hc *Coordinator) writeResponse(w http.ResponseWriter, r *http.Request, sta
 }
 
 func (hc *Coordinator) writeErrorResponse(w http.ResponseWriter, r *http.Request, errValue int, message string) {
-	hc.writeResponse(w, r, errValue, HTTPResponseError{
+	hc.writeResponse(w, r, errValue, httpResponseError{
 		Error:   true,
 		Message: message,
 		Request: makeRequestInfo(r),
@@ -243,9 +263,9 @@ func (hc *Coordinator) writeErrorResponse(w http.ResponseWriter, r *http.Request
 }
 
 // This is a catch-all handler for unknown URLs. It should return a 404
-type DefaultHandler struct{}
+type defaultHandler struct{}
 
-func (handler *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (handler *defaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "{\"error\":true,\"message\":\"invalid request type\",\"result\":{}}", http.StatusNotFound)
 }
 
@@ -262,7 +282,7 @@ func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ htt
 
 func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseLogLevel{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseLogLevel{
 		Error:   false,
 		Message: "log level returned",
 		Level:   hc.App.LogLevel.Level().String(),
@@ -273,7 +293,7 @@ func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ htt
 func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Decode the JSON body
 	decoder := json.NewDecoder(r.Body)
-	var req LogLevelRequest
+	var req logLevelRequest
 	err := decoder.Decode(&req)
 	if err != nil {
 		hc.writeErrorResponse(w, r, http.StatusBadRequest, "could not decode message body")
@@ -299,7 +319,7 @@ func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ htt
 	}
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseError{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseError{
 		Error:   false,
 		Message: "set log level",
 		Request: requestInfo,

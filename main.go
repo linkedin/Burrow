@@ -8,6 +8,28 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Burrow provides advanced Kafka Consumer Lag Checking.
+// It is a monitoring companion for Apache Kafka that provides consumer lag checking as a service without the need for
+// specifying thresholds. It monitors committed offsets for all consumers and calculates the status of those consumers
+// on demand. An HTTP endpoint is provided to request status on demand, as well as provide other Kafka cluster
+// information. There are also configurable notifiers that can send status out via email or HTTP calls to another
+// service.
+//
+// CLI or Library
+//
+// Burrow is designed to be run as a standalone application (CLI), and this is what the main package provides. In some
+// situations it may be better for you to wrap Burrow with another application - for example, in environments where you
+// have your own application structure to provide configuration and logging. To this end, Burrow can also be used as a
+// library within another app.
+//
+// When embedding Burrow, please refer to https://github.com/linkedin/Burrow/blob/master/main.go for details on what
+// preparation should happen before starting it. This is the wrapper that provides the CLI interface. The main logic
+// for Burrow is in the core package, while the protocol package provides some of the common interfaces that are used.
+//
+// Additional Documentation
+//
+// More documentation on Burrow, including configuration and HTTP requests, can be found at
+// https://github.com/linkedin/Burrow/wiki
 package main
 
 import (
@@ -22,7 +44,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/linkedin/Burrow/core"
-	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // exitCode wraps a return value for the application
@@ -63,8 +84,6 @@ func main() {
 		panic(exitCode{1})
 	}
 
-	appContext := &protocol.ApplicationContext{}
-
 	// Create the PID file to lock out other processes
 	viper.SetDefault("general.pidfile", "burrow.pid")
 	pidFile := viper.GetString("general.pidfile")
@@ -80,15 +99,10 @@ func main() {
 		core.OpenOutLog(stdoutLogfile)
 	}
 
-	// Set up the logger
-	appContext.Logger, appContext.LogLevel = core.ConfigureLogger()
-	defer appContext.Logger.Sync()
-	appContext.Logger.Info("Started Burrow")
-
 	// Register signal handlers for exiting
 	exitChannel := make(chan os.Signal, 1)
 	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 
 	// This triggers handleExit (after other defers), which will then call os.Exit properly
-	panic(exitCode{core.Start(appContext, exitChannel)})
+	panic(exitCode{core.Start(nil, exitChannel)})
 }

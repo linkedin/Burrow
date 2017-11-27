@@ -27,8 +27,8 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func fixtureHttpNotifier() *HttpNotifier {
-	module := HttpNotifier{
+func fixtureHTTPNotifier() *HTTPNotifier {
+	module := HTTPNotifier{
 		Log: zap.NewNop(),
 	}
 	module.App = &protocol.ApplicationContext{}
@@ -45,19 +45,19 @@ func fixtureHttpNotifier() *HttpNotifier {
 }
 
 func TestHttpNotifier_ImplementsModule(t *testing.T) {
-	assert.Implements(t, (*protocol.Module)(nil), new(HttpNotifier))
-	assert.Implements(t, (*Module)(nil), new(HttpNotifier))
+	assert.Implements(t, (*protocol.Module)(nil), new(HTTPNotifier))
+	assert.Implements(t, (*Module)(nil), new(HTTPNotifier))
 }
 
 func TestHttpNotifier_Configure(t *testing.T) {
-	module := fixtureHttpNotifier()
+	module := fixtureHTTPNotifier()
 
 	module.Configure("test", "notifier.test")
-	assert.NotNil(t, module.HttpClient, "Expected HttpClient to be set with a client object")
+	assert.NotNil(t, module.httpClient, "Expected httpClient to be set with a client object")
 }
 
 func TestHttpNotifier_StartStop(t *testing.T) {
-	module := fixtureHttpNotifier()
+	module := fixtureHTTPNotifier()
 	module.Configure("test", "notifier.test")
 
 	err := module.Start()
@@ -67,7 +67,7 @@ func TestHttpNotifier_StartStop(t *testing.T) {
 }
 
 func TestHttpNotifier_AcceptConsumerGroup(t *testing.T) {
-	module := fixtureHttpNotifier()
+	module := fixtureHTTPNotifier()
 	module.Configure("test", "notifier.test")
 
 	// Should always return true
@@ -75,9 +75,9 @@ func TestHttpNotifier_AcceptConsumerGroup(t *testing.T) {
 }
 
 // Struct that will be used for sending HTTP requests for testing
-type HttpRequest struct {
+type HTTPRequest struct {
 	Template string
-	Id       string
+	ID       string
 	Cluster  string
 	Group    string
 }
@@ -92,7 +92,7 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
 		decoder := json.NewDecoder(r.Body)
-		var req HttpRequest
+		var req HTTPRequest
 		err := decoder.Decode(&req)
 		if err != nil {
 			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
@@ -101,7 +101,7 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 		}
 
 		assert.Equalf(t, "template_open", req.Template, "Expected Template to be template_open, not %v", req.Template)
-		assert.Equalf(t, "testidstring", req.Id, "Expected Id to be testidstring, not %v", req.Id)
+		assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
 		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
 		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
 
@@ -112,11 +112,11 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(requestHandler))
 	defer ts.Close()
 
-	module := fixtureHttpNotifier()
+	module := fixtureHTTPNotifier()
 	viper.Set("notifier.test.url-open", ts.URL)
 
 	// Template sends the ID, cluster, and group
-	module.templateOpen, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.Id}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
+	module.templateOpen, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
 
 	module.Configure("test", "notifier.test")
 
@@ -139,7 +139,7 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
 		decoder := json.NewDecoder(r.Body)
-		var req HttpRequest
+		var req HTTPRequest
 		err := decoder.Decode(&req)
 		if err != nil {
 			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
@@ -148,7 +148,7 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 		}
 
 		assert.Equalf(t, "template_close", req.Template, "Expected Template to be template_close, not %v", req.Template)
-		assert.Equalf(t, "testidstring", req.Id, "Expected Id to be testidstring, not %v", req.Id)
+		assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
 		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
 		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
 
@@ -159,12 +159,12 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(requestHandler))
 	defer ts.Close()
 
-	module := fixtureHttpNotifier()
+	module := fixtureHTTPNotifier()
 	viper.Set("notifier.test.send-close", true)
 	viper.Set("notifier.test.url-close", ts.URL)
 
 	// Template sends the ID, cluster, and group
-	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.Id}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
+	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
 
 	module.Configure("test", "notifier.test")
 

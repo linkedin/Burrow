@@ -22,8 +22,15 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// CachingEvaluator is an evaluator module that responds to evaluation requests and checks consumer status using the
+// standard Burrow definitions for stall, stop, and lag. The results are stored in an in-memory cache for a configurable
+// amount of time, in order to avoid duplication of work when multiple modules evaluate the same consumer group.
 type CachingEvaluator struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name        string
@@ -34,15 +41,18 @@ type CachingEvaluator struct {
 	cache          *goswarm.Simple
 }
 
-type CacheError struct {
+type cacheError struct {
 	StatusCode int
 	Reason     string
 }
 
-func (e *CacheError) Error() string {
+func (e *cacheError) Error() string {
 	return e.Reason
 }
 
+// Configure validates the configuration for the module, creates a channel to receive requests on, and sets up the
+// cache. If no expiration time for cache entries is set, a default value of 10 seconds is used. If there is any problem
+// starting the goswarm cache, this func panics.
 func (module *CachingEvaluator) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
@@ -67,10 +77,12 @@ func (module *CachingEvaluator) Configure(name string, configRoot string) {
 	module.cache = newCache
 }
 
+// GetCommunicationChannel returns the RequestChannel that has been setup for this module.
 func (module *CachingEvaluator) GetCommunicationChannel() chan *protocol.EvaluatorRequest {
 	return module.RequestChannel
 }
 
+// Start instantiates the main loop that listens for evaluation requests and returns the result
 func (module *CachingEvaluator) Start() error {
 	module.Log.Info("starting")
 
@@ -78,6 +90,7 @@ func (module *CachingEvaluator) Start() error {
 	return nil
 }
 
+// Stop closes the module's RequestChannel, which also terminates the main loop that responds to requests
 func (module *CachingEvaluator) Stop() error {
 	module.Log.Info("stopping")
 
@@ -165,7 +178,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	parts := strings.Split(clusterAndConsumer, " ")
 	if len(parts) != 2 {
 		module.Log.Error("query with bad clusterAndConsumer", zap.String("arg", clusterAndConsumer))
-		return nil, &CacheError{StatusCode: 500, Reason: "bad request"}
+		return nil, &cacheError{StatusCode: 500, Reason: "bad request"}
 	}
 	cluster := parts[0]
 	consumer := parts[1]
@@ -187,7 +200,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 			zap.String("consumer", consumer),
 			zap.String("status", protocol.StatusNotFound.String()),
 		)
-		return nil, &CacheError{StatusCode: 404, Reason: "cluster or consumer not found"}
+		return nil, &cacheError{StatusCode: 404, Reason: "cluster or consumer not found"}
 	}
 
 	// From here out, we're going to return a non-error response, so prepare a status struct
@@ -205,7 +218,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	topics := response.(protocol.ConsumerTopics)
 	for _, partitions := range topics {
 		for _, partition := range partitions {
-			status.TotalPartitions += 1
+			status.TotalPartitions++
 			status.TotalLag += partition.CurrentLag
 		}
 	}
@@ -214,10 +227,10 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	count := 0
 	completePartitions := 0
 	for topic, partitions := range topics {
-		for partitionId, partition := range partitions {
+		for partitionID, partition := range partitions {
 			partitionStatus := evaluatePartitionStatus(partition)
 			partitionStatus.Topic = topic
-			partitionStatus.Partition = int32(partitionId)
+			partitionStatus.Partition = int32(partitionID)
 			partitionStatus.Owner = partition.Owner
 
 			if partitionStatus.Status > status.Status {
@@ -233,7 +246,7 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 				status.Maxlag = partitionStatus
 			}
 			if partitionStatus.Complete == 1.0 {
-				completePartitions += 1
+				completePartitions++
 			}
 			status.Partitions[count] = partitionStatus
 			count++

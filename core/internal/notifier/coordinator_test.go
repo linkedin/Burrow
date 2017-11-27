@@ -167,7 +167,7 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 	coordinator.Configure()
 
 	// This cluster will get deleted
-	coordinator.clusters["deleteme"] = &ClusterGroups{}
+	coordinator.clusters["deleteme"] = &clusterGroups{}
 
 	go coordinator.sendClusterRequest()
 	request := <-coordinator.App.StorageChannel
@@ -199,19 +199,19 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to send requests for
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
 	}
-	coordinator.clusters["testcluster2"] = &ClusterGroups{
+	coordinator.clusters["testcluster2"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster2"].Groups["testgroup2"] = &ConsumerGroup{
+	coordinator.clusters["testcluster2"].Groups["testgroup2"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
 	}
@@ -257,11 +257,11 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to receive response for
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -285,7 +285,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
+	assert.Equalf(t, "", group.ID, "Expected group incident ID to be empty, not %v", group.ID)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be unset")
 	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 }
@@ -309,11 +309,11 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to receive response for
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -332,7 +332,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
+	assert.Equalf(t, "", group.ID, "Expected group incident ID to be empty, not %v", group.ID)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be unset")
 	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 
@@ -360,13 +360,13 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to receive response for, with the incident active
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		Start:      mockStartTime,
-		Id:         "testidstring",
+		ID:         "testidstring",
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -385,7 +385,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.Equalf(t, "", group.Id, "Expected group incident ID to be empty, not %v", group.Id)
+	assert.Equalf(t, "", group.ID, "Expected group incident ID to be empty, not %v", group.ID)
 	assert.True(t, group.Start.IsZero(), "Expected group incident start time to be cleared")
 	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset")
 
@@ -412,11 +412,11 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to receive response for
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -435,7 +435,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
-	assert.NotEqual(t, "", group.Id, "Expected group incident ID to be set, not empty")
+	assert.NotEqual(t, "", group.ID, "Expected group incident ID to be set, not empty")
 	assert.False(t, group.Start.IsZero(), "Expected group incident start time to be set")
 	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
 
@@ -463,13 +463,13 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 	coordinator.Configure()
 
 	// A test cluster and group to receive response for, with the incident active
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		Start:      mockStartTime,
-		Id:         "testidstring",
+		ID:         "testidstring",
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -489,7 +489,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 
 	group := coordinator.clusters["testcluster"].Groups["testgroup"]
 	assert.Equal(t, mockStartTime, group.Start, "Expected group incident start time to be unchanged")
-	assert.Equalf(t, "testidstring", group.Id, "Expected group incident ID to be 'testidstring', not %v", group.Id)
+	assert.Equalf(t, "testidstring", group.ID, "Expected group incident ID to be 'testidstring', not %v", group.ID)
 	assert.True(t, group.LastNotify["test"].IsZero(), "Expected group last time to be unset (as real notifyFunc was not called)")
 
 	module := coordinator.modules["test"].(*NullNotifier)
@@ -536,16 +536,16 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 	// We don't need to configure the coordinator - just set up the data structures
 	coordinator := fixtureCoordinator()
 	coordinator.modules = make(map[string]protocol.Module)
-	coordinator.clusters = make(map[string]*ClusterGroups)
+	coordinator.clusters = make(map[string]*clusterGroups)
 	coordinator.notifyModuleFunc = coordinator.notifyModule
 	coordinator.clusterLock = &sync.RWMutex{}
 
 	// A test cluster and group to send notification for (so the func can check/set last time)
-	coordinator.clusters["testcluster"] = &ClusterGroups{
+	coordinator.clusters["testcluster"] = &clusterGroups{
 		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*ConsumerGroup),
+		Groups: make(map[string]*consumerGroup),
 	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &ConsumerGroup{
+	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
 		LastNotify: make(map[string]time.Time),
 	}
 
@@ -563,10 +563,10 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		group := coordinator.clusters["testcluster"].Groups["testgroup"]
 		delete(group.LastNotify, "test")
 		if testSet.Existing {
-			group.Id = "testidstring"
+			group.ID = "testidstring"
 			group.Start = mockStartTime
 		} else {
-			group.Id = ""
+			group.ID = ""
 			group.Start = time.Time{}
 		}
 
@@ -603,21 +603,21 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		// Check whether or not the incident is as expected afterwards
 		if testSet.ExpectID {
 			if testSet.Existing {
-				assert.Equalf(t, "testidstring", group.Id, "Test %v: Expected group incident ID to be testidstring, not %v", i, group.Id)
+				assert.Equalf(t, "testidstring", group.ID, "Test %v: Expected group incident ID to be testidstring, not %v", i, group.ID)
 				assert.Equalf(t, mockStartTime, group.Start, "Test %v: Expected group incident start time to be mock time, not %v", i, group.Start)
 			} else {
-				assert.NotEqualf(t, "", group.Id, "Test %v: Expected group incident ID to be not empty", i)
+				assert.NotEqualf(t, "", group.ID, "Test %v: Expected group incident ID to be not empty", i)
 				assert.Falsef(t, group.Start.IsZero(), "Test %v: Expected group incident start time to be set", i)
 			}
 		} else {
-			assert.Equalf(t, "", group.Id, "Test %v: Expected group incident ID to be empty, not %v", i, group.Id)
+			assert.Equalf(t, "", group.ID, "Test %v: Expected group incident ID to be empty, not %v", i, group.ID)
 			assert.Truef(t, group.Start.IsZero(), "Test %v: Expected group incident start time to be unset", i)
 		}
 	}
 }
 
 func TestCoordinator_ExecuteTemplate(t *testing.T) {
-	tmpl, _ := template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
+	tmpl, _ := template.New("test").Parse("{{.ID}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
 
 	status := &protocol.ConsumerGroupStatus{
 		Status:  protocol.StatusOK,
@@ -627,7 +627,7 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 
 	extras := make(map[string]string)
 	extras["foo"] = "bar"
-	bytesToSend, err := ExecuteTemplate(tmpl, extras, status, "testidstring", time.Now())
+	bytesToSend, err := executeTemplate(tmpl, extras, status, "testidstring", time.Now())
 	assert.Nil(t, err, "Expected no error to be returned")
 	assert.Equalf(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
 }

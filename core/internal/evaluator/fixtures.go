@@ -18,11 +18,12 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-// This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot
-// include them in the test file. They should not be used anywhere in normal code - just tests
-
+// StorageAndEvaluatorCoordinatorsWithOffsets sets up a Coordinator with a single caching module defined. In order to do
+// this, it also calls the storage subsystem fixture to get a configured storage.Coordinator with offsets for a test
+// cluster and group. This func should never be called in normal code. It is only provided to facilitate testing by
+// other subsystems.
 func StorageAndEvaluatorCoordinatorsWithOffsets() (*Coordinator, *storage.Coordinator) {
-	storageCoordinator := storage.StorageCoordinatorWithOffsets()
+	storageCoordinator := storage.CoordinatorWithOffsets()
 
 	evaluatorCoordinator := Coordinator{
 		Log: zap.NewNop(),

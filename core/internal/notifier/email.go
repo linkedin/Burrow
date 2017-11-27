@@ -27,8 +27,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+// EmailNotifier is a module which can be used to send notifications of consumer group status via email messages. One
+// email is sent for each consumer group that matches the whitelist/blacklist and the status threshold.
 type EmailNotifier struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name           string
@@ -46,6 +52,9 @@ type EmailNotifier struct {
 	sendMailFunc   func(string, smtp.Auth, string, []string, []byte) error
 }
 
+// Configure validates the configuration of the email notifier. At minimum, there must be a valid server, port, from
+// address, and to address. If any of these are missing or incorrect, this func will panic with an explanatory message.
+// It is also possible to specify an auth-type of either "plain" or "crammd5", along with a username and password.
 func (module *EmailNotifier) Configure(name string, configRoot string) {
 	module.name = name
 
@@ -86,42 +95,49 @@ func (module *EmailNotifier) Configure(name string, configRoot string) {
 	}
 }
 
+// Start is a no-op for the email notifier. It always returns no error
 func (module *EmailNotifier) Start() error {
-	// Email notifier does not have a running component - no start needed
 	return nil
 }
 
+// Stop is a no-op for the email notifier. It always returns no error
 func (module *EmailNotifier) Stop() error {
-	// Email notifier does not have a running component - no stop needed
 	return nil
 }
 
+// GetName returns the configured name of this module
 func (module *EmailNotifier) GetName() string {
 	return module.name
 }
 
+// GetGroupWhitelist returns the compiled group whitelist (or nil, if there is not one)
 func (module *EmailNotifier) GetGroupWhitelist() *regexp.Regexp {
 	return module.groupWhitelist
 }
 
+// GetGroupBlacklist returns the compiled group blacklist (or nil, if there is not one)
 func (module *EmailNotifier) GetGroupBlacklist() *regexp.Regexp {
 	return module.groupBlacklist
 }
 
+// GetLogger returns the configured zap.Logger for this notifier
 func (module *EmailNotifier) GetLogger() *zap.Logger {
 	return module.Log
 }
 
-// Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
+// AcceptConsumerGroup has no additional function for the email notifier, and so always returns true
 func (module *EmailNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
 	return true
 }
 
-func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+// Notify sends a single email message, with the from and to set to the configured addresses for the notifier. The
+// status, eventID, and startTime are all passed to the template for compiling the message. If stateGood is true, the
+// "close" template is used. Otherwise, the "open" template is used.
+func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventID string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
 		zap.String("group", status.Group),
-		zap.String("id", eventId),
+		zap.String("id", eventID),
 		zap.String("status", status.Status.String()),
 	)
 
@@ -134,7 +150,7 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 
 	// Put the from and to lines in without the template. Template should set the subject line, followed by a blank line
 	bytesToSend := bytes.NewBufferString("From: " + module.from + "\nTo: " + module.to + "\n")
-	messageBody, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
+	messageBody, err := executeTemplate(tmpl, module.extras, status, eventID, startTime)
 	if err != nil {
 		logger.Error("failed to assemble", zap.Error(err))
 		return

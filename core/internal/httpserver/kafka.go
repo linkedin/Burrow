@@ -29,7 +29,7 @@ func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request,
 	response := <-request.Reply
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseClusterList{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseClusterList{
 		Error:    false,
 		Message:  "cluster list returned",
 		Clusters: response.([]string),
@@ -37,13 +37,13 @@ func (hc *Coordinator) handleClusterList(w http.ResponseWriter, r *http.Request,
 	})
 }
 
-func getTLSProfile(name string) *HTTPResponseTLSProfile {
+func getTLSProfile(name string) *httpResponseTLSProfile {
 	configRoot := "tls." + name
 	if !viper.IsSet(configRoot) {
 		return nil
 	}
 
-	return &HTTPResponseTLSProfile{
+	return &httpResponseTLSProfile{
 		Name:     name,
 		CertFile: viper.GetString(configRoot + ".certfile"),
 		KeyFile:  viper.GetString(configRoot + ".keyfile"),
@@ -52,22 +52,22 @@ func getTLSProfile(name string) *HTTPResponseTLSProfile {
 	}
 }
 
-func getSASLProfile(name string) *HTTPResponseSASLProfile {
+func getSASLProfile(name string) *httpResponseSASLProfile {
 	configRoot := "sasl." + name
 	if !viper.IsSet(configRoot) {
 		return nil
 	}
 
-	return &HTTPResponseSASLProfile{
+	return &httpResponseSASLProfile{
 		Name:           name,
 		HandshakeFirst: viper.GetBool(configRoot + ".handshake-first"),
 		Username:       viper.GetString(configRoot + ".username"),
 	}
 }
 
-func getClientProfile(name string) HTTPResponseClientProfile {
+func getClientProfile(name string) httpResponseClientProfile {
 	configRoot := "client-profile." + name
-	return HTTPResponseClientProfile{
+	return httpResponseClientProfile{
 		Name:         name,
 		ClientID:     viper.GetString(configRoot + ".client-id"),
 		KafkaVersion: viper.GetString(configRoot + ".kafka-version"),
@@ -83,10 +83,10 @@ func (hc *Coordinator) handleClusterDetail(w http.ResponseWriter, r *http.Reques
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 			Error:   false,
 			Message: "cluster module detail returned",
-			Module: HTTPResponseConfigModuleCluster{
+			Module: httpResponseConfigModuleCluster{
 				ClassName:     viper.GetString(configRoot + ".class-name"),
 				Servers:       viper.GetStringSlice(configRoot + ".servers"),
 				TopicRefresh:  viper.GetInt64(configRoot + ".topic-refresh"),
@@ -112,7 +112,7 @@ func (hc *Coordinator) handleTopicList(w http.ResponseWriter, r *http.Request, p
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseTopicList{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseTopicList{
 			Error:   false,
 			Message: "topic list returned",
 			Topics:  response.([]string),
@@ -136,7 +136,7 @@ func (hc *Coordinator) handleTopicDetail(w http.ResponseWriter, r *http.Request,
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster or topic not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseTopicDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseTopicDetail{
 			Error:   false,
 			Message: "topic offsets returned",
 			Offsets: response.([]int64),
@@ -159,7 +159,7 @@ func (hc *Coordinator) handleConsumerList(w http.ResponseWriter, r *http.Request
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConsumerList{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConsumerList{
 			Error:     false,
 			Message:   "consumer list returned",
 			Consumers: response.([]string),
@@ -183,7 +183,7 @@ func (hc *Coordinator) handleConsumerDetail(w http.ResponseWriter, r *http.Reque
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster or consumer not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConsumerDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConsumerDetail{
 			Error:   false,
 			Message: "consumer detail returned",
 			Topics:  response.(protocol.ConsumerTopics),
@@ -209,7 +209,7 @@ func (hc *Coordinator) handleConsumerStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, responseCode, HTTPResponseConsumerStatus{
+	hc.writeResponse(w, r, responseCode, httpResponseConsumerStatus{
 		Error:   false,
 		Message: "consumer status returned",
 		Status:  *response,
@@ -234,7 +234,7 @@ func (hc *Coordinator) handleConsumerStatusComplete(w http.ResponseWriter, r *ht
 	}
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, responseCode, HTTPResponseConsumerStatus{
+	hc.writeResponse(w, r, responseCode, httpResponseConsumerStatus{
 		Error:   false,
 		Message: "consumer status returned",
 		Status:  *response,
@@ -252,7 +252,7 @@ func (hc *Coordinator) handleConsumerDelete(w http.ResponseWriter, r *http.Reque
 	hc.App.StorageChannel <- request
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseError{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseError{
 		Error:   false,
 		Message: "consumer group removed",
 		Request: requestInfo,

@@ -82,7 +82,7 @@ func TestHttpServer_getClusterList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseLogLevel
+	var resp httpResponseLogLevel
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -103,7 +103,7 @@ func TestHttpServer_setLogLevel(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseError
+	var resp httpResponseError
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 
@@ -128,7 +128,7 @@ func TestHttpServer_DefaultHandler(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseError
+	var resp httpResponseError
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 

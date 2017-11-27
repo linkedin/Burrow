@@ -24,8 +24,16 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// InMemoryStorage is a storage module that maintains the entire data set in memory in a series of maps. It has a
+// configurable number of worker goroutines to service requests, and for requests that are group-specific, the group
+// and cluster name are used to hash the request to a consistent worker. This assures that requests for a group are
+// processed in order.
 type InMemoryStorage struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name        string
@@ -34,33 +42,33 @@ type InMemoryStorage struct {
 	expireGroup int64
 	minDistance int64
 
-	RequestChannel chan *protocol.StorageRequest
+	requestChannel chan *protocol.StorageRequest
 	running        sync.WaitGroup
-	offsets        map[string]ClusterOffsets
+	offsets        map[string]clusterOffsets
 	groupWhitelist *regexp.Regexp
 	workers        []chan *protocol.StorageRequest
 }
 
-type BrokerOffset struct {
+type brokerOffset struct {
 	Offset    int64
 	Timestamp int64
 }
 
-type ConsumerPartition struct {
+type consumerPartition struct {
 	offsets *ring.Ring
 	owner   string
 }
 
-type ConsumerGroup struct {
+type consumerGroup struct {
 	// This lock is held when using the individual group, either for read or write
 	lock       *sync.RWMutex
-	topics     map[string][]*ConsumerPartition
+	topics     map[string][]*consumerPartition
 	lastCommit int64
 }
 
-type ClusterOffsets struct {
-	broker   map[string][]*BrokerOffset
-	consumer map[string]*ConsumerGroup
+type clusterOffsets struct {
+	broker   map[string][]*brokerOffset
+	consumer map[string]*consumerGroup
 
 	// This lock is used when modifying broker topics or offsets
 	brokerLock *sync.RWMutex
@@ -70,13 +78,16 @@ type ClusterOffsets struct {
 	consumerLock *sync.RWMutex
 }
 
+// Configure validates the configuration for the module, creates a channel to receive requests on, and sets up the
+// storage map. If no expiration time for groups is set, a default value of 7 days is used. If no interval count is
+// set, a default of 10 intervals is used. If no worker count is set, a default of 20 workers is used.
 func (module *InMemoryStorage) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
-	module.RequestChannel = make(chan *protocol.StorageRequest)
+	module.requestChannel = make(chan *protocol.StorageRequest)
 	module.running = sync.WaitGroup{}
-	module.offsets = make(map[string]ClusterOffsets)
+	module.offsets = make(map[string]clusterOffsets)
 
 	// Set defaults for configs if needed
 	viper.SetDefault(configRoot+".intervals", 10)
@@ -98,18 +109,22 @@ func (module *InMemoryStorage) Configure(name string, configRoot string) {
 	}
 }
 
+// GetCommunicationChannel returns the RequestChannel that has been setup for this module.
 func (module *InMemoryStorage) GetCommunicationChannel() chan *protocol.StorageRequest {
-	return module.RequestChannel
+	return module.requestChannel
 }
 
+// Start sets up the rest of the storage map for each configured cluster. It then starts the configured number of
+// worker routines to handle requests. Finally, it starts a main loop which will receive requests and hash them to the
+// correct worker.
 func (module *InMemoryStorage) Start() error {
 	module.Log.Info("starting")
 
 	for cluster := range viper.GetStringMap("cluster") {
 		module.
-			offsets[cluster] = ClusterOffsets{
-			broker:       make(map[string][]*BrokerOffset),
-			consumer:     make(map[string]*ConsumerGroup),
+			offsets[cluster] = clusterOffsets{
+			broker:       make(map[string][]*brokerOffset),
+			consumer:     make(map[string]*consumerGroup),
 			brokerLock:   &sync.RWMutex{},
 			consumerLock: &sync.RWMutex{},
 		}
@@ -126,10 +141,12 @@ func (module *InMemoryStorage) Start() error {
 	return nil
 }
 
+// Stop closes the incoming request channel, which will close the main loop. It then closes each of the worker
+// channels, to close the workers, and waits for all goroutines to exit before returning.
 func (module *InMemoryStorage) Stop() error {
 	module.Log.Info("stopping")
 
-	close(module.RequestChannel)
+	close(module.requestChannel)
 	for i := 0; i < module.numWorkers; i++ {
 		close(module.workers[i])
 	}
@@ -187,7 +204,7 @@ func (module *InMemoryStorage) mainLoop() {
 
 	for {
 		select {
-		case r, isOpen := <-module.RequestChannel:
+		case r, isOpen := <-module.requestChannel:
 			if !isOpen {
 				return
 			}
@@ -224,7 +241,7 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 
 	topicList, ok := clusterMap.broker[request.Topic]
 	if !ok {
-		clusterMap.broker[request.Topic] = make([]*BrokerOffset, request.TopicPartitionCount)
+		clusterMap.broker[request.Topic] = make([]*brokerOffset, request.TopicPartitionCount)
 		topicList = clusterMap.broker[request.Topic]
 	}
 	if request.TopicPartitionCount >= int32(len(topicList)) {
@@ -236,7 +253,7 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 
 	partitionEntry := topicList[request.Partition]
 	if partitionEntry == nil {
-		topicList[request.Partition] = &BrokerOffset{
+		topicList[request.Partition] = &brokerOffset{
 			Offset:    request.Offset,
 			Timestamp: request.Timestamp,
 		}
@@ -250,7 +267,7 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 	clusterMap.broker[request.Topic] = topicList
 }
 
-func (module *InMemoryStorage) getBrokerOffset(clusterMap *ClusterOffsets, topic string, partition int32, requestLogger *zap.Logger) (int64, int32) {
+func (module *InMemoryStorage) getBrokerOffset(clusterMap *clusterOffsets, topic string, partition int32, requestLogger *zap.Logger) (int64, int32) {
 	clusterMap.brokerLock.RLock()
 	defer clusterMap.brokerLock.RUnlock()
 
@@ -278,11 +295,11 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *ClusterOffsets, topic
 	return topicPartitionList[partition].Offset, int32(len(topicPartitionList))
 }
 
-func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topic string, partition int32, partitionCount int32, requestLogger *zap.Logger) *ring.Ring {
+func (module *InMemoryStorage) getPartitionRing(consumerMap *consumerGroup, topic string, partition int32, partitionCount int32, requestLogger *zap.Logger) *ring.Ring {
 	// Get or create the topic for the consumer
 	consumerTopicMap, ok := consumerMap.topics[topic]
 	if !ok {
-		consumerMap.topics[topic] = make([]*ConsumerPartition, 0, partitionCount)
+		consumerMap.topics[topic] = make([]*consumerPartition, 0, partitionCount)
 		consumerTopicMap = consumerMap.topics[topic]
 	}
 
@@ -290,7 +307,7 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *ConsumerGroup, topi
 	if int(partition) >= len(consumerTopicMap) {
 		// The partition count must have increased. Append enough extra partitions to our slice
 		for i := int32(len(consumerTopicMap)); i < partitionCount; i++ {
-			consumerTopicMap = append(consumerTopicMap, &ConsumerPartition{})
+			consumerTopicMap = append(consumerTopicMap, &consumerPartition{})
 		}
 		consumerMap.topics[topic] = consumerTopicMap
 	}
@@ -335,9 +352,9 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	clusterMap.consumerLock.Lock()
 	consumerMap, ok := clusterMap.consumer[request.Group]
 	if !ok {
-		clusterMap.consumer[request.Group] = &ConsumerGroup{
+		clusterMap.consumer[request.Group] = &consumerGroup{
 			lock:   &sync.RWMutex{},
-			topics: make(map[string][]*ConsumerPartition),
+			topics: make(map[string][]*consumerPartition),
 		}
 		consumerMap = clusterMap.consumer[request.Group]
 	}
@@ -411,9 +428,9 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	clusterMap.consumerLock.Lock()
 	consumerMap, ok := clusterMap.consumer[request.Group]
 	if !ok {
-		clusterMap.consumer[request.Group] = &ConsumerGroup{
+		clusterMap.consumer[request.Group] = &consumerGroup{
 			lock:   &sync.RWMutex{},
-			topics: make(map[string][]*ConsumerPartition),
+			topics: make(map[string][]*consumerPartition),
 		}
 		consumerMap = clusterMap.consumer[request.Group]
 	}
@@ -595,7 +612,7 @@ func (module *InMemoryStorage) fetchTopic(request *protocol.StorageRequest, requ
 	request.Reply <- offsetList
 }
 
-func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
+func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 	topicList := make(protocol.ConsumerTopics)
 	consumerMap.lock.RLock()
 	defer consumerMap.lock.RUnlock()
@@ -603,7 +620,7 @@ func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
 	for topic, partitions := range consumerMap.topics {
 		topicList[topic] = make(protocol.ConsumerPartitions, len(partitions))
 
-		for partitionId, partition := range partitions {
+		for partitionID, partition := range partitions {
 			consumerPartition := &protocol.ConsumerPartition{Owner: partition.owner}
 			if partition.offsets != nil {
 				offsetRing := partition.offsets
@@ -628,7 +645,7 @@ func getConsumerTopicList(consumerMap *ConsumerGroup) protocol.ConsumerTopics {
 			} else {
 				consumerPartition.Offsets = make([]*protocol.ConsumerOffset, 0)
 			}
-			topicList[topic][partitionId] = consumerPartition
+			topicList[topic][partitionID] = consumerPartition
 		}
 	}
 	return topicList

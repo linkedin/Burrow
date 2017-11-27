@@ -116,3 +116,28 @@ func TestCoordinator_mainLoop(t *testing.T) {
 	close(eventChan)
 	coordinator.running.Wait()
 }
+
+// Example for the Coordinator docs on how to do connection state monitoring
+func ExampleCoordinator_stateMonitoring(app *protocol.ApplicationContext) {
+	for {
+		// Wait for the Zookeeper connection to be connected
+		for !app.ZookeeperConnected {
+			// Sleep before looping around to prevent a tight loop
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		// Zookeeper is connected
+		// Do all the work you need to do setting up watches, locks, etc.
+
+		// Wait on the condition that signals that the session has expired
+		app.ZookeeperExpired.L.Lock()
+		app.ZookeeperExpired.Wait()
+		app.ZookeeperExpired.L.Unlock()
+
+		// The Zookeeper session has been lost
+		// Do any work that you need to in order to clean up, or stop work that was happening inside a lock
+
+		// Loop around to wait for the Zookeeper session to be established again
+	}
+}
