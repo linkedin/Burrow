@@ -15,13 +15,21 @@ import (
 	"time"
 )
 
-// This is an interface for a ticker. It's very simple, with just a start and stop method
+// Ticker is a generic interface for a channel that delivers `ticks' of a clock at intervals.
 type Ticker interface {
+	// Start sending ticks over the channel
 	Start()
+
+	// Stop sending ticks over the channel
 	Stop()
+
+	// Return the channel that ticks will be sent over
 	GetChannel() <-chan time.Time
 }
 
+// PausableTicker is an implementation of Ticker which can be stopped and restarted without changing the underlying
+// channel. This is useful for cases where you may need to stop performing actions for a while (such as sending
+// notifications), but you do not want to tear down everything.
 type PausableTicker struct {
 	channel     chan time.Time
 	duration    time.Duration
@@ -29,8 +37,8 @@ type PausableTicker struct {
 	quitChannel chan struct{}
 }
 
-// Returns a Ticker that has not yet been started, but the channel is ready to use. This ticker can be started and
-// stopped multiple times without needing to swap the ticker channel
+// NewPausableTicker returns a Ticker that has not yet been started, but the channel is ready to use. This ticker can be
+// started and stopped multiple times without needing to swap the ticker channel
 func NewPausableTicker(d time.Duration) Ticker {
 	return &PausableTicker{
 		channel:  make(chan time.Time),
@@ -39,6 +47,8 @@ func NewPausableTicker(d time.Duration) Ticker {
 	}
 }
 
+// Start begins sending ticks over the channel at the interval that has already been configured. If the ticker is
+// already sending ticks, this func has no effect.
 func (ticker *PausableTicker) Start() {
 	if ticker.ticker != nil {
 		// Don't restart a ticker that's already running
@@ -65,6 +75,8 @@ func (ticker *PausableTicker) Start() {
 
 }
 
+// Stop stops ticks from being sent over the channel. If the ticker is not currently sending ticks, this func has no
+// effect
 func (ticker *PausableTicker) Stop() {
 	if ticker.ticker == nil {
 		// Don't stop an already stopped ticker
@@ -79,21 +91,28 @@ func (ticker *PausableTicker) Stop() {
 	close(ticker.quitChannel)
 }
 
+// GetChannel returns the channel over which ticks will be sent. This channel can be used over multiple Start/Stop
+// cycles, and will not be closed.
 func (ticker *PausableTicker) GetChannel() <-chan time.Time {
 	return ticker.channel
 }
 
-// Mock Ticker to use for testing
+// MockTicker is a mock Ticker interface that can be used for testing. It should not be used in normal code.
 type MockTicker struct {
 	mock.Mock
 }
 
+// Start mocks Ticker.Start
 func (m *MockTicker) Start() {
 	m.Called()
 }
+
+// Stop mocks Ticker.Stop
 func (m *MockTicker) Stop() {
 	m.Called()
 }
+
+// GetChannel mocks Ticker.GetChannel
 func (m *MockTicker) GetChannel() <-chan time.Time {
 	args := m.Called()
 	return args.Get(0).(<-chan time.Time)

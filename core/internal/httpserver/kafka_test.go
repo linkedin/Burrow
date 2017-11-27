@@ -47,7 +47,7 @@ func TestHttpServer_handleClusterList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseClusterList
+	var resp httpResponseClusterList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -74,8 +74,8 @@ func TestHttpServer_handleClusterDetail(t *testing.T) {
 	type ResponseType struct {
 		Error   bool                            `json:"error"`
 		Message string                          `json:"message"`
-		Module  HTTPResponseConfigModuleCluster `json:"module"`
-		Request HTTPResponseRequestInfo         `json:"request"`
+		Module  httpResponseConfigModuleCluster `json:"module"`
+		Request httpResponseRequestInfo         `json:"request"`
 	}
 
 	// Parse response body
@@ -124,7 +124,7 @@ func TestHttpServer_handleTopicList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseTopicList
+	var resp httpResponseTopicList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -168,7 +168,7 @@ func TestHttpServer_handleConsumerList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConsumerList
+	var resp httpResponseConsumerList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -221,7 +221,7 @@ func TestHttpServer_handleTopicDetail(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseTopicDetail
+	var resp httpResponseTopicDetail
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -293,7 +293,7 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConsumerDetail
+	var resp httpResponseConsumerDetail
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -347,7 +347,7 @@ type ResponseType struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Status  ResponseStatus          `json:"status"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
 func TestHttpServer_handleConsumerStatus(t *testing.T) {
@@ -557,7 +557,7 @@ func TestHttpServer_handleConsumerDelete(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseError
+	var resp httpResponseError
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")

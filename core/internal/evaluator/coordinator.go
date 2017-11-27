@@ -8,6 +8,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Group evaluation subsystem.
+// The evaluator subsystem is responsible for fetching group information from the storage subsystem and calculating the
+// group's status based on that. It responds to EvaluatorRequest objects that are send via a channel, and replies with
+// a ConsumerGroupStatus.
+//
+// Modules
+//
+// Currently, only one module is provided:
+// * caching - Evaluate a consumer group and cache the results in memory for a short period of time
 package evaluator
 
 import (
@@ -20,20 +29,33 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// Module is responsible for answering requests to evaluate the status of a consumer group. It fetches offset
+// information from the storage subsystem and transforms that into a protocol.ConsumerGroupStatus response. It conforms
+// to the overall protocol.Module interface, but it adds a func to fetch the channel that the module is listening on for
+// requests, so that requests can be forwarded to it by the coordinator
 type Module interface {
 	protocol.Module
 	GetCommunicationChannel() chan *protocol.EvaluatorRequest
 }
 
-type RequestMessage protocol.EvaluatorRequest
-
+// Coordinator manages a single evaluator module (only one module is supported at this time), making sure it is
+// configured, started, and stopped at the appropriate time. It is also responsible for listening to the
+// EvaluatorChannel that is provided in the application context and forwarding those requests to the evaluator module.
+// If no evaluator module has been configured explicitly, the coordinator starts the caching module as a default.
 type Coordinator struct {
-	App         *protocol.ApplicationContext
-	Log         *zap.Logger
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
+	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
+	Log *zap.Logger
+
 	quitChannel chan struct{}
 	modules     map[string]protocol.Module
 }
 
+// getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
+// is any error, it will panic with an appropriate message describing the problem.
 func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
 	switch className {
 	case "caching":
@@ -51,6 +73,10 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName string, clas
 	}
 }
 
+// Configure is called to create the configured evaluator module and call its Configure func to validate the
+// configuration and set it up. The coordinator will panic is more than one module is configured, and if no modules have
+// been configured, it will set up a default caching evaluator module. If there are any problems, it is expected that
+// this func will panic with a descriptive error message, as configuration failures are not recoverable errors.
 func (ec *Coordinator) Configure() {
 	ec.Log.Info("configuring")
 
@@ -79,6 +105,12 @@ func (ec *Coordinator) Configure() {
 	}
 }
 
+// Start calls the evaluator module's underlying Start func. If the module Start returns an error, this func stops
+// immediately and returns that error to the caller.
+//
+// We also start a request forwarder goroutine. This listens to the EvaluatorChannel that is provided in the application
+// context that all modules receive, and forwards those requests to the evaluator modules. At the present time, the
+// evaluator only supports one module, so this is a simple "accept and forward".
 func (ec *Coordinator) Start() error {
 	ec.Log.Info("starting")
 
@@ -112,6 +144,9 @@ func (ec *Coordinator) Start() error {
 	return nil
 }
 
+// Stop calls the configured evaluator module's underlying Stop func. It is expected that the module Stop will not
+// return until the module has been completely stopped. While an error can be returned, this func always returns no
+// error, as a failure during stopping is not a critical failure
 func (ec *Coordinator) Stop() error {
 	ec.Log.Info("stopping")
 

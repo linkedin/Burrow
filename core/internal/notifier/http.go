@@ -26,8 +26,16 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-type HttpNotifier struct {
+// HTTPNotifier is a module which can be used to send notifications of consumer group status via outbound HTTP calls to
+// another server. This is useful for informing another system, such as an alert system, when there is a problem. One
+// HTTP call is made for each consumer group that matches the whitelist/blacklist and the status threshold (though
+// keepalive connections will be used if configured).
+type HTTPNotifier struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name           string
@@ -43,10 +51,14 @@ type HttpNotifier struct {
 	templateClose  *template.Template
 	sendClose      bool
 
-	HttpClient *http.Client
+	httpClient *http.Client
 }
 
-func (module *HttpNotifier) Configure(name string, configRoot string) {
+// Configure validates the configuration of the http notifier. At minimum, there must be a url-open specified, and if
+// send-close is set to true there must also be a url-close. If these are missing or incorrect, this func will panic
+// with an explanatory message. It is also possible to configure a specific method (such as POST or DELETE) to be used
+// with these URLs, as well as a timeout and keepalive for the HTTP client.
+func (module *HTTPNotifier) Configure(name string, configRoot string) {
 	module.name = name
 
 	// Validate and set defaults for profile configs
@@ -74,7 +86,7 @@ func (module *HttpNotifier) Configure(name string, configRoot string) {
 	viper.SetDefault(configRoot+".keepalive", 300)
 
 	// Set up HTTP client
-	module.HttpClient = &http.Client{
+	module.httpClient = &http.Client{
 		Timeout: viper.GetDuration(configRoot+".timeout") * time.Second,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
@@ -85,42 +97,49 @@ func (module *HttpNotifier) Configure(name string, configRoot string) {
 	}
 }
 
-func (module *HttpNotifier) Start() error {
-	// HTTP notifier does not have a running component - no start needed
+// Start is a no-op for the http notifier. It always returns no error
+func (module *HTTPNotifier) Start() error {
 	return nil
 }
 
-func (module *HttpNotifier) Stop() error {
-	// HTTP notifier does not have a running component - no stop needed
+// Stop is a no-op for the http notifier. It always returns no error
+func (module *HTTPNotifier) Stop() error {
 	return nil
 }
 
-func (module *HttpNotifier) GetName() string {
+// GetName returns the configured name of this module
+func (module *HTTPNotifier) GetName() string {
 	return module.name
 }
 
-func (module *HttpNotifier) GetGroupWhitelist() *regexp.Regexp {
+// GetGroupWhitelist returns the compiled group whitelist (or nil, if there is not one)
+func (module *HTTPNotifier) GetGroupWhitelist() *regexp.Regexp {
 	return module.groupWhitelist
 }
 
-func (module *HttpNotifier) GetGroupBlacklist() *regexp.Regexp {
+// GetGroupBlacklist returns the compiled group blacklist (or nil, if there is not one)
+func (module *HTTPNotifier) GetGroupBlacklist() *regexp.Regexp {
 	return module.groupBlacklist
 }
 
-func (module *HttpNotifier) GetLogger() *zap.Logger {
+// GetLogger returns the configured zap.Logger for this notifier
+func (module *HTTPNotifier) GetLogger() *zap.Logger {
 	return module.Log
 }
 
-// Used if we want to skip consumer groups based on more than just threshold and whitelist (handled in the coordinator)
-func (module *HttpNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
+// AcceptConsumerGroup has no additional function for the http notifier, and so always returns true
+func (module *HTTPNotifier) AcceptConsumerGroup(status *protocol.ConsumerGroupStatus) bool {
 	return true
 }
 
-func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId string, startTime time.Time, stateGood bool) {
+// Notify makes a single outbound HTTP request. The status, eventID, and startTime are all passed to the template for
+// compiling the request body. If stateGood is true, the "close" template and URL are used. Otherwise, the "open"
+// template and URL are used.
+func (module *HTTPNotifier) Notify(status *protocol.ConsumerGroupStatus, eventID string, startTime time.Time, stateGood bool) {
 	logger := module.Log.With(
 		zap.String("cluster", status.Cluster),
 		zap.String("group", status.Group),
-		zap.String("id", eventId),
+		zap.String("id", eventID),
 		zap.String("status", status.Status.String()),
 	)
 
@@ -138,7 +157,7 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 		url = module.urlOpen
 	}
 
-	bytesToSend, err := ExecuteTemplate(tmpl, module.extras, status, eventId, startTime)
+	bytesToSend, err := executeTemplate(tmpl, module.extras, status, eventID, startTime)
 	if err != nil {
 		logger.Error("failed to assemble message", zap.Error(err))
 		return
@@ -157,7 +176,7 @@ func (module *HttpNotifier) Notify(status *protocol.ConsumerGroupStatus, eventId
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := module.HttpClient.Do(req)
+	resp, err := module.httpClient.Do(req)
 	if err != nil {
 		logger.Error("failed to send", zap.Error(err))
 		return

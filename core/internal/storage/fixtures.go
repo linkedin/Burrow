@@ -19,10 +19,10 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-// This file ONLY contains fixtures that are used for testing. As they can be used by other package tests, we cannot
-// include them in the test file. They should not be used anywhere in normal code - just tests
-
-func StorageCoordinatorWithOffsets() *Coordinator {
+// CoordinatorWithOffsets sets up a Coordinator with a single inmemory module defined. This module is loaded with
+// offsets for a test cluster and group. This func should never be called in normal code. It is only provided to
+// facilitate testing by other subsystems.
+func CoordinatorWithOffsets() *Coordinator {
 	coordinator := Coordinator{
 		Log: zap.NewNop(),
 	}

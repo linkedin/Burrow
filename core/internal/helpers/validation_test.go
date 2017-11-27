@@ -152,7 +152,7 @@ var testUrls = []TestSet{
 
 func TestValidateUrl(t *testing.T) {
 	for i, testSet := range testUrls {
-		result := ValidateUrl(testSet.TestValue)
+		result := ValidateURL(testSet.TestValue)
 		assert.Equalf(t, testSet.Result, result, "Test %v - Expected '%v' to return %v, not %v", i, testSet.TestValue, testSet.Result, result)
 	}
 }

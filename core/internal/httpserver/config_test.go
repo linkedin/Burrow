@@ -49,7 +49,7 @@ func TestHttpServer_configMain(t *testing.T) {
 
 	// Parse response body - just test that it decodes
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigMain
+	var resp httpResponseConfigMain
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -71,7 +71,7 @@ func TestHttpServer_configStorageList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigModuleList
+	var resp httpResponseConfigModuleList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -95,7 +95,7 @@ func TestHttpServer_configConsumerList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigModuleList
+	var resp httpResponseConfigModuleList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -119,7 +119,7 @@ func TestHttpServer_configClusterList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigModuleList
+	var resp httpResponseConfigModuleList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -143,7 +143,7 @@ func TestHttpServer_configEvaluatorList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigModuleList
+	var resp httpResponseConfigModuleList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -167,7 +167,7 @@ func TestHttpServer_configNotifierList(t *testing.T) {
 
 	// Parse response body
 	decoder := json.NewDecoder(rr.Body)
-	var resp HTTPResponseConfigModuleList
+	var resp httpResponseConfigModuleList
 	err = decoder.Decode(&resp)
 	assert.NoError(t, err, "Expected body decode to return no error")
 	assert.False(t, resp.Error, "Expected response Error to be false")
@@ -193,8 +193,8 @@ func TestHttpServer_configStorageDetail(t *testing.T) {
 	type ResponseType struct {
 		Error   bool                            `json:"error"`
 		Message string                          `json:"message"`
-		Module  HTTPResponseConfigModuleStorage `json:"module"`
-		Request HTTPResponseRequestInfo         `json:"request"`
+		Module  httpResponseConfigModuleStorage `json:"module"`
+		Request httpResponseRequestInfo         `json:"request"`
 	}
 
 	// Parse response body
@@ -231,8 +231,8 @@ func TestHttpServer_configConsumerDetail(t *testing.T) {
 	type ResponseType struct {
 		Error   bool                             `json:"error"`
 		Message string                           `json:"message"`
-		Module  HTTPResponseConfigModuleConsumer `json:"module"`
-		Request HTTPResponseRequestInfo          `json:"request"`
+		Module  httpResponseConfigModuleConsumer `json:"module"`
+		Request httpResponseRequestInfo          `json:"request"`
 	}
 
 	// Parse response body
@@ -269,8 +269,8 @@ func TestHttpServer_configEvaluatorDetail(t *testing.T) {
 	type ResponseType struct {
 		Error   bool                              `json:"error"`
 		Message string                            `json:"message"`
-		Module  HTTPResponseConfigModuleEvaluator `json:"module"`
-		Request HTTPResponseRequestInfo           `json:"request"`
+		Module  httpResponseConfigModuleEvaluator `json:"module"`
+		Request httpResponseRequestInfo           `json:"request"`
 	}
 
 	// Parse response body
@@ -307,8 +307,8 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 	type ResponseType struct {
 		Error   bool                                 `json:"error"`
 		Message string                               `json:"message"`
-		Module  HTTPResponseConfigModuleNotifierNull `json:"module"`
-		Request HTTPResponseRequestInfo              `json:"request"`
+		Module  httpResponseConfigModuleNotifierNull `json:"module"`
+		Request httpResponseRequestInfo              `json:"request"`
 	}
 
 	// Parse response body

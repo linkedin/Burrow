@@ -22,8 +22,16 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
+// KafkaCluster is a cluster module which connects to a single Apache Kafka cluster and manages the broker topic and
+// partition information. It periodically updates a list of all topics and partitions, and also fetches the broker
+// end offset (latest) for each partition. This information is forwarded to the storage module for use in consumer
+// evaluations.
 type KafkaCluster struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name          string
@@ -41,6 +49,9 @@ type KafkaCluster struct {
 	topicMap      map[string]int
 }
 
+// Configure validates the configuration for the cluster. At minimum, there must be a list of servers provided for the
+// Kafka cluster, of the form host:port. Default values will be set for the intervals to use for refreshing offsets
+// (10 seconds) and topics (60 seconds). A missing, or bad, list of servers will cause this func to panic.
 func (module *KafkaCluster) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
@@ -65,6 +76,8 @@ func (module *KafkaCluster) Configure(name string, configRoot string) {
 	module.topicRefresh = viper.GetInt(configRoot + ".topic-refresh")
 }
 
+// Start connects to the Kafka cluster using the Shopify/sarama client. Any error connecting to the cluster is returned
+// to the caller. Once the client is set up, tickers are started to periodically refresh topics and offsets.
 func (module *KafkaCluster) Start() error {
 	module.Log.Info("starting")
 
@@ -90,6 +103,7 @@ func (module *KafkaCluster) Start() error {
 	return nil
 }
 
+// Stop causes both the topic and offset refresh tickers to be stopped, and then it closes the Kafka client.
 func (module *KafkaCluster) Stop() error {
 	module.Log.Info("stopping")
 
@@ -259,7 +273,7 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 	// If there are any topics that had errors, explicitly update metadata for them so we potentially delete the topic
 	// on the next topic list refresh
 	topicsToUpdate := make([]string, 0)
-	errorTopics.Range(func (key, value interface{}) bool {
+	errorTopics.Range(func(key, value interface{}) bool {
 		topicsToUpdate = append(topicsToUpdate, key.(string))
 		return true
 	})

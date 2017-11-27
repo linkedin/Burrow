@@ -235,8 +235,8 @@ func TestKafkaClient_decodeMetadataMember(t *testing.T) {
 	result, errorAt := decodeMetadataMember(buf, 1)
 
 	assert.Equalf(t, "", errorAt, "Expected decodeMetadataMember to return empty errorAt, not %v", errorAt)
-	assert.Equalf(t, "testmemberid", result.MemberId, "Expected MemberId to be testmemberid, not %v", result.MemberId)
-	assert.Equalf(t, "testclientid", result.ClientId, "Expected ClientId to be testclientid, not %v", result.ClientId)
+	assert.Equalf(t, "testmemberid", result.MemberID, "Expected MemberID to be testmemberid, not %v", result.MemberID)
+	assert.Equalf(t, "testclientid", result.ClientID, "Expected ClientID to be testclientid, not %v", result.ClientID)
 	assert.Equalf(t, "testclienthost", result.ClientHost, "Expected ClientHost to be testclienthost, not %v", result.ClientHost)
 	assert.Equalf(t, int32(4), result.RebalanceTimeout, "Expected RebalanceTimeout to be 4, not %v", result.RebalanceTimeout)
 	assert.Equalf(t, int32(8), result.SessionTimeout, "Expected SessionTimeout to be 8, not %v", result.SessionTimeout)
@@ -384,7 +384,7 @@ func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "consumer.test")
 
-	offsetKey := OffsetKey{
+	offsetKey := offsetKey{
 		Group:     "testgroup",
 		Topic:     "testtopic",
 		Partition: 11,

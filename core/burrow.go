@@ -8,10 +8,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Core Burrow logic.
+// The core package is where all the internal logic for Burrow is located. It provides several helpers for setting up
+// logging and application management (such as PID files), as well as the Start method that runs Burrow itself.
+//
+// The documentation for the rest of the internals, including all the available modules, is available at
+// https://godoc.org/github.com/linkedin/Burrow/core/internal/?m=all. For the most part, end users of Burrow should not
+// need to refer to this documentation, as it is targeted at developers of Burrow modules. Details on what modules are
+// available and how to configure them are available at https://github.com/linkedin/Burrow/wiki
 package core
 
 import (
-	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -98,12 +105,29 @@ func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]pro
 	app.ConfigurationValid = true
 }
 
+// Start is called to start the Burrow application. This is exposed so that it is possible to use Burrow as a library
+// from within another application. Prior to calling this func, the configuration must have been loaded by viper from
+// some underlying source (e.g. a TOML configuration file, or explicitly set in code after reading from another source).
+// This func will block upon being called.
+//
+// If the calling application would like to control logging, it can pass a pointer to an instantiated
+// protocol.ApplicationContext struct that has the Logger and LogLevel fields set. Otherwise, Start will create a
+// logger based on configurations in viper.
+//
+// exitChannel is a signal channel that is provided by the calling application in order to signal Burrow to shut down.
+// Burrow does not currently check the signal type: if any message is received on the channel, or if the channel is
+// closed, Burrow will exit and Start will return 0.
+//
+// Start will return a 1 on any failure, including invalid configurations or a failure to start Burrow modules.
 func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 	// Validate that the ApplicationContext is complete
 	if (app == nil) || (app.Logger == nil) || (app.LogLevel == nil) {
-		fmt.Fprintln(os.Stderr, "Burrow was called with an incomplete ApplicationContext")
-		return 1
+		// Didn't get a valid ApplicationContext, so we'll set up our own, with the logger
+		app = &protocol.ApplicationContext{}
+		app.Logger, app.LogLevel = ConfigureLogger()
+		defer app.Logger.Sync()
 	}
+	app.Logger.Info("Started Burrow")
 
 	// Set up a specific child logger for main
 	log := app.Logger.With(zap.String("type", "main"), zap.String("name", "burrow"))

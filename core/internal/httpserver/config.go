@@ -19,12 +19,12 @@ import (
 
 func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Build JSON structs for config
-	configGeneral := HTTPResponseConfigGeneral{
+	configGeneral := httpResponseConfigGeneral{
 		PIDFile:                  viper.GetString("general.pidfile"),
 		StdoutLogfile:            viper.GetString("general.stdout-logfile"),
 		AccessControlAllowOrigin: viper.GetString("general.access-control-allow-origin"),
 	}
-	configLogging := HTTPResponseConfigLogging{
+	configLogging := httpResponseConfigLogging{
 		Filename:       viper.GetString("logging.filename"),
 		MaxSize:        viper.GetInt("logging.maxsize"),
 		MaxBackups:     viper.GetInt("logging.maxbackups"),
@@ -33,17 +33,17 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 		UseCompression: viper.GetBool("logging.use-compression"),
 		Level:          viper.GetString("logging.level"),
 	}
-	configZookeeper := HTTPResponseConfigZookeeper{
+	configZookeeper := httpResponseConfigZookeeper{
 		Servers:  viper.GetStringSlice("zookeeper.servers"),
 		Timeout:  viper.GetInt("zookeeper.timeout"),
 		RootPath: viper.GetString("zookeeper.root-path"),
 	}
 
 	servers := viper.GetStringMap("httpserver")
-	configHttpServer := make(map[string]HTTPResponseConfigHttpServer)
+	configHTTPServer := make(map[string]httpResponseConfigHTTPServer)
 	for name := range servers {
 		configRoot := "httpserver." + name
-		configHttpServer[name] = HTTPResponseConfigHttpServer{
+		configHTTPServer[name] = httpResponseConfigHTTPServer{
 			Address: viper.GetString(configRoot + ".address"),
 			Timeout: viper.GetInt(configRoot + ".timeout"),
 			TLS:     viper.GetString(configRoot + ".tls"),
@@ -51,20 +51,20 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 	}
 
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigMain{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigMain{
 		Error:      false,
 		Message:    "main config returned",
 		General:    configGeneral,
 		Logging:    configLogging,
 		Zookeeper:  configZookeeper,
-		HttpServer: configHttpServer,
+		HTTPServer: configHTTPServer,
 		Request:    requestInfo,
 	})
 }
 
 func (hc *Coordinator) writeModuleListResponse(w http.ResponseWriter, r *http.Request, coordinator string, modules []string) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleList{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleList{
 		Error:       false,
 		Message:     "module list returned",
 		Request:     requestInfo,
@@ -134,10 +134,10 @@ func (hc *Coordinator) configStorageDetail(w http.ResponseWriter, r *http.Reques
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "storage module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 			Error:   false,
 			Message: "storage module detail returned",
-			Module: HTTPResponseConfigModuleStorage{
+			Module: httpResponseConfigModuleStorage{
 				ClassName:      viper.GetString(configRoot + ".class-name"),
 				Intervals:      viper.GetInt(configRoot + ".intervals"),
 				MinDistance:    viper.GetInt64(configRoot + ".min-distance"),
@@ -155,10 +155,10 @@ func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Reque
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "consumer module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 			Error:   false,
 			Message: "consumer module detail returned",
-			Module: HTTPResponseConfigModuleConsumer{
+			Module: httpResponseConfigModuleConsumer{
 				ClassName:        viper.GetString(configRoot + ".class-name"),
 				Cluster:          viper.GetString(configRoot + ".cluster"),
 				Servers:          viper.GetStringSlice(configRoot + ".servers"),
@@ -180,10 +180,10 @@ func (hc *Coordinator) configEvaluatorDetail(w http.ResponseWriter, r *http.Requ
 		hc.writeErrorResponse(w, r, http.StatusNotFound, "evaluator module not found")
 	} else {
 		requestInfo := makeRequestInfo(r)
-		hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+		hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 			Error:   false,
 			Message: "evaluator module detail returned",
-			Module: HTTPResponseConfigModuleEvaluator{
+			Module: httpResponseConfigModuleEvaluator{
 				ClassName:   viper.GetString(configRoot + ".class-name"),
 				ExpireCache: viper.GetInt64(configRoot + ".expire-cache"),
 			},
@@ -192,20 +192,20 @@ func (hc *Coordinator) configEvaluatorDetail(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (hc *Coordinator) configNotifierHttp(w http.ResponseWriter, r *http.Request, configRoot string) {
+func (hc *Coordinator) configNotifierHTTP(w http.ResponseWriter, r *http.Request, configRoot string) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 		Error:   false,
 		Message: "notifier module detail returned",
-		Module: HTTPResponseConfigModuleNotifierHttp{
+		Module: httpResponseConfigModuleNotifierHTTP{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
 			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
 			Threshold:      viper.GetInt(configRoot + ".threshold"),
 			Timeout:        viper.GetInt(configRoot + ".timeout"),
 			Keepalive:      viper.GetInt(configRoot + ".keepalive"),
-			UrlOpen:        viper.GetString(configRoot + ".url-open"),
-			UrlClose:       viper.GetString(configRoot + ".url-close"),
+			URLOpen:        viper.GetString(configRoot + ".url-open"),
+			URLClose:       viper.GetString(configRoot + ".url-close"),
 			MethodOpen:     viper.GetString(configRoot + ".method-open"),
 			MethodClose:    viper.GetString(configRoot + ".method-close"),
 			TemplateOpen:   viper.GetString(configRoot + ".template-open"),
@@ -219,10 +219,10 @@ func (hc *Coordinator) configNotifierHttp(w http.ResponseWriter, r *http.Request
 
 func (hc *Coordinator) configNotifierSlack(w http.ResponseWriter, r *http.Request, configRoot string) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 		Error:   false,
 		Message: "notifier module detail returned",
-		Module: HTTPResponseConfigModuleNotifierSlack{
+		Module: httpResponseConfigModuleNotifierSlack{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
 			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
@@ -235,7 +235,7 @@ func (hc *Coordinator) configNotifierSlack(w http.ResponseWriter, r *http.Reques
 			SendClose:      viper.GetBool(configRoot + ".send-close"),
 			Channel:        viper.GetString(configRoot + ".channel"),
 			Username:       viper.GetString(configRoot + ".username"),
-			IconUrl:        viper.GetString(configRoot + ".icon-url"),
+			IconURL:        viper.GetString(configRoot + ".icon-url"),
 			IconEmoji:      viper.GetString(configRoot + ".icon-emoji"),
 		},
 		Request: requestInfo,
@@ -244,10 +244,10 @@ func (hc *Coordinator) configNotifierSlack(w http.ResponseWriter, r *http.Reques
 
 func (hc *Coordinator) configNotifierEmail(w http.ResponseWriter, r *http.Request, configRoot string) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 		Error:   false,
 		Message: "notifier module detail returned",
-		Module: HTTPResponseConfigModuleNotifierEmail{
+		Module: httpResponseConfigModuleNotifierEmail{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
 			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
@@ -269,10 +269,10 @@ func (hc *Coordinator) configNotifierEmail(w http.ResponseWriter, r *http.Reques
 
 func (hc *Coordinator) configNotifierNull(w http.ResponseWriter, r *http.Request, configRoot string) {
 	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, HTTPResponseConfigModuleDetail{
+	hc.writeResponse(w, r, http.StatusOK, httpResponseConfigModuleDetail{
 		Error:   false,
 		Message: "notifier module detail returned",
-		Module: HTTPResponseConfigModuleNotifierNull{
+		Module: httpResponseConfigModuleNotifierNull{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
 			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
@@ -294,7 +294,7 @@ func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Reque
 		// Return the right profile structure
 		switch viper.GetString(configRoot + ".class-name") {
 		case "http":
-			hc.configNotifierHttp(w, r, configRoot)
+			hc.configNotifierHTTP(w, r, configRoot)
 		case "email":
 			hc.configNotifierEmail(w, r, configRoot)
 		case "slack":

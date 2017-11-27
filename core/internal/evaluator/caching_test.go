@@ -22,7 +22,7 @@ import (
 )
 
 func fixtureModule() (*storage.Coordinator, *CachingEvaluator) {
-	storageCoordinator := storage.StorageCoordinatorWithOffsets()
+	storageCoordinator := storage.CoordinatorWithOffsets()
 
 	module := &CachingEvaluator{
 		Log: zap.NewNop(),

@@ -12,29 +12,29 @@ package httpserver
 
 import "github.com/linkedin/Burrow/core/protocol"
 
-type LogLevelRequest struct {
+type logLevelRequest struct {
 	Level string `json:"level"`
 }
 
-type HTTPResponseLogLevel struct {
+type httpResponseLogLevel struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Level   string                  `json:"level"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseRequestInfo struct {
+type httpResponseRequestInfo struct {
 	URI  string `json:"url"`
 	Host string `json:"host"`
 }
 
-type HTTPResponseError struct {
+type httpResponseError struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseTLSProfile struct {
+type httpResponseTLSProfile struct {
 	Name     string `json:"name"`
 	NoVerify bool   `json:"noverify"`
 	CertFile string `json:"certfile"`
@@ -42,68 +42,68 @@ type HTTPResponseTLSProfile struct {
 	CAFile   string `json:"cafile"`
 }
 
-type HTTPResponseSASLProfile struct {
+type httpResponseSASLProfile struct {
 	Name           string `json:"name"`
 	HandshakeFirst bool   `json:"handshake-first"`
 	Username       string `json:"username"`
 }
 
-type HTTPResponseClientProfile struct {
+type httpResponseClientProfile struct {
 	Name         string                   `json:"name"`
 	ClientID     string                   `json:"client-id"`
 	KafkaVersion string                   `json:"kafka-version"`
-	TLS          *HTTPResponseTLSProfile  `json:"tls"`
-	SASL         *HTTPResponseSASLProfile `json:"tls"`
+	TLS          *httpResponseTLSProfile  `json:"tls"`
+	SASL         *httpResponseSASLProfile `json:"tls"`
 }
 
-type HTTPResponseClusterList struct {
+type httpResponseClusterList struct {
 	Error    bool                    `json:"error"`
 	Message  string                  `json:"message"`
 	Clusters []string                `json:"clusters"`
-	Request  HTTPResponseRequestInfo `json:"request"`
+	Request  httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseTopicList struct {
+type httpResponseTopicList struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Topics  []string                `json:"topics"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseTopicDetail struct {
+type httpResponseTopicDetail struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Offsets []int64                 `json:"offsets"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseConsumerList struct {
+type httpResponseConsumerList struct {
 	Error     bool                    `json:"error"`
 	Message   string                  `json:"message"`
 	Consumers []string                `json:"consumers"`
-	Request   HTTPResponseRequestInfo `json:"request"`
+	Request   httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseConsumerDetail struct {
+type httpResponseConsumerDetail struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Topics  protocol.ConsumerTopics `json:"topics"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseConsumerStatus struct {
+type httpResponseConsumerStatus struct {
 	Error   bool                         `json:"error"`
 	Message string                       `json:"message"`
 	Status  protocol.ConsumerGroupStatus `json:"status"`
-	Request HTTPResponseRequestInfo      `json:"request"`
+	Request httpResponseRequestInfo      `json:"request"`
 }
 
-type HTTPResponseConfigGeneral struct {
+type httpResponseConfigGeneral struct {
 	PIDFile                  string `json:"pidfile"`
 	StdoutLogfile            string `json:"stdout-logfile"`
 	AccessControlAllowOrigin string `json:"access-control-allow-origin"`
 }
-type HTTPResponseConfigLogging struct {
+type httpResponseConfigLogging struct {
 	Filename       string `json:"filename"`
 	MaxSize        int    `json:"max-size"`
 	MaxBackups     int    `json:"max-backups"`
@@ -112,41 +112,41 @@ type HTTPResponseConfigLogging struct {
 	UseCompression bool   `json:"use-compression"`
 	Level          string `json:"level"`
 }
-type HTTPResponseConfigZookeeper struct {
+type httpResponseConfigZookeeper struct {
 	Servers  []string `json:"servers"`
 	Timeout  int      `json:"timeout"`
 	RootPath string   `json:"root-path"`
 }
-type HTTPResponseConfigHttpServer struct {
+type httpResponseConfigHTTPServer struct {
 	Address string `json:"address"`
 	TLS     string `json:"tls"`
 	Timeout int    `json:"timeout"`
 }
-type HTTPResponseConfigMain struct {
+type httpResponseConfigMain struct {
 	Error      bool                                    `json:"error"`
 	Message    string                                  `json:"message"`
-	Request    HTTPResponseRequestInfo                 `json:"request"`
-	General    HTTPResponseConfigGeneral               `json:"general"`
-	Logging    HTTPResponseConfigLogging               `json:"logging"`
-	Zookeeper  HTTPResponseConfigZookeeper             `json:"zookeeper"`
-	HttpServer map[string]HTTPResponseConfigHttpServer `json:"httpserver"`
+	Request    httpResponseRequestInfo                 `json:"request"`
+	General    httpResponseConfigGeneral               `json:"general"`
+	Logging    httpResponseConfigLogging               `json:"logging"`
+	Zookeeper  httpResponseConfigZookeeper             `json:"zookeeper"`
+	HTTPServer map[string]httpResponseConfigHTTPServer `json:"httpserver"`
 }
 
-type HTTPResponseConfigModuleList struct {
+type httpResponseConfigModuleList struct {
 	Error       bool                    `json:"error"`
 	Message     string                  `json:"message"`
-	Request     HTTPResponseRequestInfo `json:"request"`
+	Request     httpResponseRequestInfo `json:"request"`
 	Coordinator string                  `json:"coordinator"`
 	Modules     []string                `json:"modules"`
 }
-type HTTPResponseConfigModuleDetail struct {
+type httpResponseConfigModuleDetail struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Module  interface{}             `json:"module"`
-	Request HTTPResponseRequestInfo `json:"request"`
+	Request httpResponseRequestInfo `json:"request"`
 }
 
-type HTTPResponseConfigModuleStorage struct {
+type httpResponseConfigModuleStorage struct {
 	ClassName      string `json:"class-name"`
 	Intervals      int    `json:"intervals"`
 	MinDistance    int64  `json:"min-distance"`
@@ -154,40 +154,40 @@ type HTTPResponseConfigModuleStorage struct {
 	ExpireGroup    int64  `json:"expire-group"`
 }
 
-type HTTPResponseConfigModuleCluster struct {
+type httpResponseConfigModuleCluster struct {
 	ClassName     string                    `json:"class-name"`
 	Servers       []string                  `json:"servers"`
-	ClientProfile HTTPResponseClientProfile `json:"client-profile"`
+	ClientProfile httpResponseClientProfile `json:"client-profile"`
 	TopicRefresh  int64                     `json:"topic-refresh"`
 	OffsetRefresh int64                     `json:"offset-refresh"`
 }
 
-type HTTPResponseConfigModuleConsumer struct {
+type httpResponseConfigModuleConsumer struct {
 	ClassName        string                    `json:"class-name"`
 	Cluster          string                    `json:"cluster"`
 	Servers          []string                  `json:"servers"`
 	GroupWhitelist   string                    `json:"group-whitelist"`
 	ZookeeperPath    string                    `json:"zookeeper-path"`
 	ZookeeperTimeout int32                     `json:"zookeeper-timeout"`
-	ClientProfile    HTTPResponseClientProfile `json:"client-profile"`
+	ClientProfile    httpResponseClientProfile `json:"client-profile"`
 	OffsetsTopic     string                    `json:"offsets-topic"`
 	StartLatest      bool                      `json:"start-latest"`
 }
 
-type HTTPResponseConfigModuleEvaluator struct {
+type httpResponseConfigModuleEvaluator struct {
 	ClassName   string `json:"class-name"`
 	ExpireCache int64  `json:"expire-cache"`
 }
 
-type HTTPResponseConfigModuleNotifierHttp struct {
+type httpResponseConfigModuleNotifierHTTP struct {
 	ClassName      string            `json:"class-name"`
 	GroupWhitelist string            `json:"group-whitelist"`
 	Interval       int64             `json:"interval"`
 	Threshold      int               `json:"threshold"`
 	Timeout        int               `json:"timeout"`
 	Keepalive      int               `json:"keepalive"`
-	UrlOpen        string            `json:"url-open"`
-	UrlClose       string            `json:"url-close"`
+	URLOpen        string            `json:"url-open"`
+	URLClose       string            `json:"url-close"`
 	MethodOpen     string            `json:"method-open"`
 	MethodClose    string            `json:"method-close"`
 	TemplateOpen   string            `json:"template-open"`
@@ -196,7 +196,7 @@ type HTTPResponseConfigModuleNotifierHttp struct {
 	SendClose      bool              `json:"send-close"`
 }
 
-type HTTPResponseConfigModuleNotifierSlack struct {
+type httpResponseConfigModuleNotifierSlack struct {
 	ClassName      string            `json:"class-name"`
 	GroupWhitelist string            `json:"group-whitelist"`
 	Interval       int64             `json:"interval"`
@@ -209,11 +209,11 @@ type HTTPResponseConfigModuleNotifierSlack struct {
 	SendClose      bool              `json:"send-close"`
 	Channel        string            `json:"channel"`
 	Username       string            `json:"username"`
-	IconUrl        string            `json:"icon-url"`
+	IconURL        string            `json:"icon-url"`
 	IconEmoji      string            `json:"icon-emoji"`
 }
 
-type HTTPResponseConfigModuleNotifierEmail struct {
+type httpResponseConfigModuleNotifierEmail struct {
 	ClassName      string            `json:"class-name"`
 	GroupWhitelist string            `json:"group-whitelist"`
 	Interval       int64             `json:"interval"`
@@ -230,7 +230,7 @@ type HTTPResponseConfigModuleNotifierEmail struct {
 	To             string            `json:"to"`
 }
 
-type HTTPResponseConfigModuleNotifierNull struct {
+type httpResponseConfigModuleNotifierNull struct {
 	ClassName      string            `json:"class-name"`
 	GroupWhitelist string            `json:"group-whitelist"`
 	Interval       int64             `json:"interval"`

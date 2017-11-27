@@ -25,8 +25,15 @@ import (
 	"regexp"
 )
 
+// KafkaClient is a consumer module which connects to a single Apache Kafka cluster and reads consumer group information
+// from the offsets topic in the cluster, which is typically __consumer_offsets. The messages in this topic are decoded
+// and the information is forwarded to the storage subsystem for use in evaluations.
 type KafkaClient struct {
+	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
+
+	// Log is a logger that has been configured for this module to use. Normally, this means it has been set up with
+	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
 	name           string
@@ -42,6 +49,36 @@ type KafkaClient struct {
 	running     sync.WaitGroup
 }
 
+type offsetKey struct {
+	Group     string
+	Topic     string
+	Partition int32
+	ErrorAt   string
+}
+type offsetValue struct {
+	Offset    int64
+	Timestamp int64
+	ErrorAt   string
+}
+type metadataHeader struct {
+	ProtocolType string
+	Generation   int32
+	Protocol     string
+	Leader       string
+}
+type metadataMember struct {
+	MemberID         string
+	ClientID         string
+	ClientHost       string
+	RebalanceTimeout int32
+	SessionTimeout   int32
+	Assignment       map[string][]int32
+}
+
+// Configure validates the configuration for the consumer. At minimum, there must be a cluster name to which these
+// consumers belong, as well as a list of servers provided for the Kafka cluster, of the form host:port. If not
+// explicitly configured, the offsets topic is set to the default for Kafka, which is __consumer_offsets. If the
+// cluster name is unknown, or if the server list is missing or invalid, this func will panic.
 func (module *KafkaClient) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
@@ -90,6 +127,8 @@ func (module *KafkaClient) Configure(name string, configRoot string) {
 	}
 }
 
+// Start connects to the Kafka cluster using the Shopify/sarama client. Any error connecting to the cluster is returned
+// to the caller. Once the client is set up, the consumers for the configured offsets topic are started.
 func (module *KafkaClient) Start() error {
 	module.Log.Info("starting")
 
@@ -111,6 +150,7 @@ func (module *KafkaClient) Start() error {
 	return nil
 }
 
+// Stop closes the goroutines that listen to the client consumer.
 func (module *KafkaClient) Stop() error {
 	module.Log.Info("stopping")
 
@@ -242,35 +282,9 @@ func readString(buf *bytes.Buffer) (string, error) {
 	return string(strbytes), nil
 }
 
-type OffsetKey struct {
-	Group     string
-	Topic     string
-	Partition int32
-	ErrorAt   string
-}
-type OffsetValue struct {
-	Offset    int64
-	Timestamp int64
-	ErrorAt   string
-}
-type MetadataHeader struct {
-	ProtocolType string
-	Generation   int32
-	Protocol     string
-	Leader       string
-}
-type MetadataMember struct {
-	MemberId         string
-	ClientId         string
-	ClientHost       string
-	RebalanceTimeout int32
-	SessionTimeout   int32
-	Assignment       map[string][]int32
-}
-
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
 	// No whitelist means everything passes
-	if (module.groupWhitelist != nil) && (! module.groupWhitelist.MatchString(group)) {
+	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
 		return false
 	}
 	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
@@ -326,7 +340,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 	}
 }
 
-func (module *KafkaClient) decodeAndSendOffset(offsetKey OffsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger) {
+func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger) {
 	offsetValue, errorAt := decodeOffsetValueV0(valueBuffer)
 	if errorAt != "" {
 		logger.Warn("failed to decode",
@@ -452,9 +466,9 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 	}
 }
 
-func decodeMetadataValueHeader(buf *bytes.Buffer) (MetadataHeader, string) {
+func decodeMetadataValueHeader(buf *bytes.Buffer) (metadataHeader, string) {
 	var err error
-	metadataHeader := MetadataHeader{}
+	metadataHeader := metadataHeader{}
 
 	metadataHeader.ProtocolType, err = readString(buf)
 	if err != nil {
@@ -475,15 +489,15 @@ func decodeMetadataValueHeader(buf *bytes.Buffer) (MetadataHeader, string) {
 	return metadataHeader, ""
 }
 
-func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (MetadataMember, string) {
+func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMember, string) {
 	var err error
-	memberMetadata := MetadataMember{}
+	memberMetadata := metadataMember{}
 
-	memberMetadata.MemberId, err = readString(buf)
+	memberMetadata.MemberID, err = readString(buf)
 	if err != nil {
 		return memberMetadata, "member_id"
 	}
-	memberMetadata.ClientId, err = readString(buf)
+	memberMetadata.ClientID, err = readString(buf)
 	if err != nil {
 		return memberMetadata, "client_id"
 	}
@@ -539,7 +553,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (MetadataMembe
 func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 	var err error
 	var topics map[string][]int32
-	var numTopics, numPartitions, partitionId, userDataLen int32
+	var numTopics, numPartitions, partitionID, userDataLen int32
 
 	err = binary.Read(buf, binary.BigEndian, &numTopics)
 	if err != nil {
@@ -561,11 +575,11 @@ func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 		partitionCount := int(numPartitions)
 		topics[topicName] = make([]int32, numPartitions)
 		for j := 0; j < partitionCount; j++ {
-			err = binary.Read(buf, binary.BigEndian, &partitionId)
+			err = binary.Read(buf, binary.BigEndian, &partitionID)
 			if err != nil {
 				return topics, "assignment_partition_id"
 			}
-			topics[topicName][j] = int32(partitionId)
+			topics[topicName][j] = int32(partitionID)
 		}
 	}
 
@@ -580,9 +594,9 @@ func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 	return topics, ""
 }
 
-func decodeOffsetKeyV0(buf *bytes.Buffer) (OffsetKey, string) {
+func decodeOffsetKeyV0(buf *bytes.Buffer) (offsetKey, string) {
 	var err error
-	offsetKey := OffsetKey{}
+	offsetKey := offsetKey{}
 
 	offsetKey.Group, err = readString(buf)
 	if err != nil {
@@ -599,9 +613,9 @@ func decodeOffsetKeyV0(buf *bytes.Buffer) (OffsetKey, string) {
 	return offsetKey, ""
 }
 
-func decodeOffsetValueV0(valueBuffer *bytes.Buffer) (OffsetValue, string) {
+func decodeOffsetValueV0(valueBuffer *bytes.Buffer) (offsetValue, string) {
 	var err error
-	offsetValue := OffsetValue{}
+	offsetValue := offsetValue{}
 
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
 	if err != nil {
