@@ -17,8 +17,11 @@
 // Modules
 //
 // Currently, the following modules are provided:
+//
 // * email - Send an email
+//
 // * http - Call a remote HTTP endpoint
+//
 // * null - This is a no-op notifier that is used for testing only
 package notifier
 

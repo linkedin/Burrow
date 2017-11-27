@@ -15,6 +15,7 @@
 // Modules
 //
 // Currently, only one module is provided:
+//
 // * inmemory - Store all information in a set of in-memory maps
 package storage
 

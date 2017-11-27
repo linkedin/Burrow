@@ -16,6 +16,7 @@
 // Modules
 //
 // Currently, only one module is provided:
+//
 // * caching - Evaluate a consumer group and cache the results in memory for a short period of time
 package evaluator
 

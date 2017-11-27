@@ -16,6 +16,7 @@
 // Modules
 //
 // Currently, the following modules are provided:
+//
 // * kafka - Fetch topic, partition, and offset information from a Kafka cluster
 package cluster
 

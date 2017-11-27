@@ -16,7 +16,9 @@
 // Modules
 //
 // Currently, the following modules are provided:
+//
 // * kafka - Consume a Kafka cluster's __consumer_offsets topic to get consumer information (new consumer)
+//
 // * kafka_zk - Parse the /consumers tree of a Kafka cluster's metadata to get consumer information (old consumer)
 package consumer
 
