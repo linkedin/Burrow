@@ -106,16 +106,6 @@ func getModuleForClass(app *protocol.ApplicationContext,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
 		}
-	case "slack":
-		return &SlackNotifier{
-			App:            app,
-			Log:            logger,
-			groupWhitelist: groupWhitelist,
-			groupBlacklist: groupBlacklist,
-			extras:         extras,
-			templateOpen:   templateOpen,
-			templateClose:  templateClose,
-		}
 	case "null":
 		return &NullNotifier{
 			App:            app,
