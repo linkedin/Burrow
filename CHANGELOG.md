@@ -1,10 +1,13 @@
-## X.Y.Z (TBD)
+## 1.0.0 (TBD)
 
 Features:
-  - Added request info to HTTP responses (#64 and #45)
+  - Code overhaul - more modular and now with tests
+  - Actual documentation (godoc)
+  - Support for topic deletion in Kafka clusters
+  - Removed Slack notifier in favor of just using the HTTP notifier
 
 Bugfixes:
-  - Fix an issue where maxlag partition is selected badly
+  - Too many to count
 
 ## 0.1.1 (2016-05-01)
 

@@ -16,19 +16,19 @@ Burrow is a monitoring companion for [Apache Kafka](http://kafka.apache.org) tha
 ### Prerequisites
 Burrow is written in Go, so before you get started, you should [install and set up Go](https://golang.org/doc/install).
 
-If you have not yet installed the [Go Package Manager](https://github.com/pote/gpm), please go over there and follow their short installation instructions. GPM is used to automatically pull in the dependencies for Burrow so you don't have to chase them all down.
+If you have not yet installed the [Go Dependency Management Tool](https://github.com/golang/dep), please go over there and follow their short installation instructions. dep is used to automatically pull in the dependencies for Burrow so you don't have to chase them all down.
 
 ### Build and Install
 ```
 $ go get github.com/linkedin/Burrow
 $ cd $GOPATH/src/github.com/linkedin/Burrow
-$ gpm install
+$ dep ensure
 $ go install
 ```
 
 ### Running Burrow
 ```
-$ $GOPATH/bin/Burrow --config path/to/burrow.cfg
+$ $GOPATH/bin/Burrow --config-dir /path/containing/config
 ```
 
 ### Using Docker
@@ -55,7 +55,7 @@ Install Docker Compose and then:
 For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)
 
 ## License
-Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
+Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
