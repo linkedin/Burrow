@@ -49,14 +49,15 @@ type BurrowConfig struct {
 		LockPath string   `gcfg:"lock-path"`
 	}
 	Kafka map[string]*struct {
-		Brokers       []string `gcfg:"broker"`
-		BrokerPort    int      `gcfg:"broker-port"`
-		Zookeepers    []string `gcfg:"zookeeper"`
-		ZookeeperPort int      `gcfg:"zookeeper-port"`
-		ZookeeperPath string   `gcfg:"zookeeper-path"`
-		OffsetsTopic  string   `gcfg:"offsets-topic"`
-		ZKOffsets     bool     `gcfg:"zookeeper-offsets"`
-		Clientprofile string   `gcfg:"client-profile"`
+		Brokers           []string `gcfg:"broker"`
+		BrokerPort        int      `gcfg:"broker-port"`
+		Zookeepers        []string `gcfg:"zookeeper"`
+		ZookeeperPort     int      `gcfg:"zookeeper-port"`
+		ZookeeperPath     string   `gcfg:"zookeeper-path"`
+		OffsetsTopic      string   `gcfg:"offsets-topic"`
+		ZKOffsets         bool     `gcfg:"zookeeper-offsets"`
+		Clientprofile     string   `gcfg:"client-profile"`
+		RefreshFrequency  int      `gcfg:"refresh-frequency"`
 	}
 	Storm map[string]*struct {
 		Zookeepers    []string `gcfg:"zookeeper"`
@@ -278,6 +279,9 @@ func ValidateConfig(app *ApplicationContext) error {
 			if _, ok := app.Config.Clientprofile[cfg.Clientprofile]; !ok {
 				errs = append(errs, fmt.Sprintf("Kafka client profile is not defined for cluster %s", cluster))
 			}
+		}
+		if cfg.RefreshFrequency == 0 {
+			cfg.RefreshFrequency = 600
 		}
 	}
 
