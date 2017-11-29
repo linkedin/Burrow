@@ -169,6 +169,7 @@ type HTTPResponseTopicDetail struct {
 	Error   bool                    `json:"error"`
 	Message string                  `json:"message"`
 	Offsets []int64                 `json:"offsets"`
+	Consumers []string              `json:"consumers"`
 	Request HTTPResponseRequestInfo `json:"request"`
 }
 type HTTPResponseConsumerList struct {
@@ -391,6 +392,7 @@ func handleConsumerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r
 		Error:   false,
 		Message: "consumer group topic offsets returned",
 		Offsets: result.OffsetList,
+		Consumers: result.ConsumerList,
 		Request: requestInfo,
 	})
 	if err != nil {
@@ -485,6 +487,7 @@ func handleBrokerTopicDetail(app *ApplicationContext, w http.ResponseWriter, r *
 		Error:   false,
 		Message: "broker topic offsets returned",
 		Offsets: result.OffsetList,
+		Consumers: result.ConsumerList,
 		Request: requestInfo,
 	})
 	if err != nil {

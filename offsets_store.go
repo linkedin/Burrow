@@ -48,6 +48,7 @@ type ResponseTopicList struct {
 }
 type ResponseOffsets struct {
 	OffsetList []int64
+	ConsumerList []string
 	ErrorGroup bool
 	ErrorTopic bool
 }
@@ -625,10 +626,21 @@ func (storage *OffsetStorage) requestOffsets(request *RequestOffsets) {
 					response.OffsetList[partition] = offset.Offset
 				}
 			}
+
+			storage.offsets[request.Cluster].consumerLock.RLock()
+			response.ConsumerList = make([]string, 0)
+			for consumerGroup := range storage.offsets[request.Cluster].consumer{
+				if _, ok := storage.offsets[request.Cluster].consumer[consumerGroup][request.Topic]; ok {
+					response.ConsumerList = append(response.ConsumerList, consumerGroup)
+				}
+			}
+			storage.offsets[request.Cluster].consumerLock.RUnlock()
+
 		} else {
 			response.ErrorTopic = true
 		}
 		storage.offsets[request.Cluster].brokerLock.RUnlock()
+
 	} else {
 		storage.offsets[request.Cluster].consumerLock.RLock()
 		if _, ok := storage.offsets[request.Cluster].consumer[request.Group]; ok {
