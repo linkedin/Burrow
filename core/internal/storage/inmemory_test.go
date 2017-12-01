@@ -891,17 +891,15 @@ func TestInMemoryStorage_fetchConsumersForTopic_BadCluster(t *testing.T) {
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumersForTopic,
-		Cluster:     "testcluster",
+		Cluster:     "nonExistentCluster",
 		Topic:       "testtopic",
 		Reply:       make(chan interface{}),
 	}
 
 	// Starting request
 	go module.fetchConsumersForTopicList(&request, module.Log)
-	response := <-request.Reply
 
 	response, ok := <-request.Reply
-
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
 }
