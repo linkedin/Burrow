@@ -143,26 +143,19 @@ func (module *KafkaZkClient) Stop() error {
 }
 
 func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
-	for {
-		select {
-		case event, isOpen := <-eventChan:
-			if !isOpen {
-				// All done here
-				return
-			}
-			if event.Type == zk.EventSession {
-				switch event.State {
-				case zk.StateExpired:
-					module.Log.Error("session expired")
-					module.areWatchesSet = false
-				case zk.StateConnected:
-					if !module.areWatchesSet {
-						module.Log.Info("reinitializing watches")
-						module.groupLock.Lock()
-						module.groupList = make(map[string]*topicList)
-						module.groupLock.Unlock()
-						go module.resetGroupListWatchAndAdd(false)
-					}
+	for event := range eventChan {
+		if event.Type == zk.EventSession {
+			switch event.State {
+			case zk.StateExpired:
+				module.Log.Error("session expired")
+				module.areWatchesSet = false
+			case zk.StateConnected:
+				if !module.areWatchesSet {
+					module.Log.Info("reinitializing watches")
+					module.groupLock.Lock()
+					module.groupList = make(map[string]*topicList)
+					module.groupLock.Unlock()
+					go module.resetGroupListWatchAndAdd(false)
 				}
 			}
 		}
@@ -181,14 +174,12 @@ func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
 }
 
 func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
-	select {
-	case event, isOpen := <-eventChan:
-		if (!isOpen) || (event.Type == zk.EventNotWatching) {
-			// We're done here
-			return
-		}
-		go module.resetGroupListWatchAndAdd(event.Type != zk.EventNodeChildrenChanged)
+	event, isOpen := <-eventChan
+	if (!isOpen) || (event.Type == zk.EventNotWatching) {
+		// We're done here
+		return
 	}
+	go module.resetGroupListWatchAndAdd(event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
@@ -229,14 +220,12 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 }
 
 func (module *KafkaZkClient) watchTopicList(group string, eventChan <-chan zk.Event) {
-	select {
-	case event, isOpen := <-eventChan:
-		if (!isOpen) || (event.Type == zk.EventNotWatching) {
-			// We're done here
-			return
-		}
-		go module.resetTopicListWatchAndAdd(group, event.Type != zk.EventNodeChildrenChanged)
+	event, isOpen := <-eventChan
+	if (!isOpen) || (event.Type == zk.EventNotWatching) {
+		// We're done here
+		return
 	}
+	go module.resetTopicListWatchAndAdd(group, event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly bool) {
@@ -273,14 +262,12 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 }
 
 func (module *KafkaZkClient) watchPartitionList(group string, topic string, eventChan <-chan zk.Event) {
-	select {
-	case event, isOpen := <-eventChan:
-		if (!isOpen) || (event.Type == zk.EventNotWatching) {
-			// We're done here
-			return
-		}
-		go module.resetPartitionListWatchAndAdd(group, topic, event.Type != zk.EventNodeChildrenChanged)
+	event, isOpen := <-eventChan
+	if (!isOpen) || (event.Type == zk.EventNotWatching) {
+		// We're done here
+		return
 	}
+	go module.resetPartitionListWatchAndAdd(group, topic, event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic string, resetOnly bool) {
@@ -316,14 +303,12 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 }
 
 func (module *KafkaZkClient) watchOffset(group string, topic string, partition int32, eventChan <-chan zk.Event) {
-	select {
-	case event, isOpen := <-eventChan:
-		if (!isOpen) || (event.Type == zk.EventNotWatching) {
-			// We're done here
-			return
-		}
-		go module.resetOffsetWatchAndSend(group, topic, partition, event.Type != zk.EventNodeDataChanged)
+	event, isOpen := <-eventChan
+	if (!isOpen) || (event.Type == zk.EventNotWatching) {
+		// We're done here
+		return
 	}
+	go module.resetOffsetWatchAndSend(group, topic, partition, event.Type != zk.EventNodeDataChanged)
 }
 
 func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string, partition int32, resetOnly bool) {

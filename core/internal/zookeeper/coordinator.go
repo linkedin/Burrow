@@ -134,24 +134,17 @@ func (zc *Coordinator) mainLoop(eventChan <-chan zk.Event) {
 	zc.running.Add(1)
 	defer zc.running.Done()
 
-	for {
-		select {
-		case event, isOpen := <-eventChan:
-			if !isOpen {
-				// All done here
-				return
-			}
-			if event.Type == zk.EventSession {
-				switch event.State {
-				case zk.StateExpired:
-					zc.Log.Error("session expired")
-					zc.App.ZookeeperConnected = false
-					zc.App.ZookeeperExpired.Broadcast()
-				case zk.StateConnected:
-					if !zc.App.ZookeeperConnected {
-						zc.Log.Info("starting session")
-						zc.App.ZookeeperConnected = true
-					}
+	for event := range eventChan {
+		if event.Type == zk.EventSession {
+			switch event.State {
+			case zk.StateExpired:
+				zc.Log.Error("session expired")
+				zc.App.ZookeeperConnected = false
+				zc.App.ZookeeperExpired.Broadcast()
+			case zk.StateConnected:
+				if !zc.App.ZookeeperConnected {
+					zc.Log.Info("starting session")
+					zc.App.ZookeeperConnected = true
 				}
 			}
 		}

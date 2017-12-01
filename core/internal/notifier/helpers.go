@@ -99,7 +99,6 @@ func templateCountPartitions(partitions []*protocol.PartitionStatus) map[string]
 	for _, partition := range partitions {
 		switch partition.Status {
 		case protocol.StatusOK:
-			break
 		case protocol.StatusWarning:
 			rv["warn"]++
 		case protocol.StatusStop:

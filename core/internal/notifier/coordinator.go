@@ -342,8 +342,9 @@ func (nc *Coordinator) sendClusterRequest() {
 		RequestType: protocol.StorageFetchClusters,
 		Reply:       make(chan interface{}),
 	}
+
+	nc.running.Add(1)
 	go func() {
-		nc.running.Add(1)
 		defer nc.running.Done()
 		nc.processClusterList(request.Reply)
 	}()
