@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Data storage subsystem.
+// Package storage - Data storage subsystem.
 // The storage subsystem receives information from the cluster and consumer subsystems and serves that information out
 // to other subsystems on request.
 //

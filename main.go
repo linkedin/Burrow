@@ -51,7 +51,7 @@ type exitCode struct{ Code int }
 
 func handleExit() {
 	if e := recover(); e != nil {
-		if exit, ok := e.(exitCode); ok == true {
+		if exit, ok := e.(exitCode); ok {
 			if exit.Code != 0 {
 				fmt.Fprintln(os.Stderr, "Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
 			} else {

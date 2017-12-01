@@ -1,3 +1,5 @@
+// +build !race
+
 /* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
  * 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -118,7 +120,10 @@ func TestCoordinator_mainLoop(t *testing.T) {
 }
 
 // Example for the Coordinator docs on how to do connection state monitoring
-func ExampleCoordinator_stateMonitoring(app *protocol.ApplicationContext) {
+func ExampleCoordinator_stateMonitoring() {
+	// Ignore me - needed to make the example clean
+	app := &protocol.ApplicationContext{}
+
 	for {
 		// Wait for the Zookeeper connection to be connected
 		for !app.ZookeeperConnected {

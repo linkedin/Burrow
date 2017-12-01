@@ -52,12 +52,13 @@ func ValidateZookeeperPath(path string) bool {
 		// Root node is OK
 		return true
 	}
+
+	nodeRegexp, _ := regexp.Compile(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`)
 	for i, node := range parts {
 		if i == 0 {
 			continue
 		}
-		matches, _ := regexp.MatchString(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`, node)
-		if !matches {
+		if !nodeRegexp.MatchString(node) {
 			return false
 		}
 	}

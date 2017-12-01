@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Group evaluation subsystem.
+// Package evaluator - Group evaluation subsystem.
 // The evaluator subsystem is responsible for fetching group information from the storage subsystem and calculating the
 // group's status based on that. It responds to EvaluatorRequest objects that are send via a channel, and replies with
 // a ConsumerGroupStatus.

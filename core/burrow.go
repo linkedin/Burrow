@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Core Burrow logic.
+// Package core - Core Burrow logic.
 // The core package is where all the internal logic for Burrow is located. It provides several helpers for setting up
 // logging and application management (such as PID files), as well as the Start method that runs Burrow itself.
 //

@@ -53,7 +53,7 @@ type httpResponseClientProfile struct {
 	ClientID     string                   `json:"client-id"`
 	KafkaVersion string                   `json:"kafka-version"`
 	TLS          *httpResponseTLSProfile  `json:"tls"`
-	SASL         *httpResponseSASLProfile `json:"tls"`
+	SASL         *httpResponseSASLProfile `json:"sasl"`
 }
 
 type httpResponseClusterList struct {

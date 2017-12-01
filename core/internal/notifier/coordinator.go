@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Status notification subsystem.
+// Package notifier - Status notification subsystem.
 // The notifier subsystem watches the status for all consumer groups and uses the configured modules to send
 // information about the status of those groups to outside systems, such as via email or calls to HTTP endpoints. The
 // message bodies are built using templates, and notifications can be sent for both active problems as well as when
@@ -258,6 +258,7 @@ func (nc *Coordinator) Start() error {
 
 	// The notifier coordinator is responsible for fetching group evaluations and handing them off to the individual
 	// notifier modules.
+	nc.running.Add(1)
 	go nc.responseLoop()
 
 	err := helpers.StartCoordinatorModules(nc.modules)
@@ -272,6 +273,7 @@ func (nc *Coordinator) Start() error {
 	go nc.manageEvalLoop()
 
 	// Run our main loop to watch tickers and take actions
+	nc.running.Add(1)
 	go nc.tickerLoop()
 
 	return nil
@@ -307,6 +309,7 @@ func (nc *Coordinator) manageEvalLoop() {
 
 		// We've got the lock, start the evaluation loop
 		nc.doEvaluations = true
+		nc.running.Add(1)
 		go nc.sendEvaluatorRequests()
 		nc.Log.Info("starting evaluations", zap.Error(err))
 
@@ -326,6 +329,8 @@ func (nc *Coordinator) manageEvalLoop() {
 
 // We keep this function trivial because tickers are not easy to mock/test in golang
 func (nc *Coordinator) tickerLoop() {
+	defer nc.running.Done()
+
 	for {
 		select {
 		case <-nc.groupRefresh.GetChannel():
@@ -342,16 +347,13 @@ func (nc *Coordinator) sendClusterRequest() {
 		RequestType: protocol.StorageFetchClusters,
 		Reply:       make(chan interface{}),
 	}
-	go func() {
-		nc.running.Add(1)
-		defer nc.running.Done()
-		nc.processClusterList(request.Reply)
-	}()
+
+	nc.running.Add(1)
+	go nc.processClusterList(request.Reply)
 	helpers.TimeoutSendStorageRequest(nc.App.StorageChannel, request, 1)
 }
 
 func (nc *Coordinator) sendEvaluatorRequests() {
-	nc.running.Add(1)
 	defer nc.running.Done()
 
 	for nc.doEvaluations {
@@ -385,6 +387,8 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 }
 
 func (nc *Coordinator) responseLoop() {
+	defer nc.running.Done()
+
 	for {
 		select {
 		case response := <-nc.evaluatorResponse:
@@ -395,6 +399,7 @@ func (nc *Coordinator) responseLoop() {
 
 			// As long as the response is not NotFound, send it to the modules
 			if response.Status != protocol.StatusNotFound {
+				nc.running.Add(1)
 				go nc.checkAndSendResponseToModules(response)
 			}
 		case <-nc.quitChannel:
@@ -404,6 +409,8 @@ func (nc *Coordinator) responseLoop() {
 }
 
 func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.ConsumerGroupStatus) {
+	defer nc.running.Done()
+
 	nc.clusterLock.RLock()
 	defer nc.clusterLock.RUnlock()
 	cluster := nc.clusters[response.Cluster]
@@ -435,6 +442,7 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 			continue
 		}
 		if module.AcceptConsumerGroup(response) {
+			nc.running.Add(1)
 			nc.notifyModuleFunc(module, response, cgroup.Start, cgroup.ID)
 		}
 	}
@@ -447,6 +455,8 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 }
 
 func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
+	defer nc.running.Done()
+
 	response := <-replyChan
 	clusterList, _ := response.([]string)
 	requestMap := make(map[string]*protocol.StorageRequest)
@@ -479,12 +489,15 @@ func (nc *Coordinator) processClusterList(replyChan chan interface{}) {
 
 	// Fire off requests for group lists to the storage module, with goroutines to process the responses
 	for cluster, request := range requestMap {
+		nc.running.Add(1)
 		go nc.processConsumerList(cluster, request.Reply)
 		helpers.TimeoutSendStorageRequest(nc.App.StorageChannel, request, 1)
 	}
 }
 
 func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interface{}) {
+	defer nc.running.Done()
+
 	response := <-replyChan
 	consumerList, _ := response.([]string)
 
@@ -513,7 +526,6 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 }
 
 func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventID string) {
-	nc.running.Add(1)
 	defer nc.running.Done()
 
 	// Note - it is assumed that a read lock is already held when calling notifyModule

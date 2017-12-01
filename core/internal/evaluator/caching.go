@@ -86,6 +86,7 @@ func (module *CachingEvaluator) GetCommunicationChannel() chan *protocol.Evaluat
 func (module *CachingEvaluator) Start() error {
 	module.Log.Info("starting")
 
+	module.running.Add(1)
 	go module.mainLoop()
 	return nil
 }
@@ -100,19 +101,11 @@ func (module *CachingEvaluator) Stop() error {
 }
 
 func (module *CachingEvaluator) mainLoop() {
-	module.running.Add(1)
 	defer module.running.Done()
 
-	for {
-		select {
-		case request, isOpen := <-module.RequestChannel:
-			if !isOpen {
-				return
-			}
-
-			if request != nil {
-				go module.getConsumerStatus(request)
-			}
+	for request := range module.RequestChannel {
+		if request != nil {
+			go module.getConsumerStatus(request)
 		}
 	}
 }
@@ -351,10 +344,7 @@ func checkIfOffsetsRewind(offsets []*protocol.ConsumerOffset) bool {
 func checkIfOffsetsStopped(offsets []*protocol.ConsumerOffset, timeNow int64) bool {
 	firstTimestamp := offsets[0].Timestamp
 	lastTimestamp := offsets[len(offsets)-1].Timestamp
-	if ((timeNow * 1000) - lastTimestamp) > (lastTimestamp - firstTimestamp) {
-		return true
-	}
-	return false
+	return ((timeNow * 1000) - lastTimestamp) > (lastTimestamp - firstTimestamp)
 }
 
 // Rule 4 - If the consumer is committing offsets that do not change, it's an error (partition is stalled)

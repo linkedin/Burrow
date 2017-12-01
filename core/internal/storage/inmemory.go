@@ -43,7 +43,8 @@ type InMemoryStorage struct {
 	minDistance int64
 
 	requestChannel chan *protocol.StorageRequest
-	running        sync.WaitGroup
+	workersRunning sync.WaitGroup
+	mainRunning    sync.WaitGroup
 	offsets        map[string]clusterOffsets
 	groupWhitelist *regexp.Regexp
 	workers        []chan *protocol.StorageRequest
@@ -86,7 +87,8 @@ func (module *InMemoryStorage) Configure(name string, configRoot string) {
 
 	module.name = name
 	module.requestChannel = make(chan *protocol.StorageRequest)
-	module.running = sync.WaitGroup{}
+	module.workersRunning = sync.WaitGroup{}
+	module.mainRunning = sync.WaitGroup{}
 	module.offsets = make(map[string]clusterOffsets)
 
 	// Set defaults for configs if needed
@@ -134,9 +136,11 @@ func (module *InMemoryStorage) Start() error {
 	module.workers = make([]chan *protocol.StorageRequest, module.numWorkers)
 	for i := 0; i < module.numWorkers; i++ {
 		module.workers[i] = make(chan *protocol.StorageRequest)
+		module.workersRunning.Add(1)
 		go module.requestWorker(i, module.workers[i])
 	}
 
+	module.mainRunning.Add(1)
 	go module.mainLoop()
 	return nil
 }
@@ -147,17 +151,18 @@ func (module *InMemoryStorage) Stop() error {
 	module.Log.Info("stopping")
 
 	close(module.requestChannel)
+	module.mainRunning.Wait()
+
 	for i := 0; i < module.numWorkers; i++ {
 		close(module.workers[i])
 	}
+	module.workersRunning.Wait()
 
-	module.running.Wait()
 	return nil
 }
 
 func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan *protocol.StorageRequest) {
-	module.running.Add(1)
-	defer module.running.Done()
+	defer module.workersRunning.Done()
 
 	// Using a map for the request types avoids a bit of complexity below
 	var requestTypeMap = map[protocol.StorageRequestConstant]func(*protocol.StorageRequest, *zap.Logger){
@@ -176,54 +181,39 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 	}
 
 	workerLogger := module.Log.With(zap.Int("worker", workerNum))
-	for {
-		select {
-		case r, isOpen := <-requestChannel:
-			if !isOpen {
-				return
-			}
-
-			if requestFunc, ok := requestTypeMap[r.RequestType]; ok {
-				requestFunc(r, workerLogger.With(
-					zap.String("cluster", r.Cluster),
-					zap.String("consumer", r.Group),
-					zap.String("topic", r.Topic),
-					zap.Int32("partition", r.Partition),
-					zap.Int32("topic_partition_count", r.TopicPartitionCount),
-					zap.Int64("offset", r.Offset),
-					zap.Int64("timestamp", r.Timestamp),
-					zap.String("owner", r.Owner),
-					zap.String("request", r.RequestType.String())))
-			}
+	for r := range requestChannel {
+		if requestFunc, ok := requestTypeMap[r.RequestType]; ok {
+			requestFunc(r, workerLogger.With(
+				zap.String("cluster", r.Cluster),
+				zap.String("consumer", r.Group),
+				zap.String("topic", r.Topic),
+				zap.Int32("partition", r.Partition),
+				zap.Int32("topic_partition_count", r.TopicPartitionCount),
+				zap.Int64("offset", r.Offset),
+				zap.Int64("timestamp", r.Timestamp),
+				zap.String("owner", r.Owner),
+				zap.String("request", r.RequestType.String())))
 		}
 	}
 }
 
 func (module *InMemoryStorage) mainLoop() {
-	module.running.Add(1)
-	defer module.running.Done()
+	defer module.mainRunning.Done()
 
-	for {
-		select {
-		case r, isOpen := <-module.requestChannel:
-			if !isOpen {
-				return
-			}
-
-			switch r.RequestType {
-			case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic:
-				// Send to any worker
-				module.workers[int(rand.Int31n(int32(module.numWorkers)))] <- r
-			case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
-				// Hash to a consistent worker
-				module.workers[int(xxhash.ChecksumString64(r.Cluster+r.Group)%uint64(module.numWorkers))] <- r
-			default:
-				module.Log.Error("unknown storage request type",
-					zap.Int("request_type", int(r.RequestType)),
-				)
-				if r.Reply != nil {
-					close(r.Reply)
-				}
+	for r := range module.requestChannel {
+		switch r.RequestType {
+		case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic:
+			// Send to any worker
+			module.workers[int(rand.Int31n(int32(module.numWorkers)))] <- r
+		case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
+			// Hash to a consistent worker
+			module.workers[int(xxhash.ChecksumString64(r.Cluster+r.Group)%uint64(module.numWorkers))] <- r
+		default:
+			module.Log.Error("unknown storage request type",
+				zap.Int("request_type", int(r.RequestType)),
+			)
+			if r.Reply != nil {
+				close(r.Reply)
 			}
 		}
 	}
@@ -258,7 +248,6 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 			Offset:    request.Offset,
 			Timestamp: request.Timestamp,
 		}
-		partitionEntry = topicList[request.Partition]
 	} else {
 		partitionEntry.Offset = request.Offset
 		partitionEntry.Timestamp = request.Timestamp

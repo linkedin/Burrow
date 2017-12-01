@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Burrow types and interfaces.
+// Package protocol - Burrow types and interfaces.
 // The protocol module provides the definitions for most of the common Burrow types and interfaces that are used in the
 // rest of the application. The documentation here is primarily targeted at developers of Burrow modules, and not the
 // end user.
