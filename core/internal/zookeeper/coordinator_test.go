@@ -118,7 +118,10 @@ func TestCoordinator_mainLoop(t *testing.T) {
 }
 
 // Example for the Coordinator docs on how to do connection state monitoring
-func ExampleCoordinator_stateMonitoring(app *protocol.ApplicationContext) {
+func ExampleCoordinator_stateMonitoring() {
+	// Ignore me - needed to make the example clean
+	app := &protocol.ApplicationContext{}
+
 	for {
 		// Wait for the Zookeeper connection to be connected
 		for !app.ZookeeperConnected {
