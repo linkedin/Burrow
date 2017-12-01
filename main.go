@@ -1,4 +1,4 @@
-/* Copyright 2015 LinkedIn Corp. Licensed under the Apache License, Version
+/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
  * 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
@@ -8,164 +8,101 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
+// Burrow provides advanced Kafka Consumer Lag Checking.
+// It is a monitoring companion for Apache Kafka that provides consumer lag checking as a service without the need for
+// specifying thresholds. It monitors committed offsets for all consumers and calculates the status of those consumers
+// on demand. An HTTP endpoint is provided to request status on demand, as well as provide other Kafka cluster
+// information. There are also configurable notifiers that can send status out via email or HTTP calls to another
+// service.
+//
+// CLI or Library
+//
+// Burrow is designed to be run as a standalone application (CLI), and this is what the main package provides. In some
+// situations it may be better for you to wrap Burrow with another application - for example, in environments where you
+// have your own application structure to provide configuration and logging. To this end, Burrow can also be used as a
+// library within another app.
+//
+// When embedding Burrow, please refer to https://github.com/linkedin/Burrow/blob/master/main.go for details on what
+// preparation should happen before starting it. This is the wrapper that provides the CLI interface. The main logic
+// for Burrow is in the core package, while the protocol package provides some of the common interfaces that are used.
+//
+// Additional Documentation
+//
+// More documentation on Burrow, including configuration and HTTP requests, can be found at
+// https://github.com/linkedin/Burrow/wiki
 package main
 
 import (
 	"flag"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/samuel/go-zookeeper/zk"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/spf13/viper"
+
+	"github.com/linkedin/Burrow/core"
 )
 
-type KafkaCluster struct {
-	Client    *KafkaClient
-	Zookeeper *ZookeeperClient
-}
+// exitCode wraps a return value for the application
+type exitCode struct{ Code int }
 
-type StormCluster struct {
-	Storm *StormClient
-}
+func handleExit() {
+	if e := recover(); e != nil {
+		if exit, ok := e.(exitCode); ok == true {
+			if exit.Code != 0 {
+				fmt.Fprintln(os.Stderr, "Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
+			} else {
+				fmt.Fprintln(os.Stderr, "Stopped Burrow at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
+			}
 
-type ApplicationContext struct {
-	Config       *BurrowConfig
-	Storage      *OffsetStorage
-	Clusters     map[string]*KafkaCluster
-	Storms       map[string]*StormCluster
-	Server       *HttpServer
-	NotifyCenter *NotifyCenter
-	NotifierLock *zk.Lock
-}
-
-// Why two mains? Golang doesn't let main() return, which means defers will not run.
-// So we do everything in a separate main, that way we can easily exit out with an error code and still run defers
-func burrowMain() int {
-	// The only command line arg is the config file
-	var cfgfile = flag.String("config", "burrow.cfg", "Full path to the configuration file")
-	flag.Parse()
-
-	// Load and validate the configuration
-	fmt.Fprintln(os.Stderr, "Reading configuration from", *cfgfile)
-	appContext := &ApplicationContext{Config: ReadConfig(*cfgfile)}
-	if err := ValidateConfig(appContext); err != nil {
-		log.Criticalf("Cannot validate configuration: %v", err)
-		return 1
-	}
-
-	// Create the PID file to lock out other processes. Defer removal so it's the last thing to go
-	createPidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
-	defer removePidFile(appContext.Config.General.LogDir + "/" + appContext.Config.General.PIDFile)
-
-	// Set up stderr/stdout to go to a separate log file, if enabled
-	if appContext.Config.General.StdoutLogfile != "" {
-		openOutLog(appContext.Config.General.LogDir + "/" + appContext.Config.General.StdoutLogfile)
-	}
-	fmt.Println("Started Burrow at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
-
-	// If a logging config is specified, replace the existing loggers
-	if appContext.Config.General.LogConfig != "" {
-		NewLogger(appContext.Config.General.LogConfig)
-	}
-
-	// Start a local Zookeeper client (used for application locks)
-	log.Info("Starting Zookeeper client")
-	zkconn, _, err := zk.Connect(appContext.Config.Zookeeper.Hosts, time.Duration(appContext.Config.Zookeeper.Timeout)*time.Second)
-	if err != nil {
-		log.Criticalf("Cannot start Zookeeper client: %v", err)
-		return 1
-	}
-	defer zkconn.Close()
-
-	// Start an offsets storage module
-	log.Info("Starting Offsets Storage module")
-	appContext.Storage, err = NewOffsetStorage(appContext)
-	if err != nil {
-		log.Criticalf("Cannot configure offsets storage module: %v", err)
-		return 1
-	}
-	defer appContext.Storage.Stop()
-
-	// Start an HTTP server
-	log.Info("Starting HTTP server")
-	appContext.Server, err = NewHttpServer(appContext)
-	if err != nil {
-		log.Criticalf("Cannot start HTTP server: %v", err)
-		return 1
-	}
-	defer appContext.Server.Stop()
-
-	// Start Kafka clients and Zookeepers for each cluster
-	appContext.Clusters = make(map[string]*KafkaCluster, len(appContext.Config.Kafka))
-	for cluster, _ := range appContext.Config.Kafka {
-		log.Infof("Starting Zookeeper client for cluster %s", cluster)
-		zkconn, err := NewZookeeperClient(appContext, cluster)
-		if err != nil {
-			log.Criticalf("Cannot start Zookeeper client for cluster %s: %v", cluster, err)
-			return 1
+			os.Exit(exit.Code)
 		}
-		defer zkconn.Stop()
-
-		log.Infof("Starting Kafka client for cluster %s", cluster)
-		client, err := NewKafkaClient(appContext, cluster)
-		if err != nil {
-			log.Criticalf("Cannot start Kafka client for cluster %s: %v", cluster, err)
-			return 1
-		}
-		defer client.Stop()
-
-		appContext.Clusters[cluster] = &KafkaCluster{Client: client, Zookeeper: zkconn}
+		panic(e) // not an exitCode, bubble up
 	}
-
-	// Start Storm Clients for each storm cluster
-	appContext.Storms = make(map[string]*StormCluster, len(appContext.Config.Storm))
-	for cluster, _ := range appContext.Config.Storm {
-		log.Infof("Starting Storm client for cluster %s", cluster)
-		stormClient, err := NewStormClient(appContext, cluster)
-		if err != nil {
-			log.Criticalf("Cannot start Storm client for cluster %s: %v", cluster, err)
-			return 1
-		}
-		defer stormClient.Stop()
-
-		appContext.Storms[cluster] = &StormCluster{Storm: stormClient}
-	}
-
-	// Set up the Zookeeper lock for notification
-	appContext.NotifierLock = zk.NewLock(zkconn, appContext.Config.Zookeeper.LockPath, zk.WorldACL(zk.PermAll))
-
-	// Load the notifiers, but do not start them
-	err = LoadNotifiers(appContext)
-	if err != nil {
-		// Error was already logged
-		return 1
-	}
-
-	// Notifiers are started in a goroutine if we get the ZK lock
-	go StartNotifiers(appContext)
-	defer StopNotifiers(appContext)
-
-	// Register signal handlers for exiting
-	exitChannel := make(chan os.Signal, 1)
-	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGSTOP, syscall.SIGTERM)
-
-	// Wait until we're told to exit
-	<-exitChannel
-	log.Info("Shutdown triggered")
-	return 0
 }
 
 func main() {
+	// This makes sure that we panic and run defers correctly
+	defer handleExit()
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	rv := burrowMain()
-	if rv != 0 {
-		fmt.Println("Burrow failed at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
-	} else {
-		fmt.Println("Stopped Burrow at", time.Now().Format("January 2, 2006 at 3:04pm (MST)"))
+	// The only command line arg is the config file
+	configPath := flag.String("config-dir", ".", "Directory that contains the configuration file")
+	flag.Parse()
+
+	// Load the configuration from the file
+	viper.SetConfigName("burrow")
+	viper.AddConfigPath(*configPath)
+	fmt.Fprintln(os.Stderr, "Reading configuration from", *configPath)
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
+		panic(exitCode{1})
 	}
-	os.Exit(rv)
+
+	// Create the PID file to lock out other processes
+	viper.SetDefault("general.pidfile", "burrow.pid")
+	pidFile := viper.GetString("general.pidfile")
+	if !core.CheckAndCreatePidFile(pidFile) {
+		// Any error on checking or creating the PID file causes an immediate exit
+		panic(exitCode{1})
+	}
+	defer core.RemovePidFile(pidFile)
+
+	// Set up stderr/stdout to go to a separate log file, if enabled
+	stdoutLogfile := viper.GetString("general.stdout-logfile")
+	if stdoutLogfile != "" {
+		core.OpenOutLog(stdoutLogfile)
+	}
+
+	// Register signal handlers for exiting
+	exitChannel := make(chan os.Signal, 1)
+	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+
+	// This triggers handleExit (after other defers), which will then call os.Exit properly
+	panic(exitCode{core.Start(nil, exitChannel)})
 }
