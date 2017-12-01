@@ -52,6 +52,7 @@ type KafkaZkClient struct {
 
 	zk             protocol.ZookeeperClient
 	areWatchesSet  bool
+	running        *sync.WaitGroup
 	groupLock      *sync.Mutex
 	groupList      map[string]*topicList
 	groupWhitelist *regexp.Regexp
@@ -67,6 +68,7 @@ func (module *KafkaZkClient) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
+	module.running = &sync.WaitGroup{}
 	module.groupLock = &sync.Mutex{}
 	module.groupList = make(map[string]*topicList)
 	module.connectFunc = helpers.ZookeeperConnect
@@ -123,10 +125,12 @@ func (module *KafkaZkClient) Start() error {
 	module.zk = zkconn
 
 	// Set up all groups initially (we can't count on catching the first CONNECTED event
+	module.running.Add(1)
 	module.resetGroupListWatchAndAdd(false)
 	module.areWatchesSet = true
 
 	// Start up a func to watch for connection state changes and reset all the watches when needed
+	module.running.Add(1)
 	go module.connectionStateWatcher(connEventChan)
 
 	return nil
@@ -138,11 +142,13 @@ func (module *KafkaZkClient) Stop() error {
 
 	// Closing the ZK client will invalidate all the watches, which will close all the running goroutines
 	module.zk.Close()
+	module.running.Wait()
 
 	return nil
 }
 
 func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
+	defer module.running.Done()
 	for event := range eventChan {
 		if event.Type == zk.EventSession {
 			switch event.State {
@@ -155,6 +161,8 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 					module.groupLock.Lock()
 					module.groupList = make(map[string]*topicList)
 					module.groupLock.Unlock()
+
+					module.running.Add(1)
 					go module.resetGroupListWatchAndAdd(false)
 				}
 			}
@@ -174,15 +182,20 @@ func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
 }
 
 func (module *KafkaZkClient) watchGroupList(eventChan <-chan zk.Event) {
+	defer module.running.Done()
+
 	event, isOpen := <-eventChan
 	if (!isOpen) || (event.Type == zk.EventNotWatching) {
 		// We're done here
 		return
 	}
+	module.running.Add(1)
 	go module.resetGroupListWatchAndAdd(event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
+	defer module.running.Done()
+
 	// Get the current group list and reset our watch
 	consumerGroups, _, groupListEventChan, err := module.zk.ChildrenW(module.zookeeperPath)
 	if err != nil {
@@ -190,6 +203,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 		module.Log.Error("failed to list groups", zap.String("error", err.Error()))
 		return
 	}
+	module.running.Add(1)
 	go module.watchGroupList(groupListEventChan)
 
 	if !resetOnly {
@@ -213,6 +227,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 				module.Log.Debug("add group",
 					zap.String("group", group),
 				)
+				module.running.Add(1)
 				module.resetTopicListWatchAndAdd(group, false)
 			}
 		}
@@ -220,15 +235,20 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 }
 
 func (module *KafkaZkClient) watchTopicList(group string, eventChan <-chan zk.Event) {
+	defer module.running.Done()
+
 	event, isOpen := <-eventChan
 	if (!isOpen) || (event.Type == zk.EventNotWatching) {
 		// We're done here
 		return
 	}
+	module.running.Add(1)
 	go module.resetTopicListWatchAndAdd(group, event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly bool) {
+	defer module.running.Done()
+
 	// Get the current group topic list and reset our watch
 	groupTopics, _, topicListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets")
 	if err != nil {
@@ -239,6 +259,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 		)
 		return
 	}
+	module.running.Add(1)
 	go module.watchTopicList(group, topicListEventChan)
 
 	if !resetOnly {
@@ -255,6 +276,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 					zap.String("group", group),
 					zap.String("topic", topic),
 				)
+				module.running.Add(1)
 				module.resetPartitionListWatchAndAdd(group, topic, false)
 			}
 		}
@@ -262,15 +284,20 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 }
 
 func (module *KafkaZkClient) watchPartitionList(group string, topic string, eventChan <-chan zk.Event) {
+	defer module.running.Done()
+
 	event, isOpen := <-eventChan
 	if (!isOpen) || (event.Type == zk.EventNotWatching) {
 		// We're done here
 		return
 	}
+	module.running.Add(1)
 	go module.resetPartitionListWatchAndAdd(group, topic, event.Type != zk.EventNodeChildrenChanged)
 }
 
 func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic string, resetOnly bool) {
+	defer module.running.Done()
+
 	// Get the current topic partition list and reset our watch
 	topicPartitions, _, partitionListEventChan, err := module.zk.ChildrenW(module.zookeeperPath + "/" + group + "/offsets/" + topic)
 	if err != nil {
@@ -282,6 +309,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 		)
 		return
 	}
+	module.running.Add(1)
 	go module.watchPartitionList(group, topic, partitionListEventChan)
 
 	if !resetOnly {
@@ -295,6 +323,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 					zap.String("topic", topic),
 					zap.Int32("partition", i),
 				)
+				module.running.Add(1)
 				module.resetOffsetWatchAndSend(group, topic, i, false)
 			}
 			module.groupList[group].topics[topic].count = int32(len(topicPartitions))
@@ -303,15 +332,20 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 }
 
 func (module *KafkaZkClient) watchOffset(group string, topic string, partition int32, eventChan <-chan zk.Event) {
+	defer module.running.Done()
+
 	event, isOpen := <-eventChan
 	if (!isOpen) || (event.Type == zk.EventNotWatching) {
 		// We're done here
 		return
 	}
+	module.running.Add(1)
 	go module.resetOffsetWatchAndSend(group, topic, partition, event.Type != zk.EventNodeDataChanged)
 }
 
 func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string, partition int32, resetOnly bool) {
+	defer module.running.Done()
+
 	// Get the current offset and reset our watch
 	offsetString, offsetStat, offsetEventChan, err := module.zk.GetW(module.zookeeperPath + "/" + group + "/offsets/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
 	if err != nil {
@@ -324,6 +358,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 		)
 		return
 	}
+	module.running.Add(1)
 	go module.watchOffset(group, topic, partition, offsetEventChan)
 
 	if !resetOnly {

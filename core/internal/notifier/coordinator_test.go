@@ -169,21 +169,35 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 	// This cluster will get deleted
 	coordinator.clusters["deleteme"] = &clusterGroups{}
 
-	go coordinator.sendClusterRequest()
-	request := <-coordinator.App.StorageChannel
-	assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request type to be StorageFetchClusters, not %v", request.RequestType)
+	// This goroutine will receive the storage request for a cluster list, and respond with an appropriate list
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		request := <-coordinator.App.StorageChannel
+		assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request type to be StorageFetchClusters, not %v", request.RequestType)
 
-	// Send a response back with a cluster list, which will trigger another storage request
-	request.Reply <- []string{"testcluster"}
-	request = <-coordinator.App.StorageChannel
-	time.Sleep(50 * time.Millisecond)
+		// Send a response back with a cluster list, which will trigger another storage request
+		request.Reply <- []string{"testcluster"}
 
-	assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request type to be StorageFetchConsumers, not %v", request.RequestType)
-	assert.Equalf(t, "testcluster", request.Cluster, "Expected request cluster to be testcluster, not %v", request.RequestType)
+		// This goroutine will receive the storage request for a consumer list, and respond with an appropriate list
+		// We don't start it until after the first request is received, because otherwise we'll have a race condition
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			request := <-coordinator.App.StorageChannel
+			assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request type to be StorageFetchConsumers, not %v", request.RequestType)
+			assert.Equalf(t, "testcluster", request.Cluster, "Expected request cluster to be testcluster, not %v", request.RequestType)
 
-	// Send back the group list response, and sleep for a moment after that (otherwise we'll be racing the goroutine that updates the cluster groups
-	request.Reply <- []string{"testgroup"}
-	time.Sleep(50 * time.Millisecond)
+			// Send back the group list response, and sleep for a moment after that (otherwise we'll be racing the goroutine that updates the cluster groups
+			request.Reply <- []string{"testgroup"}
+		}()
+	}()
+
+
+	coordinator.sendClusterRequest()
+	coordinator.running.Wait()
+	wg.Wait()
 
 	assert.Lenf(t, coordinator.clusters, 1, "Expected 1 entry in the clusters map, not %v", len(coordinator.clusters))
 	cluster, ok := coordinator.clusters["testcluster"]
@@ -193,64 +207,13 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 	assert.True(t, ok, "Expected group to be testgroup")
 }
 
-// This tests the full set of calls to send evaluator requests
-func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.Configure()
-
-	// A test cluster and group to send requests for
-	coordinator.clusters["testcluster"] = &clusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*consumerGroup),
-	}
-	coordinator.clusters["testcluster"].Groups["testgroup"] = &consumerGroup{
-		LastNotify: make(map[string]time.Time),
-		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
-	}
-	coordinator.clusters["testcluster2"] = &clusterGroups{
-		Lock:   &sync.RWMutex{},
-		Groups: make(map[string]*consumerGroup),
-	}
-	coordinator.clusters["testcluster2"].Groups["testgroup2"] = &consumerGroup{
-		LastNotify: make(map[string]time.Time),
-		LastEval:   time.Now().Add(-time.Duration(coordinator.minInterval) * time.Second),
-	}
-
-	coordinator.doEvaluations = true
-	go coordinator.sendEvaluatorRequests()
-
-	// We expect to get 2 requests
-	for i := 0; i < 2; i++ {
-		request := <-coordinator.App.EvaluatorChannel
-		switch request.Cluster {
-		case "testcluster":
-			assert.Equalf(t, "testcluster", request.Cluster, "Expected request cluster to be testcluster, not %v", request.Cluster)
-			assert.Equalf(t, "testgroup", request.Group, "Expected request group to be testgroup, not %v", request.Group)
-			assert.False(t, request.ShowAll, "Expected ShowAll to be false")
-		case "testcluster2":
-			assert.Equalf(t, "testcluster2", request.Cluster, "Expected request cluster to be testcluster2, not %v", request.Cluster)
-			assert.Equalf(t, "testgroup2", request.Group, "Expected request group to be testgroup2, not %v", request.Group)
-			assert.False(t, request.ShowAll, "Expected ShowAll to be false")
-		default:
-			assert.Failf(t, "Received unexpected request for cluster %v, group %v", request.Cluster, request.Group)
-		}
-	}
-
-	select {
-	case <-coordinator.App.EvaluatorChannel:
-		assert.Fail(t, "Received extra request on the evaluator channel")
-	default:
-		// All is good - we didn't expect to find another request
-	}
-	coordinator.doEvaluations = false
-}
-
 // Note, we do not check the calls to the module here, just that the response loop sets the event properly
 func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 	coordinator := fixtureCoordinator()
 
 	// For NotFound, we expect the notifier will not be called at all
 	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+		defer coordinator.running.Done()
 		assert.Fail(t, "Expected notifyModule to not be called")
 	}
 
@@ -279,6 +242,7 @@ func TestCoordinator_responseLoop_NotFound(t *testing.T) {
 		close(coordinator.quitChannel)
 	}()
 
+	coordinator.running.Add(1)
 	coordinator.responseLoop()
 	coordinator.running.Wait()
 	close(coordinator.evaluatorResponse)
@@ -300,6 +264,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 		Status:  protocol.StatusOK,
 	}
 	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+		defer coordinator.running.Done()
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.True(t, startTime.IsZero(), "Expected to be called with zero value startTime")
@@ -326,6 +291,7 @@ func TestCoordinator_responseLoop_NoIncidentOK(t *testing.T) {
 		close(coordinator.quitChannel)
 	}()
 
+	coordinator.running.Add(1)
 	coordinator.responseLoop()
 	coordinator.running.Wait()
 	close(coordinator.evaluatorResponse)
@@ -351,6 +317,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 		Status:  protocol.StatusOK,
 	}
 	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+		defer coordinator.running.Done()
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseOK, status, "Expected to be called with responseOK as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
@@ -379,6 +346,7 @@ func TestCoordinator_responseLoop_HaveIncidentOK(t *testing.T) {
 		close(coordinator.quitChannel)
 	}()
 
+	coordinator.running.Add(1)
 	coordinator.responseLoop()
 	coordinator.running.Wait()
 	close(coordinator.evaluatorResponse)
@@ -403,6 +371,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 		Status:  protocol.StatusError,
 	}
 	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+		defer coordinator.running.Done()
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.False(t, startTime.IsZero(), "Expected to be called with a valid startTime, not zero")
@@ -429,6 +398,7 @@ func TestCoordinator_responseLoop_NoIncidentError(t *testing.T) {
 		close(coordinator.quitChannel)
 	}()
 
+	coordinator.running.Add(1)
 	coordinator.responseLoop()
 	coordinator.running.Wait()
 	close(coordinator.evaluatorResponse)
@@ -454,6 +424,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 		Status:  protocol.StatusError,
 	}
 	coordinator.notifyModuleFunc = func(module Module, status *protocol.ConsumerGroupStatus, startTime time.Time, eventId string) {
+		defer coordinator.running.Done()
 		assert.Equal(t, "test", module.GetName(), "Expected to be called with the null notifier module")
 		assert.Equal(t, responseError, status, "Expected to be called with responseError as the status")
 		assert.Equal(t, mockStartTime, startTime, "Expected to be called with mockStartTime as the startTime")
@@ -482,6 +453,7 @@ func TestCoordinator_responseLoop_HaveIncidentError(t *testing.T) {
 		close(coordinator.quitChannel)
 	}()
 
+	coordinator.running.Add(1)
 	coordinator.responseLoop()
 	coordinator.running.Wait()
 	close(coordinator.evaluatorResponse)
@@ -591,6 +563,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		}
 
 		// Call the func with a response that has the appropriate status
+		coordinator.running.Add(1)
 		coordinator.checkAndSendResponseToModules(response)
 
 		mockModule.AssertExpectations(t)
@@ -632,70 +605,3 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 	assert.Equalf(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
 }
 
-func TestCoordinator_manageEvalLoop_Start(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.Configure()
-
-	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
-	mockLock := &helpers.MockZookeeperLock{}
-	mockLock.On("Lock").Return(nil)
-	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
-	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
-
-	go coordinator.manageEvalLoop()
-	time.Sleep(200 * time.Millisecond)
-
-	mockLock.AssertExpectations(t)
-	mockZk.AssertExpectations(t)
-	assert.True(t, coordinator.doEvaluations, "Expected doEvaluations to be true")
-}
-
-func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.Configure()
-
-	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
-	mockLock := &helpers.MockZookeeperLock{}
-	mockLock.On("Lock").Return(nil)
-	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
-	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
-
-	go coordinator.manageEvalLoop()
-	time.Sleep(200 * time.Millisecond)
-
-	// ZK gets disconnected and expired
-	coordinator.App.ZookeeperConnected = false
-	coordinator.App.ZookeeperExpired.Broadcast()
-	time.Sleep(300 * time.Millisecond)
-
-	mockLock.AssertExpectations(t)
-	mockZk.AssertExpectations(t)
-	assert.False(t, coordinator.doEvaluations, "Expected doEvaluations to be false")
-}
-
-func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
-	coordinator := fixtureCoordinator()
-	coordinator.Configure()
-
-	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
-	mockLock := &helpers.MockZookeeperLock{}
-	mockLock.On("Lock").Return(nil)
-	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
-	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
-
-	go coordinator.manageEvalLoop()
-	time.Sleep(200 * time.Millisecond)
-
-	// ZK gets disconnected and expired
-	coordinator.App.ZookeeperConnected = false
-	coordinator.App.ZookeeperExpired.Broadcast()
-	time.Sleep(200 * time.Millisecond)
-
-	// ZK gets reconnected
-	coordinator.App.ZookeeperConnected = true
-	time.Sleep(300 * time.Millisecond)
-
-	mockLock.AssertExpectations(t)
-	mockZk.AssertExpectations(t)
-	assert.True(t, coordinator.doEvaluations, "Expected doEvaluations to be true")
-}

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+	"sync"
 )
 
 func TestPausableTicker_ImplementsTicker(t *testing.T) {
@@ -47,7 +48,10 @@ func TestPausableTicker_StartStop(t *testing.T) {
 	numEvents := 0
 	quitChan := make(chan struct{})
 	channel := ticker.GetChannel()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-channel:
@@ -62,6 +66,7 @@ func TestPausableTicker_StartStop(t *testing.T) {
 	ticker.Stop()
 	time.Sleep(50 * time.Millisecond)
 	close(quitChan)
+	wg.Wait()
 
 	assert.Equalf(t, 2, numEvents, "Expected 2 events, not %v", numEvents)
 }
@@ -73,7 +78,10 @@ func TestPausableTicker_Restart(t *testing.T) {
 	numEvents := 0
 	quitChan := make(chan struct{})
 	channel := ticker.GetChannel()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-channel:
@@ -91,6 +99,7 @@ func TestPausableTicker_Restart(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	ticker.Stop()
 	close(quitChan)
+	wg.Wait()
 
 	assert.Equalf(t, 4, numEvents, "Expected 4 events, not %v", numEvents)
 }

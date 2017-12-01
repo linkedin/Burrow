@@ -24,6 +24,7 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"sync"
 )
 
 func fixtureModule() *KafkaCluster {
@@ -103,8 +104,19 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 	module.fetchMetadata = true
 	module.topicMap = make(map[string]int)
 	module.topicMap["topictodelete"] = 10
-	go module.maybeUpdateMetadataAndDeleteTopics(client)
-	request := <-module.App.StorageChannel
+
+	// Need to wait for this request to come in and finish, which happens when we call maybeUpdate...
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		request := <-module.App.StorageChannel
+		assert.Equalf(t, protocol.StorageSetDeleteTopic, request.RequestType, "Expected request sent with type StorageSetDeleteTopic, not %v", request.RequestType)
+		assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+		assert.Equalf(t, "topictodelete", request.Topic, "Expected request sent with topic topictodelete, not %v", request.Topic)
+	}()
+	module.maybeUpdateMetadataAndDeleteTopics(client)
+	wg.Wait()
 
 	client.AssertExpectations(t)
 	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
@@ -112,10 +124,6 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 	topic, ok := module.topicMap["testtopic"]
 	assert.True(t, ok, "Expected to find testtopic in topicMap")
 	assert.Equalf(t, 1, topic, "Expected testtopic to be recorded with 1 partition, not %v", topic)
-
-	assert.Equalf(t, protocol.StorageSetDeleteTopic, request.RequestType, "Expected request sent with type StorageSetDeleteTopic, not %v", request.RequestType)
-	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
-	assert.Equalf(t, "topictodelete", request.Topic, "Expected request sent with topic topictodelete, not %v", request.Topic)
 }
 
 func TestKafkaCluster_generateOffsetRequests(t *testing.T) {

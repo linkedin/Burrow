@@ -23,6 +23,8 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"sync"
+	"github.com/stretchr/testify/mock"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {
@@ -71,7 +73,9 @@ func TestKafkaZkClient_Start(t *testing.T) {
 
 	watchEventChan := make(chan zk.Event)
 	mockZookeeper.On("ChildrenW", module.zookeeperPath).Return([]string{}, &zk.Stat{}, func() <-chan zk.Event { return watchEventChan }(), nil)
-	mockZookeeper.On("Close").Return()
+	mockZookeeper.On("Close").Return().Run(func(args mock.Arguments) {
+		close(watchEventChan)
+	})
 
 	err := module.Start()
 
@@ -83,12 +87,6 @@ func TestKafkaZkClient_Start(t *testing.T) {
 	assert.Nil(t, err, "Expected Start to return no error")
 	assert.Equal(t, module.servers, mockZookeeper.Servers, "Expected ZookeeperConnect to be called with server list")
 	assert.Equal(t, time.Duration(module.zookeeperTimeout)*time.Second, mockZookeeper.SessionTimeout, "Expected ZookeeperConnect to be called with session timeout")
-
-	watchEventChan <- zk.Event{
-		Type:  zk.EventNotWatching,
-		State: zk.StateConnected,
-		Path:  "/consumers/shouldntgetcalled",
-	}
 
 	mockZookeeper.AssertExpectations(t)
 }
@@ -113,42 +111,50 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), offsetStat, func() <-chan zk.Event { return newOffsetChan }(), nil)
 
 	watchEventChan := make(chan zk.Event)
-	go module.watchGroupList(watchEventChan)
-	watchEventChan <- zk.Event{
-		Type:  zk.EventNodeChildrenChanged,
-		State: zk.StateConnected,
-		Path:  "/consumers",
-	}
 
-	request := <-module.App.StorageChannel
-	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
-	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
-	assert.Equalf(t, "testtopic", request.Topic, "Expected request sent with topic testtopic, not %v", request.Topic)
-	assert.Equalf(t, int32(0), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
-	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
-	assert.Equalf(t, int64(81234), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
-	assert.Equalf(t, int64(894859), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		watchEventChan <- zk.Event{
+			Type:  zk.EventNodeChildrenChanged,
+			State: zk.StateConnected,
+			Path:  "/consumers",
+		}
 
-	newGroupChan <- zk.Event{
-		Type:  zk.EventNotWatching,
-		State: zk.StateConnected,
-		Path:  "/consumers/shouldntgetcalled",
-	}
-	newTopicChan <- zk.Event{
-		Type:  zk.EventNotWatching,
-		State: zk.StateConnected,
-		Path:  "/consumers/testgroup/offsets/shouldntgetcalled",
-	}
-	newPartitionChan <- zk.Event{
-		Type:  zk.EventNotWatching,
-		State: zk.StateConnected,
-		Path:  "/consumers/testgroup/offsets/testtopic/shouldntgetcalled",
-	}
-	newOffsetChan <- zk.Event{
-		Type:  zk.EventNotWatching,
-		State: zk.StateConnected,
-		Path:  "/consumers/testgroup/offsets/testtopic/1/shouldntgetcalled",
-	}
+		request := <-module.App.StorageChannel
+		assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
+		assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+		assert.Equalf(t, "testtopic", request.Topic, "Expected request sent with topic testtopic, not %v", request.Topic)
+		assert.Equalf(t, int32(0), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
+		assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
+		assert.Equalf(t, int64(81234), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
+		assert.Equalf(t, int64(894859), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
+
+		newGroupChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/shouldntgetcalled",
+		}
+		newTopicChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/testgroup/offsets/shouldntgetcalled",
+		}
+		newPartitionChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/testgroup/offsets/testtopic/shouldntgetcalled",
+		}
+		newOffsetChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/testgroup/offsets/testtopic/1/shouldntgetcalled",
+		}
+	}()
+
+	module.running.Add(1)
+	module.watchGroupList(watchEventChan)
+	module.running.Wait()
 
 	mockZookeeper.AssertExpectations(t)
 	assert.Equalf(t, int32(1), module.groupList["testgroup"].topics["testtopic"].count, "Expected partition count to be 1, not %v", module.groupList["testgroup"].topics["testtopic"].count)
@@ -162,6 +168,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadPath(t *testing.T) {
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
+	module.running.Add(1)
 	module.resetOffsetWatchAndSend("testgroup", "testtopic", 0, false)
 	mockZookeeper.AssertExpectations(t)
 }
@@ -178,6 +185,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadOffset(t *testing.T) {
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("notanumber"), offsetStat, func() <-chan zk.Event { return newWatchEventChan }(), nil)
 
 	// This will block if a storage request is sent, as nothing is watching that channel
+	module.running.Add(1)
 	module.resetOffsetWatchAndSend("testgroup", "testtopic", 0, false)
 
 	// This should not block because the watcher would have been started
@@ -198,6 +206,7 @@ func TestKafkaZkClient_resetPartitionListWatchAndAdd_BadPath(t *testing.T) {
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
+	module.running.Add(1)
 	module.resetPartitionListWatchAndAdd("testgroup", "testtopic", false)
 	mockZookeeper.AssertExpectations(t)
 }
@@ -210,6 +219,7 @@ func TestKafkaZkClient_resetTopicListWatchAndAdd_BadPath(t *testing.T) {
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
+	module.running.Add(1)
 	module.resetTopicListWatchAndAdd("testgroup", false)
 	mockZookeeper.AssertExpectations(t)
 }
@@ -222,6 +232,7 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_BadPath(t *testing.T) {
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
+	module.running.Add(1)
 	module.resetGroupListWatchAndAdd(false)
 	mockZookeeper.AssertExpectations(t)
 }
@@ -238,6 +249,7 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
 	newGroupChan := make(chan zk.Event)
 	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{"dropthisgroup"}, offsetStat, func() <-chan zk.Event { return newGroupChan }(), nil)
 
+	module.running.Add(1)
 	module.resetGroupListWatchAndAdd(false)
 
 	newGroupChan <- zk.Event{
