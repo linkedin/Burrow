@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Kafka cluster subsystem.
+// Package cluster - Kafka cluster subsystem.
 // The cluster subsystem is responsible for getting topic and partition information, as well as current broker offsets,
 // from Kafka clusters and sending that information to the storage subsystem. It does not handle any consumer group
 // information.
