@@ -161,7 +161,6 @@ func (module *KafkaClient) Stop() error {
 }
 
 func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) {
-	module.running.Add(1)
 	defer module.running.Done()
 	defer consumer.AsyncClose()
 
@@ -222,6 +221,7 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 			)
 			return err
 		}
+		module.running.Add(1)
 		go module.partitionConsumer(pconsumer)
 	}
 
