@@ -145,6 +145,30 @@ func (hc *Coordinator) handleTopicDetail(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+func (hc *Coordinator) handleTopicConsumerList(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	// Fetch topic offsets from the storage module
+	request := &protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumersForTopic,
+		Cluster:     params.ByName("cluster"),
+		Topic:       params.ByName("topic"),
+		Reply:       make(chan interface{}),
+	}
+	hc.App.StorageChannel <- request
+	response := <-request.Reply
+
+	if response == nil {
+		hc.writeErrorResponse(w, r, http.StatusNotFound, "cluster not found")
+	} else {
+		requestInfo := makeRequestInfo(r)
+		hc.writeResponse(w, r, http.StatusOK, httpResponseTopicConsumerDetail{
+			Error:   false,
+			Message: "consumers of topic returned",
+			Consumers: response.([]string),
+			Request: requestInfo,
+		})
+	}
+}
+
 func (hc *Coordinator) handleConsumerList(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	// Fetch consumer list from the storage module
 	request := &protocol.StorageRequest{

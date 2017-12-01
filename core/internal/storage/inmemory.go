@@ -172,6 +172,7 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 		protocol.StorageFetchConsumer:       module.fetchConsumer,
 		protocol.StorageFetchTopic:          module.fetchTopic,
 		protocol.StorageClearConsumerOwners: module.clearConsumerOwners,
+		protocol.StorageFetchConsumersForTopic: module.fetchConsumersForTopicList,
 	}
 
 	workerLogger := module.Log.With(zap.Int("worker", workerNum))
@@ -713,4 +714,34 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 
 	requestLogger.Debug("ok")
 	request.Reply <- topicList
+}
+
+
+func (module *InMemoryStorage) fetchConsumersForTopicList(request *protocol.StorageRequest, requestLogger *zap.Logger) {
+	defer close(request.Reply)
+
+	clusterMap, ok := module.offsets[request.Cluster]
+	if !ok {
+		requestLogger.Warn("unknown cluster")
+		return
+	}
+
+	clusterMap.consumerLock.RLock()
+
+	consumerListForTopic := make([]string, 0)
+	for consumerGroup := range clusterMap.consumer{
+		consumerMap := clusterMap.consumer[consumerGroup]
+		topicList := getConsumerTopicList(consumerMap)
+		for topic, _ := range topicList {
+			if topic == request.Topic{
+				consumerListForTopic = append(consumerListForTopic, consumerGroup)
+				break
+			}
+		}
+	}
+
+	clusterMap.consumerLock.RUnlock()
+
+	requestLogger.Debug("ok")
+	request.Reply <- consumerListForTopic
 }
