@@ -58,7 +58,7 @@ func ValidateZookeeperPath(path string) bool {
 		if i == 0 {
 			continue
 		}
-		if ! nodeRegexp.MatchString(node) {
+		if !nodeRegexp.MatchString(node) {
 			return false
 		}
 	}

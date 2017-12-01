@@ -23,8 +23,8 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"sync"
 	"github.com/stretchr/testify/mock"
+	"sync"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {

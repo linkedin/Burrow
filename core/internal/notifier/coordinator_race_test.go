@@ -15,9 +15,8 @@ package notifier
 import (
 	"time"
 
-	"testing"
 	"github.com/stretchr/testify/assert"
-
+	"testing"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"sync"

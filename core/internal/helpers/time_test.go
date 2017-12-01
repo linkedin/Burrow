@@ -12,9 +12,9 @@ package helpers
 
 import (
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 )
 
 func TestPausableTicker_ImplementsTicker(t *testing.T) {

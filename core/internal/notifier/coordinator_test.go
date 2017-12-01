@@ -194,7 +194,6 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 		}()
 	}()
 
-
 	coordinator.sendClusterRequest()
 	coordinator.running.Wait()
 	wg.Wait()
@@ -604,4 +603,3 @@ func TestCoordinator_ExecuteTemplate(t *testing.T) {
 	assert.Nil(t, err, "Expected no error to be returned")
 	assert.Equalf(t, "testidstring testcluster testgroup OK", bytesToSend.String(), "Unexpected, got: %v", bytesToSend.String())
 }
-
