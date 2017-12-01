@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// HTTP server subsystem.
+// Package httpserver - HTTP API endpoint
 // The httpserver subsystem provides an HTTP interface to Burrow that can be used to fetch information about the
 // clusters and consumers it is monitoring. More documentation on the requests and responses is provided at
 // https://github.com/linkedin/Burrow/wiki/HTTP-Endpoint.

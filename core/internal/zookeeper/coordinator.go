@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Common Zookeeper subsystem.
+// Package zookeeper - Common Zookeeper subsystem.
 // The zookeeper subsystem provides a Zookeeper client that is common across all of Burrow, and can be used by other
 // subsystems to store metadata or coordinate operations between multiple Burrow instances. It is used primarily to
 // assure that only one Burrow instance is sending notifications at any time.

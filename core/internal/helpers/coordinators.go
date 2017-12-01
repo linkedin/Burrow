@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Common utilities.
+// Package helpers - Common utilities.
 // The helpers subsystem provides common utilities that can be used by all subsystems. This includes utilities for
 // coordinators to start and stop modules, as well as Kafka and Zookeeper client implementations. There are also a
 // number of mocks that are provided for testing purposes only, and should not be used in normal code.

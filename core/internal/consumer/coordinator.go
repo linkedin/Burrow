@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Kafka consumer subsystem.
+// Package consumer - Kafka consumer subsystem.
 // The consumer subsystem is responsible for getting consumer offset information and sending that information to the
 // storage subsystem. This consumer information could be stored in a variety of places, and each module supports a
 // different type of repository.

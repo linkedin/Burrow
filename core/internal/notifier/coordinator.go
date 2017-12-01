@@ -8,7 +8,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-// Status notification subsystem.
+// Package notifier - Status notification subsystem.
 // The notifier subsystem watches the status for all consumer groups and uses the configured modules to send
 // information about the status of those groups to outside systems, such as via email or calls to HTTP endpoints. The
 // message bodies are built using templates, and notifications can be sent for both active problems as well as when
