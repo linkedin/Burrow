@@ -781,3 +781,128 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 }
 
 // TODO: Test for clear consumer offsets, including clear for missing group
+
+
+func TestInMemoryStorage_fetchConsumersForTopic(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Set the owners for the test partition
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOwner,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Owner:       "testhost.example.com",
+	}
+	module.addConsumerOwner(&request, module.Log)
+
+	request = protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumersForTopic,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Reply:       make(chan interface{}),
+	}
+
+	// Starting request
+	go module.fetchConsumersForTopicList(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
+	val := response.([]string)
+	assert.Len(t, val, 1, "One consumer not returned")
+	assert.Equalf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %s", val[0])
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumersForTopic_MultipleConsumers(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Set the owners for the test partition
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOwner,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   0,
+		Owner:       "testhost.example.com",
+	}
+	module.addConsumerOwner(&request, module.Log)
+	request = protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOwner,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup2",
+		Partition:   0,
+		Owner:       "testhost.example.com",
+	}
+	module.addConsumerOwner(&request, module.Log)
+
+	request = protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumersForTopic,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Reply:       make(chan interface{}),
+	}
+
+	// Starting request
+	go module.fetchConsumersForTopicList(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
+	val := response.([]string)
+	assert.Len(t, val, 2, "Two consumer not returned")
+	assert.True(t, val[0] == "testgroup" || val[0] == "testgroup2", "Expected return value was not given. Found %s", val[0])
+	assert.True(t, val[1] == "testgroup" || val[1] == "testgroup2", "Expected return value was not given. Found %s", val[1])
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumersForTopic_NoConsumersForTopic(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumersForTopic,
+		Cluster:     "testcluster",
+		Topic:       "someNonExistentTopic",
+		Reply:       make(chan interface{}),
+	}
+
+	// Starting request
+	go module.fetchConsumersForTopicList(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
+	val := response.([]string)
+	assert.Len(t, val, 0, "Expected no consumers to be returned")
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumersForTopic_BadCluster(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumersForTopic,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Reply:       make(chan interface{}),
+	}
+
+	// Starting request
+	go module.fetchConsumersForTopicList(&request, module.Log)
+	response := <-request.Reply
+
+	response, ok := <-request.Reply
+
+	assert.Nil(t, response, "Expected response to be nil")
+	assert.False(t, ok, "Expected channel to be closed")
+}

@@ -128,6 +128,7 @@ func (hc *Coordinator) Configure() {
 	hc.router.GET("/v3/kafka/:cluster", hc.handleClusterDetail)
 	hc.router.GET("/v3/kafka/:cluster/topic", hc.handleTopicList)
 	hc.router.GET("/v3/kafka/:cluster/topic/:topic", hc.handleTopicDetail)
+	hc.router.GET("/v3/kafka/:cluster/topic/:topic/consumers", hc.handleTopicConsumerList)
 	hc.router.GET("/v3/kafka/:cluster/consumer", hc.handleConsumerList)
 	hc.router.GET("/v3/kafka/:cluster/consumer/:consumer", hc.handleConsumerDetail)
 	hc.router.GET("/v3/kafka/:cluster/consumer/:consumer/status", hc.handleConsumerStatus)

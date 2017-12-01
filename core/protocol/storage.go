@@ -58,6 +58,10 @@ const (
 	// StorageClearConsumerOwners is the request type to remove all partition owner information for a single group.
 	// Requires Cluster and Group fields
 	StorageClearConsumerOwners StorageRequestConstant = 10
+
+	// StorageFetchConsumersForTopic is the request type to obtain a list of all consumer groups consuming from a topic.
+	// Returns a []string
+	StorageFetchConsumersForTopic StorageRequestConstant = 11
 )
 
 var storageRequestStrings = [...]string{
@@ -72,6 +76,7 @@ var storageRequestStrings = [...]string{
 	"StorageFetchConsumer",
 	"StorageFetchTopic",
 	"StorageClearConsumerOwners",
+	"StorageFetchConsumersForTopic",
 }
 
 // String returns a string representation of a StorageRequestConstant for logging
