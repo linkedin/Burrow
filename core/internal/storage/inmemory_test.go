@@ -812,7 +812,7 @@ func TestInMemoryStorage_fetchConsumersForTopic(t *testing.T) {
 	assert.IsType(t, []string{}, response, "Expected response to be of type []string")
 	val := response.([]string)
 	assert.Len(t, val, 1, "One consumer not returned")
-	assertEqualf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %s", val[0])
+	assert.Equalf(t, val[0], "testgroup", "Expected return value to be 'testgroup', not %s", val[0])
 
 	_, ok := <-request.Reply
 	assert.False(t, ok, "Expected channel to be closed")
@@ -863,14 +863,14 @@ func TestInMemoryStorage_fetchConsumersForTopic_MultipleConsumers(t *testing.T) 
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
-func TestInMemoryStorage_fetchConsumersForTopic_NoConsumers(t *testing.T) {
+func TestInMemoryStorage_fetchConsumersForTopic_NoConsumersForTopic(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
 	module := startWithTestConsumerOffsets("", startTime)
 
-	request = protocol.StorageRequest{
+	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumersForTopic,
 		Cluster:     "testcluster",
-		Topic:       "testtopic",
+		Topic:       "someNonExistentTopic",
 		Reply:       make(chan interface{}),
 	}
 
@@ -890,7 +890,7 @@ func TestInMemoryStorage_fetchConsumersForTopic_BadCluster(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
 	module := startWithTestConsumerOffsets("", startTime)
 
-	request = protocol.StorageRequest{
+	request := protocol.StorageRequest{
 		RequestType: protocol.StorageFetchConsumersForTopic,
 		Cluster:     "testcluster",
 		Topic:       "testtopic",
