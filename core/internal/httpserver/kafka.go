@@ -161,10 +161,10 @@ func (hc *Coordinator) handleTopicConsumerList(w http.ResponseWriter, r *http.Re
 	} else {
 		requestInfo := makeRequestInfo(r)
 		hc.writeResponse(w, r, http.StatusOK, httpResponseTopicConsumerDetail{
-			Error:   false,
-			Message: "consumers of topic returned",
+			Error:     false,
+			Message:   "consumers of topic returned",
 			Consumers: response.([]string),
-			Request: requestInfo,
+			Request:   requestInfo,
 		})
 	}
 }

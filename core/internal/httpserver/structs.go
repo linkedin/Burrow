@@ -78,12 +78,11 @@ type httpResponseTopicDetail struct {
 }
 
 type httpResponseTopicConsumerDetail struct {
-	Error   bool                    `json:"error"`
-	Message string                  `json:"message"`
-	Consumers []string              `json:"consumers"`
-	Request httpResponseRequestInfo `json:"request"`
+	Error     bool                    `json:"error"`
+	Message   string                  `json:"message"`
+	Consumers []string                `json:"consumers"`
+	Request   httpResponseRequestInfo `json:"request"`
 }
-
 
 type httpResponseConsumerList struct {
 	Error     bool                    `json:"error"`

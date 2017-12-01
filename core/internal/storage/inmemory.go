@@ -166,17 +166,17 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 
 	// Using a map for the request types avoids a bit of complexity below
 	var requestTypeMap = map[protocol.StorageRequestConstant]func(*protocol.StorageRequest, *zap.Logger){
-		protocol.StorageSetBrokerOffset:     module.addBrokerOffset,
-		protocol.StorageSetConsumerOffset:   module.addConsumerOffset,
-		protocol.StorageSetConsumerOwner:    module.addConsumerOwner,
-		protocol.StorageSetDeleteTopic:      module.deleteTopic,
-		protocol.StorageSetDeleteGroup:      module.deleteGroup,
-		protocol.StorageFetchClusters:       module.fetchClusterList,
-		protocol.StorageFetchConsumers:      module.fetchConsumerList,
-		protocol.StorageFetchTopics:         module.fetchTopicList,
-		protocol.StorageFetchConsumer:       module.fetchConsumer,
-		protocol.StorageFetchTopic:          module.fetchTopic,
-		protocol.StorageClearConsumerOwners: module.clearConsumerOwners,
+		protocol.StorageSetBrokerOffset:        module.addBrokerOffset,
+		protocol.StorageSetConsumerOffset:      module.addConsumerOffset,
+		protocol.StorageSetConsumerOwner:       module.addConsumerOwner,
+		protocol.StorageSetDeleteTopic:         module.deleteTopic,
+		protocol.StorageSetDeleteGroup:         module.deleteGroup,
+		protocol.StorageFetchClusters:          module.fetchClusterList,
+		protocol.StorageFetchConsumers:         module.fetchConsumerList,
+		protocol.StorageFetchTopics:            module.fetchTopicList,
+		protocol.StorageFetchConsumer:          module.fetchConsumer,
+		protocol.StorageFetchTopic:             module.fetchTopic,
+		protocol.StorageClearConsumerOwners:    module.clearConsumerOwners,
 		protocol.StorageFetchConsumersForTopic: module.fetchConsumersForTopicList,
 	}
 
@@ -705,7 +705,6 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 	request.Reply <- topicList
 }
 
-
 func (module *InMemoryStorage) fetchConsumersForTopicList(request *protocol.StorageRequest, requestLogger *zap.Logger) {
 	defer close(request.Reply)
 
@@ -718,11 +717,11 @@ func (module *InMemoryStorage) fetchConsumersForTopicList(request *protocol.Stor
 	clusterMap.consumerLock.RLock()
 
 	consumerListForTopic := make([]string, 0)
-	for consumerGroup := range clusterMap.consumer{
+	for consumerGroup := range clusterMap.consumer {
 		consumerMap := clusterMap.consumer[consumerGroup]
 		topicList := getConsumerTopicList(consumerMap)
-		for topic, _ := range topicList {
-			if topic == request.Topic{
+		for topic := range topicList {
+			if topic == request.Topic {
 				consumerListForTopic = append(consumerListForTopic, consumerGroup)
 				break
 			}

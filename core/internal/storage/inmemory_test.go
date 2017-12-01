@@ -782,7 +782,6 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 
 // TODO: Test for clear consumer offsets, including clear for missing group
 
-
 func TestInMemoryStorage_fetchConsumersForTopic(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
 	module := startWithTestConsumerOffsets("", startTime)
