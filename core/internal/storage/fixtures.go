@@ -51,6 +51,7 @@ func CoordinatorWithOffsets() *Coordinator {
 		Offset:              4321,
 		Timestamp:           9876,
 	}
+	time.Sleep(100 * time.Millisecond)
 
 	// Add consumer offsets for a full ring
 	startTime := (time.Now().Unix() * 1000) - 100000
