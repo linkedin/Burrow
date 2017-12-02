@@ -15,7 +15,7 @@ use-compression=true
 [zookeeper]
 servers=[ "zkhost01.example.com:2181", "zkhost02.example.com:2181", "zkhost03.example.com:2181" ]
 timeout=6
-root-path=/burrow
+root-path="/burrow"
 
 [client-profile.test]
 client-id="burrow-test"
