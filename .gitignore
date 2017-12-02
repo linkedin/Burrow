@@ -3,6 +3,7 @@ burrow-src
 !config
 log
 .idea
+*.cov
 Burrow
 Burrow.exe
 Burrow.iml
