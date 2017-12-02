@@ -1,8 +1,16 @@
 [general]
-pidfile=log/burrow.pid
+pidfile="burrow.pid"
+stdout-logfile="burrow.out"
+access-control-allow-origin="mysite.example.com"
 
 [logging]
-filename=log/burrow.log
+filename="logs/burrow.log"
+level="info"
+maxsize=100
+maxbackups=30
+maxage=10
+use-localtime=false
+use-compression=true
 
 [zookeeper]
 servers=[ "zkhost01.example.com:2181", "zkhost02.example.com:2181", "zkhost03.example.com:2181" ]
