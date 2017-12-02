@@ -300,20 +300,25 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.Pa
 }
 
 func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, currentLag uint64, timeNow int64) protocol.StatusConstant {
-	// First check if the lag was zero at any point, and skip the rest of the checks if this is true
-	if (currentLag > 0) && isLagAlwaysNotZero(offsets) {
-		// Check for errors, in order of severity starting with the worst. If any check comes back true, skip the rest
-		if checkIfOffsetsRewind(offsets) {
-			return protocol.StatusRewind
-		}
+	// If the current lag is zero, the partition is never in error
+	if currentLag > 0 {
+		// Check if the partition is stopped first, as this is a problem even if the consumer had zero lag at some point
 		if checkIfOffsetsStopped(offsets, timeNow) {
 			return protocol.StatusStop
 		}
-		if checkIfOffsetsStalled(offsets) {
-			return protocol.StatusStall
-		}
-		if checkIfLagNotDecreasing(offsets) {
-			return protocol.StatusWarning
+
+		// Now check if the lag was zero at any point, and skip the rest of the checks if this is true
+		if isLagAlwaysNotZero(offsets) {
+			// Check for errors, in order of severity starting with the worst. If any check comes back true, skip the rest
+			if checkIfOffsetsRewind(offsets) {
+				return protocol.StatusRewind
+			}
+			if checkIfOffsetsStalled(offsets) {
+				return protocol.StatusStall
+			}
+			if checkIfLagNotDecreasing(offsets) {
+				return protocol.StatusWarning
+			}
 		}
 	}
 	return protocol.StatusOK
