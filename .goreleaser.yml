@@ -23,3 +23,14 @@ archive:
     - config/default-http-post.tmpl
     - config/default-slack-delete.tmpl
     - config/default-slack-post.tmpl
+dockers:
+  -
+    goos: linux
+    goarch: amd64
+    goarm: ''
+    binary: burrow
+    image: linkedin/burrow
+    dockerfile: Dockerfile
+    latest: true
+    extra_files:
+    - docker-config/burrow.toml
