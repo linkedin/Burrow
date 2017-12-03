@@ -1,0 +1,20 @@
+# .goreleaser.yml
+# Build customization
+builds:
+  - main: main.go
+    binary: drum-roll
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+# Archive customization
+archive:
+  format: tar.gz
+  files:
+    - LICENSE
+    - NOTICE
+    - README.md
+    - CHANGELOG.md
+    - config
