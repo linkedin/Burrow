@@ -51,9 +51,8 @@ script:
   - gocyclo -over 15 $GO_FILES               # forbid code with huge functions
   - golint -set_exit_status $(go list ./...) # one last linter
 
-# If the build succeeds, send coverage to coveralls and release
-# It's safe to always release because it works off version tags
+# If the build succeeds, send coverage to coveralls
+# goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - echo $TRAVIS_GO_VERSION
   - if [[ "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then goreleaser; fi
