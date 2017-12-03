@@ -1,6 +1,7 @@
 burrow-src
 .*.swp
 !config
+dist
 log
 .idea
 *.cov

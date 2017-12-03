@@ -29,7 +29,7 @@ dockers:
     goarch: amd64
     goarm: ''
     binary: burrow
-    image: linkedin/burrow
+    image: toddpalino/burrow
     dockerfile: Dockerfile
     latest: true
     extra_files:
