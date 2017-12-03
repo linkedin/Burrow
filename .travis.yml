@@ -55,4 +55,5 @@ script:
 # It's safe to always release because it works off version tags
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - if [[ $TRAVIS_GO_VERSION == 1.9.2 ]]; then goreleaser; fi
+  - echo $TRAVIS_GO_VERSION
+  - if [[ "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then goreleaser; fi
