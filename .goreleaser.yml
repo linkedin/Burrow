@@ -2,7 +2,7 @@
 # Build customization
 builds:
   - main: main.go
-    binary: drum-roll
+    binary: burrow
     goos:
       - windows
       - darwin
@@ -17,4 +17,9 @@ archive:
     - NOTICE
     - README.md
     - CHANGELOG.md
-    - config
+    - config/burrow.toml
+    - config/default-email.tmpl
+    - config/default-http-delete.tmpl
+    - config/default-http-post.tmpl
+    - config/default-slack-delete.tmpl
+    - config/default-slack-post.tmpl
