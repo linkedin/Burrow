@@ -38,6 +38,7 @@ before_script:
   - go get honnef.co/go/tools/cmd/megacheck                     # Badass static analyzer/linter
   - go get github.com/fzipp/gocyclo
   - go get github.com/mattn/goveralls
+  - go get github.com/goreleaser/goreleaser
 
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
@@ -50,5 +51,8 @@ script:
   - gocyclo -over 15 $GO_FILES               # forbid code with huge functions
   - golint -set_exit_status $(go list ./...) # one last linter
 
+# If the build succeeds, send coverage to coveralls
+# goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
+  - if [[ "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then goreleaser; fi

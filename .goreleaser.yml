@@ -1,0 +1,36 @@
+# .goreleaser.yml
+# Build customization
+builds:
+  - main: main.go
+    binary: burrow
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+# Archive customization
+archive:
+  format: tar.gz
+  files:
+    - LICENSE
+    - NOTICE
+    - README.md
+    - CHANGELOG.md
+    - config/burrow.toml
+    - config/default-email.tmpl
+    - config/default-http-delete.tmpl
+    - config/default-http-post.tmpl
+    - config/default-slack-delete.tmpl
+    - config/default-slack-post.tmpl
+dockers:
+  -
+    goos: linux
+    goarch: amd64
+    goarm: ''
+    binary: burrow
+    image: toddpalino/burrow
+    dockerfile: Dockerfile
+    latest: true
+    extra_files:
+    - docker-config/burrow.toml
