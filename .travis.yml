@@ -60,4 +60,4 @@ script:
 # goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - if [[ "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then goreleaser; fi
+  - if [[ "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; goreleaser; fi
