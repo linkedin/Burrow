@@ -33,7 +33,7 @@ class-name="kafka"
 cluster="local"
 servers=[ "kafka01.example.com:10251", "kafka02.example.com:10251", "kafka03.example.com:10251" ]
 client-profile="test"
-group-blacklist="^((console-consumer-|python-kafka-consumer-|quick-).*$"
+group-blacklist="^(console-consumer-|python-kafka-consumer-|quick-).*$"
 group-whitelist=""
 
 [consumer.local_zk]
@@ -42,7 +42,7 @@ cluster="local"
 servers=[ "zk01.example.com:2181", "zk02.example.com:2181", "zk03.example.com:2181" ]
 zookeeper-path="/kafka-cluster"
 zookeeper-timeout=30
-group-blacklist="^((console-consumer-|python-kafka-consumer-|quick-).*$"
+group-blacklist="^(console-consumer-|python-kafka-consumer-|quick-).*$"
 group-whitelist=""
 
 [httpserver.default]
