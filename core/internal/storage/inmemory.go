@@ -202,7 +202,7 @@ func (module *InMemoryStorage) mainLoop() {
 
 	for r := range module.requestChannel {
 		switch r.RequestType {
-		case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic:
+		case protocol.StorageSetBrokerOffset, protocol.StorageSetDeleteTopic, protocol.StorageFetchClusters, protocol.StorageFetchConsumers, protocol.StorageFetchTopics, protocol.StorageFetchTopic, protocol.StorageFetchConsumersForTopic:
 			// Send to any worker
 			module.workers[int(rand.Int31n(int32(module.numWorkers)))] <- r
 		case protocol.StorageSetConsumerOffset, protocol.StorageSetConsumerOwner, protocol.StorageSetDeleteGroup, protocol.StorageClearConsumerOwners, protocol.StorageFetchConsumer:
