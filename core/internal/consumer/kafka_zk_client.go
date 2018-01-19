@@ -26,7 +26,7 @@ import (
 
 type topicList struct {
 	topics map[string]*partitionCount
-	lock   *sync.Mutex
+	lock   *sync.RWMutex
 }
 type partitionCount struct {
 	count int32
@@ -259,7 +259,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 			if module.groupList[group] == nil {
 				module.groupList[group] = &topicList{
 					topics: make(map[string]*partitionCount),
-					lock:   &sync.Mutex{},
+					lock:   &sync.RWMutex{},
 				}
 				module.Log.Debug("add group",
 					zap.String("group", group),
@@ -325,7 +325,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 				}
 				Logger.Debug("add topic", zap.String("topic", topic))
 				module.running.Add(1)
-				module.resetPartitionListWatchAndAdd(group, topic, false)
+				go module.resetPartitionListWatchAndAdd(group, topic, false)
 			}
 		}
 	}
@@ -371,6 +371,12 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 
 	if !resetOnly {
 		// Check for any new partitions and create the watches for them
+		module.groupLock.RLock()
+		defer module.groupLock.RUnlock()
+
+		module.groupList[group].lock.RLock()
+		defer module.groupList[group].lock.RUnlock()
+
 		module.groupList[group].topics[topic].lock.Lock()
 		defer module.groupList[group].topics[topic].lock.Unlock()
 		if int32(len(topicPartitions)) >= module.groupList[group].topics[topic].count {
