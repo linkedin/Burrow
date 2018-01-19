@@ -56,9 +56,9 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 	return z.client.GetW(path)
 }
 
-// For the given path in Zookeeper, return a boolean stating whether or not the node exists. This method also sets
-// a watch on the node (exists if it does not currently exist, or a data watch otherwise), providing an event
-// channel that will receive a message when the watch fires
+// ExistsW returns a boolean stating whether or not the specified path exists. This method also sets a watch on the node
+// (exists if it does not currently exist, or a data watch otherwise), providing an event channel that will receive a
+// message when the watch fires
 func (z *BurrowZookeeperClient) ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error) {
 	return z.client.ExistsW(path)
 }
@@ -115,7 +115,7 @@ func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Eve
 	return args.Get(0).([]byte), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
 }
 
-// GetW mocks protocol.ZookeeperClient.ExistsW
+// ExistsW mocks protocol.ZookeeperClient.ExistsW
 func (m *MockZookeeperClient) ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error) {
 	args := m.Called(path)
 	return args.Bool(0), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
