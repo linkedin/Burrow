@@ -532,15 +532,17 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMembe
 	}
 
 	if assignmentBytes > 0 {
+		assignmentData := buf.Next(int(assignmentBytes))
+		assignmentBuf := bytes.NewBuffer(assignmentData)
 		var consumerProtocolVersion int16
-		err = binary.Read(buf, binary.BigEndian, &consumerProtocolVersion)
+		err = binary.Read(assignmentBuf, binary.BigEndian, &consumerProtocolVersion)
 		if err != nil {
 			return memberMetadata, "consumer_protocol_version"
 		}
-		if consumerProtocolVersion != 0 {
+		if consumerProtocolVersion < 0 {
 			return memberMetadata, "consumer_protocol_version"
 		}
-		assignment, errorAt := decodeMemberAssignmentV0(buf)
+		assignment, errorAt := decodeMemberAssignmentV0(assignmentBuf)
 		if errorAt != "" {
 			return memberMetadata, "assignment"
 		}
