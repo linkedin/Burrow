@@ -48,7 +48,7 @@ func getTLSProfile(name string) *httpResponseTLSProfile {
 		CertFile: viper.GetString(configRoot + ".certfile"),
 		KeyFile:  viper.GetString(configRoot + ".keyfile"),
 		CAFile:   viper.GetString(configRoot + ".cafile"),
-		NoVerify: viper.GetBool(configRoot + ".no-verify"),
+		NoVerify: viper.GetBool(configRoot + ".noverify"),
 	}
 }
 
