@@ -205,7 +205,7 @@ func (module *KafkaZkClient) waitForNodeToExist(zkPath string, Logger *zap.Logge
 
 	// Wait for the node to exist
 	Logger.Debug("waiting for node to exist", zap.String("path", zkPath))
-	event := <- existsWatchChan
+	event := <-existsWatchChan
 	if event.Type == zk.EventNotWatching {
 		// Watch is gone, so we're gone too
 		Logger.Debug("exists watch invalidated",
@@ -296,7 +296,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	// yet)
 	zkPath := module.zookeeperPath + "/" + group + "/offsets"
 	Logger := module.Log.With(zap.String("group", group))
-	if ! module.waitForNodeToExist(zkPath, Logger) {
+	if !module.waitForNodeToExist(zkPath, Logger) {
 		// There was an error checking node existence, so we can't continue
 		return
 	}
