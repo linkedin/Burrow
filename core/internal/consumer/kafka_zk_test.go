@@ -74,6 +74,7 @@ func TestKafkaZkClient_Start(t *testing.T) {
 	watchEventChan := make(chan zk.Event)
 	mockZookeeper.On("ChildrenW", module.zookeeperPath).Return([]string{}, &zk.Stat{}, func() <-chan zk.Event { return watchEventChan }(), nil)
 	mockZookeeper.On("Close").Return().Run(func(args mock.Arguments) {
+		watchEventChan <- zk.Event{Type: zk.EventNotWatching}
 		close(watchEventChan)
 	})
 
@@ -102,11 +103,13 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 
 	offsetStat := &zk.Stat{Mtime: 894859}
 	newGroupChan := make(chan zk.Event)
+	topicExistsChan := make(chan zk.Event)
 	newTopicChan := make(chan zk.Event)
 	newPartitionChan := make(chan zk.Event)
 	newOffsetChan := make(chan zk.Event)
 	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{"testgroup"}, offsetStat, func() <-chan zk.Event { return newGroupChan }(), nil)
 	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets").Return([]string{"testtopic"}, offsetStat, func() <-chan zk.Event { return newTopicChan }(), nil)
+	mockZookeeper.On("ExistsW", "/consumers/testgroup/offsets").Return(true, offsetStat, func() <-chan zk.Event { return topicExistsChan }(), nil)
 	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets/testtopic").Return([]string{"0"}, offsetStat, func() <-chan zk.Event { return newPartitionChan }(), nil)
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), offsetStat, func() <-chan zk.Event { return newOffsetChan }(), nil)
 
@@ -139,6 +142,11 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 			Type:  zk.EventNotWatching,
 			State: zk.StateConnected,
 			Path:  "/consumers/testgroup/offsets/shouldntgetcalled",
+		}
+		topicExistsChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/testgroup/offsets",
 		}
 		newPartitionChan <- zk.Event{
 			Type:  zk.EventNotWatching,
@@ -213,12 +221,20 @@ func TestKafkaZkClient_resetPartitionListWatchAndAdd_BadPath(t *testing.T) {
 
 func TestKafkaZkClient_resetTopicListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
-	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
+	topicExistsChan := make(chan zk.Event)
+	mockZookeeper.On("ExistsW", "/consumers/testgroup/offsets").Return(false, (*zk.Stat)(nil), func() <-chan zk.Event { return topicExistsChan }(), nil)
 
 	module := fixtureKafkaZkModule()
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
+	go func() {
+		topicExistsChan <- zk.Event{
+			Type:  zk.EventNotWatching,
+			State: zk.StateConnected,
+			Path:  "/consumers/testgroup/offsets",
+		}
+	}()
 	module.running.Add(1)
 	module.resetTopicListWatchAndAdd("testgroup", false)
 	mockZookeeper.AssertExpectations(t)
