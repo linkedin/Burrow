@@ -326,6 +326,11 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		return
 	}
 
+	if request.Timestamp < ((time.Now().Unix() - module.expireGroup) * 1000) {
+		requestLogger.Debug("dropped", zap.String("reason", "old offset"))
+		return
+	}
+
 	if !module.acceptConsumerGroup(request.Group) {
 		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
 		return
