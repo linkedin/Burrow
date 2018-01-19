@@ -56,6 +56,13 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 	return z.client.GetW(path)
 }
 
+// ExistsW returns a boolean stating whether or not the specified path exists. This method also sets a watch on the node
+// (exists if it does not currently exist, or a data watch otherwise), providing an event channel that will receive a
+// message when the watch fires
+func (z *BurrowZookeeperClient) ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error) {
+	return z.client.ExistsW(path)
+}
+
 // Create makes a new ZNode at the specified path with the contents set to the data byte-slice. Flags can be provided
 // to specify that this is an ephemeral or sequence node, and an ACL must be provided. If no ACL is desired, specify
 //  zk.WorldACL(zk.PermAll)
@@ -106,6 +113,12 @@ func (m *MockZookeeperClient) ChildrenW(path string) ([]string, *zk.Stat, <-chan
 func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error) {
 	args := m.Called(path)
 	return args.Get(0).([]byte), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
+}
+
+// ExistsW mocks protocol.ZookeeperClient.ExistsW
+func (m *MockZookeeperClient) ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error) {
+	args := m.Called(path)
+	return args.Bool(0), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
 }
 
 // Create mocks protocol.ZookeeperClient.Create
