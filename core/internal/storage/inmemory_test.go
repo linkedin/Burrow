@@ -293,6 +293,14 @@ func TestInMemoryStorage_addConsumerOffset_Whitelist(t *testing.T) {
 	assert.False(t, ok, "Group testgroup created when not whitelisted")
 }
 
+func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
+	module := startWithTestConsumerOffsets("testgroup", 1000000)
+
+	// All offsets for the test group should have been dropped as they are too old
+	_, ok := module.offsets["testcluster"].consumer["testgroup"]
+	assert.False(t, ok, "Group testgroup created when offsets are too old")
+}
+
 type testset struct {
 	whitelist  string
 	passGroups []string
