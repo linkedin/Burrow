@@ -2,7 +2,7 @@ Subject: [Burrow] Kafka Consumer Lag Alert
 
 The Kafka consumer groups you are monitoring are currently showing problems. The following groups are in a problem state (groups not listed are OK):
 
-Cluster:  {{Result..Cluster}}
+Cluster:  {{.Result.Cluster}}
 Group:    {{.Result.Group}}
 Status:   {{if eq 1 .Result.Status}}OK{{else if eq 1 .Result.Status}}WARNING{{else if eq 2 .Result.Status}}ERROR{{end}}
 Complete: {{.Result.Complete}}
