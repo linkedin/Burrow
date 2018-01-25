@@ -165,7 +165,9 @@ func (nc *Coordinator) Configure() {
 
 	// Set the function for parsing templates and calling module Notify (configurable to enable testing)
 	if nc.templateParseFunc == nil {
-		nc.templateParseFunc = template.New("notifier").Funcs(helperFunctionMap).ParseFiles
+		nc.templateParseFunc = func(filenames ...string) (*template.Template, error) {
+			return template.New("notifier").Funcs(helperFunctionMap).ParseFiles(filenames...)
+		}
 	}
 	if nc.notifyModuleFunc == nil {
 		nc.notifyModuleFunc = nc.notifyModule
@@ -230,7 +232,6 @@ func (nc *Coordinator) Configure() {
 		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
-
 		interval := viper.GetInt64(configRoot + ".interval")
 		if interval < nc.minInterval {
 			nc.minInterval = interval
@@ -509,9 +510,11 @@ func (nc *Coordinator) processConsumerList(cluster string, replyChan chan interf
 		consumerMap := make(map[string]struct{})
 		for _, group := range consumerList {
 			consumerMap[group] = struct{}{}
-			nc.clusters[cluster].Groups[group] = &consumerGroup{
-				LastNotify: make(map[string]time.Time),
-				LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval*1000)) * time.Millisecond),
+			if _, ok := nc.clusters[cluster].Groups[group]; !ok {
+				nc.clusters[cluster].Groups[group] = &consumerGroup{
+					LastNotify: make(map[string]time.Time),
+					LastEval:   time.Now().Add(-time.Duration(rand.Int63n(nc.minInterval*1000)) * time.Millisecond),
+				}
 			}
 		}
 
