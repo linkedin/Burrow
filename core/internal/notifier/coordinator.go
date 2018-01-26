@@ -40,6 +40,7 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"path/filepath"
 )
 
 // Module defines a means of sending out notifications of consumer group status (such as email), as well as regular
@@ -213,20 +214,24 @@ func (nc *Coordinator) Configure() {
 
 		// Compile the templates
 		var templateOpen, templateClose *template.Template
-		tmpl, err := nc.templateParseFunc(viper.GetString(configRoot + ".template-open"))
+		templateOpenPath := viper.GetString(configRoot + ".template-open")
+		templateOpenFile := filepath.Base(templateOpenPath)
+		tmpl, err := nc.templateParseFunc(templateOpenPath)
 		if err != nil {
 			nc.Log.Panic("Failed to compile TemplateOpen", zap.Error(err), zap.String("module", name))
 			panic(err)
 		}
-		templateOpen = tmpl.Templates()[0]
+		templateOpen = tmpl.Lookup(templateOpenFile)
 
 		if viper.GetBool(configRoot + ".send-close") {
-			tmpl, err = nc.templateParseFunc(viper.GetString(configRoot + ".template-close"))
+			templateClosePath := viper.GetString(configRoot + ".template-close")
+			templateCloseFile := filepath.Base(templateClosePath)
+			tmpl, err = nc.templateParseFunc(templateClosePath)
 			if err != nil {
 				nc.Log.Panic("Failed to compile TemplateClose", zap.Error(err), zap.String("module", name))
 				panic(err)
 			}
-			templateClose = tmpl.Templates()[0]
+			templateClose = tmpl.Lookup(templateCloseFile)
 		}
 
 		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose)

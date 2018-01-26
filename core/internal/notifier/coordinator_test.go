@@ -130,7 +130,9 @@ func TestCoordinator_Configure_SendClose(t *testing.T) {
 		if len(filenames) != 1 {
 			return nil, errors.New("expected exactly 1 filename")
 		}
-		return template.New("test").Parse("")
+		testTemplate, _ := template.New("template_close").Parse("")
+		testTemplate, _ = testTemplate.New("template_open").Parse("")
+		return testTemplate, nil
 	}
 	coordinator.Configure()
 	module := coordinator.modules["test"].(*NullNotifier)
