@@ -295,15 +295,18 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition) *protocol.Pa
 	status.Start = offsets[0]
 	status.End = offsets[len(offsets)-1]
 
-	status.Status = calculatePartitionStatus(offsets, partition.CurrentLag, time.Now().Unix())
+	status.Status = calculatePartitionStatus(offsets, partition.BrokerOffsets, partition.CurrentLag, time.Now().Unix())
 	return status
 }
 
-func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, currentLag uint64, timeNow int64) protocol.StatusConstant {
+func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, brokerOffsets []int64, currentLag uint64, timeNow int64) protocol.StatusConstant {
 	// If the current lag is zero, the partition is never in error
 	if currentLag > 0 {
-		// Check if the partition is stopped first, as this is a problem even if the consumer had zero lag at some point
-		if checkIfOffsetsStopped(offsets, timeNow) {
+		// Check if the partition is stopped first, as this is a problem even if the consumer had zero lag at some
+		// point in its commit history (as the commit history could be very old). However, if the recent broker offsets
+		// for this partition show that the consumer had zero lag recently ("intervals * offset-refresh" should be on
+		// the order of minutes), don't consider it stopped yet.
+		if checkIfOffsetsStopped(offsets, timeNow) && (! checkIfRecentLagZero(offsets, brokerOffsets)) {
 			return protocol.StatusStop
 		}
 
@@ -371,4 +374,17 @@ func checkIfLagNotDecreasing(offsets []*protocol.ConsumerOffset) bool {
 		}
 	}
 	return true
+}
+
+// Using the most recent committed offset, return true if there was zero lag at some point in the stored broker
+// LEO offsets. This has the effect of returning true if the consumer was up to date on this partition in recent
+// (minutes) history, so it can be used to delay alerting for a short period of time.
+func checkIfRecentLagZero(offsets []*protocol.ConsumerOffset, brokerOffsets []int64) bool {
+	lastOffset := offsets[len(offsets)-1].Offset
+	for i := 0; i < len(brokerOffsets); i++ {
+		if brokerOffsets[i] <= lastOffset {
+			return true
+		}
+	}
+	return false
 }
