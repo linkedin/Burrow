@@ -172,6 +172,7 @@ func TestCachingEvaluator_SingleRequest_Incomplete(t *testing.T) {
 
 type testset struct {
 	offsets                 []*protocol.ConsumerOffset
+	brokerOffsets           []int64
 	currentLag              uint64
 	timeNow                 int64
 	isLagAlwaysNotZero      bool
@@ -179,6 +180,7 @@ type testset struct {
 	checkIfOffsetsStopped   bool
 	checkIfOffsetsStalled   bool
 	checkIfLagNotDecreasing bool
+	checkIfRecentLagZero    bool
 	status                  protocol.StatusConstant
 }
 
@@ -200,7 +202,9 @@ var tests = []testset{
 		{3000, 300000, 100},
 		{4000, 400000, 150},
 		{5000, 500000, 200},
-	}, 200, 600, false, false, false, false, true, protocol.StatusOK},
+	},
+	[]int64{5200},
+	200, 600, false, false, false, false, true, false, protocol.StatusOK},
 
 	// 1 - same status. does not return true for stop because time since last commit (400s) is equal to the difference (500-100), not greater than
 	{[]*protocol.ConsumerOffset{
@@ -209,7 +213,9 @@ var tests = []testset{
 		{3000, 300000, 100},
 		{4000, 400000, 150},
 		{5000, 500000, 200},
-	}, 200, 900, false, false, false, false, true, protocol.StatusOK},
+	},
+	[]int64{5200},
+	200, 900, false, false, false, false, true, false, protocol.StatusOK},
 
 	// 2 - status is now STOP because the time since last commit is great enough (500s), even though lag is zero at the start (fixed due to #290)
 	{[]*protocol.ConsumerOffset{
@@ -218,7 +224,9 @@ var tests = []testset{
 		{3000, 300000, 100},
 		{4000, 400000, 150},
 		{5000, 500000, 200},
-	}, 200, 1000, false, false, true, false, true, protocol.StatusStop},
+	},
+	[]int64{5200},
+	200, 1000, false, false, true, false, true, false, protocol.StatusStop},
 
 	// 3 - status is STOP when lag is always non-zero as well
 	{[]*protocol.ConsumerOffset{
@@ -227,7 +235,9 @@ var tests = []testset{
 		{3000, 300000, 150},
 		{4000, 400000, 200},
 		{5000, 500000, 250},
-	}, 250, 1000, true, false, true, false, true, protocol.StatusStop},
+	},
+	[]int64{5250},
+	250, 1000, true, false, true, false, true, false, protocol.StatusStop},
 
 	// 4 - status is OK because of zero lag, but stall is true because the offset is always the same and there is lag (another commit with turn this to stall)
 	{[]*protocol.ConsumerOffset{
@@ -236,7 +246,9 @@ var tests = []testset{
 		{1000, 300000, 100},
 		{1000, 400000, 150},
 		{1000, 500000, 200},
-	}, 200, 600, false, false, false, true, true, protocol.StatusOK},
+	},
+	[]int64{1200},
+	200, 600, false, false, false, true, true, false, protocol.StatusOK},
 
 	// 5 - status is now STALL because the lag is always non-zero
 	{[]*protocol.ConsumerOffset{
@@ -245,7 +257,9 @@ var tests = []testset{
 		{1000, 300000, 200},
 		{1000, 400000, 250},
 		{1000, 500000, 300},
-	}, 300, 600, true, false, false, true, true, protocol.StatusStall},
+	},
+	[]int64{1300},
+	300, 600, true, false, false, true, true, false, protocol.StatusStall},
 
 	// 6 - status is still STALL even when the lag stays the same
 	{[]*protocol.ConsumerOffset{
@@ -254,7 +268,9 @@ var tests = []testset{
 		{1000, 300000, 100},
 		{1000, 400000, 100},
 		{1000, 500000, 100},
-	}, 100, 600, true, false, false, true, true, protocol.StatusStall},
+	},
+	[]int64{1100},
+	100, 600, true, false, false, true, true, false, protocol.StatusStall},
 
 	// 7 - status is REWIND because the offsets go backwards, even though the lag does decrease (rewind is worse)
 	{[]*protocol.ConsumerOffset{
@@ -263,7 +279,9 @@ var tests = []testset{
 		{3000, 300000, 200},
 		{2000, 400000, 1250},
 		{4000, 500000, 300},
-	}, 300, 600, true, true, false, false, false, protocol.StatusRewind},
+	},
+	[]int64{4300},
+	300, 600, true, true, false, false, false, false, protocol.StatusRewind},
 
 	// 8 - status is OK because the current lag is 0 (even though the offsets show lag), even though it would be considered stopped due to timestamps
 	{[]*protocol.ConsumerOffset{
@@ -272,9 +290,11 @@ var tests = []testset{
 		{3000, 300000, 150},
 		{4000, 400000, 200},
 		{5000, 500000, 250},
-	}, 0, 1000, true, false, true, false, true, protocol.StatusOK},
+	},
+	[]int64{5250},
+	0, 1000, true, false, true, false, true, false, protocol.StatusOK},
 
-	// 9 - status is STOP due to timestamps because the current lag is non-zero, even though lag is always zero in offsets (#290)
+	// 9 - status is STOP due to timestamps because the current lag is non-zero, even though lag is always zero in offsets, only because there is new data (#290)
 	{[]*protocol.ConsumerOffset{
 		{792748079, 1512224618356, 0},
 		{792748080, 1512224619362, 0},
@@ -291,7 +311,7 @@ var tests = []testset{
 		{792748091, 1512224630391, 0},
 		{792748092, 1512224631394, 0},
 		{792748093, 1512224632397, 0},
-	}, 931, 1512224650, false, false, true, false, true, protocol.StatusStop},
+	}, []int64{792748094}, 931, 1512224650, false, false, true, false, true, false, protocol.StatusStop},
 }
 
 func TestCachingEvaluator_CheckRules(t *testing.T) {
@@ -311,7 +331,10 @@ func TestCachingEvaluator_CheckRules(t *testing.T) {
 		result = checkIfLagNotDecreasing(testSet.offsets)
 		assert.Equalf(t, testSet.checkIfLagNotDecreasing, result, "TEST %v: Expected checkIfLagNotDecreasing to return %v, not %v", i, testSet.checkIfLagNotDecreasing, result)
 
-		status := calculatePartitionStatus(testSet.offsets, testSet.currentLag, testSet.timeNow)
+		result = checkIfRecentLagZero(testSet.offsets, testSet.brokerOffsets)
+		assert.Equalf(t, testSet.checkIfRecentLagZero, result, "TEST %v: Expected checkIfRecentLagZero to return %v, not %v", i, testSet.checkIfRecentLagZero, result)
+
+		status := calculatePartitionStatus(testSet.offsets, testSet.brokerOffsets, testSet.currentLag, testSet.timeNow)
 		assert.Equalf(t, testSet.status, status, "TEST %v: Expected calculatePartitionStatus to return %v, not %v", i, testSet.status.String(), status.String())
 	}
 }
