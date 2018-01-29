@@ -306,7 +306,7 @@ func calculatePartitionStatus(offsets []*protocol.ConsumerOffset, brokerOffsets 
 		// point in its commit history (as the commit history could be very old). However, if the recent broker offsets
 		// for this partition show that the consumer had zero lag recently ("intervals * offset-refresh" should be on
 		// the order of minutes), don't consider it stopped yet.
-		if checkIfOffsetsStopped(offsets, timeNow) && (! checkIfRecentLagZero(offsets, brokerOffsets)) {
+		if checkIfOffsetsStopped(offsets, timeNow) && (!checkIfRecentLagZero(offsets, brokerOffsets)) {
 			return protocol.StatusStop
 		}
 

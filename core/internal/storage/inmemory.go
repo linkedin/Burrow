@@ -708,7 +708,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 			})
 
 			if len(partition.Offsets) > 0 {
-				brokerOffset := partition.BrokerOffsets[len(partition.BrokerOffsets) - 1]
+				brokerOffset := partition.BrokerOffsets[len(partition.BrokerOffsets)-1]
 				lastOffset := partition.Offsets[len(partition.Offsets)-1]
 				if lastOffset != nil {
 					if brokerOffset < lastOffset.Offset {
