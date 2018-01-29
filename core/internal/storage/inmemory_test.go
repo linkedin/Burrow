@@ -129,8 +129,9 @@ func TestInMemoryStorage_addBrokerOffset(t *testing.T) {
 	assert.True(t, ok, "Topic not created")
 	assert.Len(t, topicList, 1, "One partition not created")
 	assert.NotNil(t, topicList[0], "brokerOffset object not created")
-	assert.Equalf(t, int64(4321), topicList[0].Value.(*brokerOffset).Offset, "Expected offset to be 4321, got %v", topicList[0].Value.(*brokerOffset).Offset)
-	assert.Equalf(t, int64(9876), topicList[0].Value.(*brokerOffset).Timestamp, "Expected timestamp to be 9876, got %v", topicList[0].Value.(*brokerOffset).Timestamp)
+	partitonZeroOffset := topicList[0].Value.(*brokerOffset)
+	assert.Equalf(t, int64(4321), partitonZeroOffset.Offset, "Expected offset to be 4321, got %v", partitonZeroOffset.Offset)
+	assert.Equalf(t, int64(9876), partitonZeroOffset.Timestamp, "Expected timestamp to be 9876, got %v", partitonZeroOffset.Timestamp)
 }
 
 func TestInMemoryStorage_addBrokerOffset_ExistingTopic(t *testing.T) {
@@ -157,12 +158,14 @@ func TestInMemoryStorage_addBrokerOffset_ExistingTopic(t *testing.T) {
 	assert.Len(t, topicList, 2, "Two partitions not created")
 
 	assert.NotNil(t, topicList[0], "brokerOffset object for p0 not created")
-	assert.Equalf(t, int64(4321), topicList[0].Value.(*brokerOffset).Offset, "Expected offset for p0 to be 4321, got %v", topicList[0].Value.(*brokerOffset).Offset)
-	assert.Equalf(t, int64(9876), topicList[0].Value.(*brokerOffset).Timestamp, "Expected timestamp for p0 to be 9876, got %v", topicList[0].Value.(*brokerOffset).Timestamp)
+	partitonZeroOffset := topicList[0].Value.(*brokerOffset)
+	assert.Equalf(t, int64(4321), partitonZeroOffset.Offset, "Expected offset for p0 to be 4321, got %v", partitonZeroOffset.Offset)
+	assert.Equalf(t, int64(9876), partitonZeroOffset.Timestamp, "Expected timestamp for p0 to be 9876, got %v", partitonZeroOffset.Timestamp)
 
 	assert.NotNil(t, topicList[1], "brokerOffset object for p1 not created")
-	assert.Equalf(t, int64(5432), topicList[1].Value.(*brokerOffset).Offset, "Expected offset for p1 to be 5432, got %v", topicList[1].Value.(*brokerOffset).Offset)
-	assert.Equalf(t, int64(8765), topicList[1].Value.(*brokerOffset).Timestamp, "Expected timestamp for p1 to be 8765, got %v", topicList[1].Value.(*brokerOffset).Timestamp)
+	partitonOneOffset := topicList[0].Value.(*brokerOffset)
+	assert.Equalf(t, int64(5432), partitonOneOffset.Offset, "Expected offset for p1 to be 5432, got %v", partitonOneOffset.Offset)
+	assert.Equalf(t, int64(8765), partitonOneOffset.Timestamp, "Expected timestamp for p1 to be 8765, got %v", partitonOneOffset.Timestamp)
 }
 
 func TestInMemoryStorage_addBrokerOffset_ExistingPartition(t *testing.T) {
@@ -184,8 +187,9 @@ func TestInMemoryStorage_addBrokerOffset_ExistingPartition(t *testing.T) {
 	assert.Len(t, topicList, 1, "One partition not created")
 
 	assert.NotNil(t, topicList[0], "brokerOffset object for p0 not created")
-	assert.Equalf(t, int64(5432), topicList[0].Value.(*brokerOffset).Offset, "Expected offset for p0 to be 5432, got %v", topicList[0].Value.(*brokerOffset).Offset)
-	assert.Equalf(t, int64(8765), topicList[0].Value.(*brokerOffset).Timestamp, "Expected timestamp for p0 to be 8765, got %v", topicList[0].Value.(*brokerOffset).Timestamp)
+	partitonZeroOffset := topicList[0].Value.(*brokerOffset)
+	assert.Equalf(t, int64(5432), partitonZeroOffset.Offset, "Expected offset for p0 to be 5432, got %v", partitonZeroOffset.Offset)
+	assert.Equalf(t, int64(8765), partitonZeroOffset.Timestamp, "Expected timestamp for p0 to be 8765, got %v", partitonZeroOffset.Timestamp)
 }
 
 func TestInMemoryStorage_addBrokerOffset_BadCluster(t *testing.T) {
