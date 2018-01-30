@@ -257,7 +257,7 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 			Timestamp: request.Timestamp,
 		}
 	} else {
-		ringval, _ := partitionEntry.Value.(*protocol.ConsumerOffset)
+		ringval, _ := partitionEntry.Value.(*brokerOffset)
 		ringval.Offset = request.Offset
 		ringval.Timestamp = request.Timestamp
 	}
