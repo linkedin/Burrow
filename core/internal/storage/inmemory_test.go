@@ -201,6 +201,40 @@ func TestInMemoryStorage_addBrokerOffset_ExistingPartition(t *testing.T) {
 	assert.Equalf(t, int64(9876), previousOffset.Timestamp, "Expected timestamp for p0 to be 9876, got %v", previousOffset.Timestamp)
 }
 
+func TestInMemoryStorage_addBrokerOffset_AddMany(t *testing.T) {
+	module := startWithTestBrokerOffsets("")
+
+	// Add a lot of offsets
+	request := protocol.StorageRequest{
+		RequestType:         protocol.StorageSetBrokerOffset,
+		Cluster:             "testcluster",
+		Topic:               "testtopic",
+		Partition:           0,
+		TopicPartitionCount: 1,
+		Offset:              4321,
+		Timestamp:           9876,
+	}
+	for i := 0; i < 100; i++ {
+		request.Offset = request.Offset + 1
+		request.Timestamp = request.Timestamp + 1
+		module.addBrokerOffset(&request, module.Log)
+	}
+
+	topicList := module.offsets["testcluster"].broker["testtopic"]
+	numOffsets := topicList[0].Len()
+	ringPtr := topicList[0]
+	for i := numOffsets - 1; i >= 0; i-- {
+		ringPtr = ringPtr.Next()
+		assert.NotNilf(t, ringPtr.Value, "Offset %v: brokerOffset object not created", i)
+		val := ringPtr.Value.(*brokerOffset)
+		expectedOffset := request.Offset - int64(i)
+		expectedTimestamp := request.Timestamp - int64(i)
+
+		assert.Equalf(t, expectedOffset, val.Offset, "Offset %v: Expected offset to be %v, got %v", i, expectedOffset, val.Offset)
+		assert.Equalf(t, expectedTimestamp, val.Timestamp, "Offset %v: Expected timestamp to be %v, got %v", i, expectedTimestamp, val.Timestamp)
+	}
+}
+
 func TestInMemoryStorage_addBrokerOffset_BadCluster(t *testing.T) {
 	module := startWithTestCluster("")
 	request := protocol.StorageRequest{
