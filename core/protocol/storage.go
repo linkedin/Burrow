@@ -143,6 +143,10 @@ type ConsumerPartition struct {
 	// have been seen for this partition
 	Offsets []*ConsumerOffset `json:"offsets"`
 
+	// A slice containing the history of broker offsets stored for this partition. This is used for evaluation only,
+	// and as such it is not provided when encoding to JSON (for HTTP responses)
+	BrokerOffsets []int64 `json:"-"`
+
 	// A string that describes the consumer host that currently owns this partition, if the information is available
 	// (for active new consumers)
 	Owner string `json:"owner"`
