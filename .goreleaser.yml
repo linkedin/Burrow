@@ -30,7 +30,7 @@ dockers:
     goarm: ''
     binary: burrow
     image: toddpalino/burrow
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.gorelease
     latest: true
     extra_files:
     - docker-config/burrow.toml
