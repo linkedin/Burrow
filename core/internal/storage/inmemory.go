@@ -41,6 +41,7 @@ type InMemoryStorage struct {
 	numWorkers  int
 	expireGroup int64
 	minDistance int64
+	queueDepth  int
 
 	requestChannel chan *protocol.StorageRequest
 	workersRunning sync.WaitGroup
@@ -86,19 +87,22 @@ func (module *InMemoryStorage) Configure(name string, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
-	module.requestChannel = make(chan *protocol.StorageRequest)
-	module.workersRunning = sync.WaitGroup{}
-	module.mainRunning = sync.WaitGroup{}
-	module.offsets = make(map[string]clusterOffsets)
 
 	// Set defaults for configs if needed
 	viper.SetDefault(configRoot+".intervals", 10)
 	viper.SetDefault(configRoot+".expire-group", 604800)
 	viper.SetDefault(configRoot+".workers", 20)
+	viper.SetDefault(configRoot+".queue-depth", 1)
 	module.intervals = viper.GetInt(configRoot + ".intervals")
 	module.expireGroup = viper.GetInt64(configRoot + ".expire-group")
 	module.numWorkers = viper.GetInt(configRoot + ".workers")
 	module.minDistance = viper.GetInt64(configRoot + ".min-distance")
+	module.queueDepth = viper.GetInt(configRoot + ".queue-depth")
+
+	module.requestChannel = make(chan *protocol.StorageRequest, module.queueDepth)
+	module.workersRunning = sync.WaitGroup{}
+	module.mainRunning = sync.WaitGroup{}
+	module.offsets = make(map[string]clusterOffsets)
 
 	whitelist := viper.GetString(configRoot + ".group-whitelist")
 	if whitelist != "" {
@@ -135,7 +139,7 @@ func (module *InMemoryStorage) Start() error {
 	// Start the appropriate number of workers, with a channel for each
 	module.workers = make([]chan *protocol.StorageRequest, module.numWorkers)
 	for i := 0; i < module.numWorkers; i++ {
-		module.workers[i] = make(chan *protocol.StorageRequest)
+		module.workers[i] = make(chan *protocol.StorageRequest, module.queueDepth)
 		module.workersRunning.Add(1)
 		go module.requestWorker(i, module.workers[i])
 	}
