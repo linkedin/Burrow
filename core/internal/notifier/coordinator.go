@@ -96,7 +96,7 @@ type Coordinator struct {
 	// The value of the 'ShowAll' parameter when submitting a request to
 	// the evaluator. This flag is determined based on the notifier
 	// 'threshold' configuration.
-	ShowAll           bool
+	ShowAll bool
 }
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
@@ -192,9 +192,9 @@ func (nc *Coordinator) Configure() {
 
 		// if any of the notifier thresholds are 1, we need to fetch
 		// status of all consumer groups from the evaluator
-		threshold := viper.GetInt(configRoot+".threshold")
+		threshold := viper.GetInt(configRoot + ".threshold")
 		if threshold == 1 {
-		   nc.ShowAll = true
+			nc.ShowAll = true
 		}
 
 		// Compile the whitelist for the consumer groups to notify for
