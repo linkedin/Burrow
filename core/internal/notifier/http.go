@@ -175,6 +175,10 @@ func (module *HTTPNotifier) Notify(status *protocol.ConsumerGroupStatus, eventID
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	for header, value := range viper.GetStringMapString("notifier." + module.name + ".headers") {
+		req.Header.Set(header, value)
+	}
+
 	resp, err := module.httpClient.Do(req)
 	if err != nil {
 		logger.Error("failed to send", zap.Error(err))
