@@ -236,23 +236,19 @@ func (module *InMemoryStorage) addBrokerOffset(request *protocol.StorageRequest,
 
 	topicList, ok := clusterMap.broker[request.Topic]
 	if !ok {
-		clusterMap.broker[request.Topic] = make([]*ring.Ring, request.TopicPartitionCount)
+		clusterMap.broker[request.Topic] = make([]*ring.Ring, 0, request.TopicPartitionCount)
 		topicList = clusterMap.broker[request.Topic]
 	}
 	if request.TopicPartitionCount >= int32(len(topicList)) {
-		// The partition count has increased. Append enough extra partitions to our slice
+		// The partition count has increased. Append enough extra partitions, with offset rings, to our slice
 		for i := int32(len(topicList)); i < request.TopicPartitionCount; i++ {
-			topicList = append(topicList, nil)
+			topicList = append(topicList, ring.New(module.intervals))
 		}
 	}
 
-	// Create the broker offset ring if needed, or advance to the next ring entry (this means the pointer is always at
-	// the most recent entry, rather than the oldest entry)
-	if topicList[request.Partition] == nil {
-		topicList[request.Partition] = ring.New(module.intervals)
-	} else {
-		topicList[request.Partition] = topicList[request.Partition].Next()
-	}
+	// Advance to the next ring entry (this means the pointer is always at the most recent entry, rather than the
+	// oldest entry)
+	topicList[request.Partition] = topicList[request.Partition].Next()
 	partitionEntry := topicList[request.Partition]
 
 	if partitionEntry.Value == nil {
@@ -290,7 +286,7 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *clusterOffsets, topic
 		requestLogger.Debug("dropped", zap.String("reason", "no broker partition"))
 		return 0, 0
 	}
-	if topicPartitionList[partition] == nil {
+	if topicPartitionList[partition].Value == nil {
 		// We know about the topic and partition, but we haven't actually gotten the broker offset yet
 		requestLogger.Debug("dropped", zap.String("reason", "no broker offset"))
 		return 0, 0
