@@ -199,14 +199,9 @@ func (module *KafkaCluster) generateOffsetRequests(client helpers.SaramaClient) 
 		}
 	}
 
-	// If there are any topics that had errors, explicitly update metadata for them so we potentially delete the topic
-	// on the next topic list refresh
+	// If there are any topics that had errors, force a metadata refresh on the next run
 	if len(errorTopics) > 0 {
-		topicsToUpdate := make([]string, 0, len(errorTopics))
-		for topic := range errorTopics {
-			topicsToUpdate = append(topicsToUpdate, topic)
-		}
-		client.RefreshMetadata(topicsToUpdate...)
+		module.fetchMetadata = true
 	}
 
 	return requests, brokers
@@ -270,14 +265,9 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 
 	wg.Wait()
 
-	// If there are any topics that had errors, explicitly update metadata for them so we potentially delete the topic
-	// on the next topic list refresh
-	topicsToUpdate := make([]string, 0)
+	// If there are any topics that had errors, force a metadata refresh on the next run
 	errorTopics.Range(func(key, value interface{}) bool {
-		topicsToUpdate = append(topicsToUpdate, key.(string))
-		return true
+		module.fetchMetadata = true
+		return false
 	})
-	if len(topicsToUpdate) > 0 {
-		client.RefreshMetadata(topicsToUpdate...)
-	}
 }

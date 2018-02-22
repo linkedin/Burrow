@@ -166,7 +166,6 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
 	client.On("Leader", "testtopic", int32(1)).Return(broker, nil)
-	client.On("RefreshMetadata", []string{"testtopic"}).Return(nil)
 
 	requests, brokers := module.generateOffsetRequests(client)
 
@@ -177,6 +176,7 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	assert.True(t, ok, "Expected key for the broker to be its ID")
 	assert.Equal(t, broker, brokers[13], "Expected broker returned to be the mock")
 	assert.Lenf(t, requests, 1, "Expected 1 request, not %v", len(requests))
+	assert.True(t, module.fetchMetadata, "Expected fetchMetadata to be true")
 }
 
 func TestKafkaCluster_getOffsets(t *testing.T) {
@@ -200,7 +200,6 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
 	client.On("Leader", "testtopic", int32(1)).Return(nilBroker, errors.New("no leader error"))
-	client.On("RefreshMetadata", []string{"testtopic"}).Return(nil)
 
 	go module.getOffsets(client)
 	request := <-module.App.StorageChannel
@@ -213,6 +212,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	assert.Equalf(t, int32(0), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, int32(2), request.TopicPartitionCount, "Expected request sent with TopicPartitionCount 2, not %v", request.TopicPartitionCount)
 	assert.Equalf(t, int64(8374), request.Offset, "Expected request sent with offset 8374, not %v", request.Offset)
+	assert.True(t, module.fetchMetadata, "Expected fetchMetadata to be true")
 
 	// Make sure there is nothing else on the channel
 	time.Sleep(100 * time.Millisecond)
