@@ -38,6 +38,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -83,6 +84,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
 		panic(exitCode{1})
 	}
+
+	// setup viper to be able to read env variables with a configured prefix
+	viper.SetDefault("general.env-var-prefix", "burrow")
+	envPrefix := viper.GetString("general.env-var-prefix")
+	viper.SetEnvPrefix(envPrefix)
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	// Create the PID file to lock out other processes
 	viper.SetDefault("general.pidfile", "burrow.pid")
