@@ -57,11 +57,11 @@ func TestCoordinator_sendEvaluatorRequests(t *testing.T) {
 		case "testcluster":
 			assert.Equalf(t, "testcluster", request.Cluster, "Expected request cluster to be testcluster, not %v", request.Cluster)
 			assert.Equalf(t, "testgroup", request.Group, "Expected request group to be testgroup, not %v", request.Group)
-			assert.False(t, request.ShowAll, "Expected ShowAll to be false")
+			assert.True(t, request.ShowAll, "Expected ShowAll to be true")
 		case "testcluster2":
 			assert.Equalf(t, "testcluster2", request.Cluster, "Expected request cluster to be testcluster2, not %v", request.Cluster)
 			assert.Equalf(t, "testgroup2", request.Group, "Expected request group to be testgroup2, not %v", request.Group)
-			assert.False(t, request.ShowAll, "Expected ShowAll to be false")
+			assert.True(t, request.ShowAll, "Expected ShowAll to be true")
 		default:
 			assert.Failf(t, "Received unexpected request for cluster %v, group %v", request.Cluster, request.Group)
 		}
