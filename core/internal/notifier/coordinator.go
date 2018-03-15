@@ -188,6 +188,7 @@ func (nc *Coordinator) Configure() {
 
 		// Set some defaults for common module fields
 		viper.SetDefault(configRoot+".interval", 60)
+		viper.SetDefault(configRoot+".send-interval", viper.GetInt64(configRoot+".interval"))
 		viper.SetDefault(configRoot+".threshold", 2)
 
 		// if any of the notifier thresholds are 1, we need to fetch
@@ -381,6 +382,7 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 			consumerGroup.Lock.RLock()
 			for consumer, groupInfo := range consumerGroup.Groups {
 				if groupInfo.LastEval.Before(sendBefore) {
+					nc.Log.Debug("Evaluating group", zap.String("group", consumer))
 					go func(sendCluster string, sendConsumer string) {
 						nc.App.EvaluatorChannel <- &protocol.EvaluatorRequest{
 							Reply:   nc.evaluatorResponse,
@@ -567,7 +569,7 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 
 	// Only send the notification if it's been at least our Interval since the last one for this group
 	currentTime := time.Now()
-	if currentTime.Sub(cgroup.LastNotify[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".interval")) * time.Second) {
+	if currentTime.Sub(cgroup.LastNotify[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".send-interval")) * time.Second) {
 		module.Notify(status, eventID, startTime, false)
 		cgroup.LastNotify[module.GetName()] = currentTime
 	}
