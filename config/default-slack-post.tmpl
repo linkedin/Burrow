@@ -1,1 +1,30 @@
-{ "attachments": [{"color": "danger","title": "A kafka consumer is lagging behind!","fields": [{"title": "Group","value": "{{ .Group }}", "short": false},{"title": "Cluster","value": "{{ .Cluster }}","short": true},{"title": "Total Lag","value": "{{ .Result.TotalLag}}","short": true}, {"title": "Start","value": "{{ .Start.Format "2006-01-02T15:04:05Z07:00" }}","short": true}]}]}
+{
+  "attachments": [
+    {
+      "fields": [
+        {
+          "short": false,
+          "value": "{{ .Group }}",
+          "title": "Group"
+        },
+        {
+          "short": true,
+          "value": "{{ .Cluster }}",
+          "title": "Cluster"
+        },
+        {
+          "short": true,
+          "value": "{{ .Result.TotalLag}}",
+          "title": "Total Lag"
+        },
+        {
+          "short": true,
+          "value": " {{ .Start.Format "2006-01-02T15:04:05Z07:00" }}",
+          "title": "Start"
+        }
+      ],
+      "title": "A kafka consumer is no longer lagging",
+      "color": "good"
+     }
+  ]
+}
