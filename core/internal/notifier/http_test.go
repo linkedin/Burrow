@@ -40,6 +40,7 @@ func fixtureHTTPNotifier() *HTTPNotifier {
 	viper.Set("notifier.test.template-open", "template_open")
 	viper.Set("notifier.test.template-close", "template_close")
 	viper.Set("notifier.test.send-close", false)
+	viper.Set("notifier.test.headers", map[string]string{"Token": "testtoken"})
 
 	return &module
 }
@@ -91,6 +92,10 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
+		tokenHeaders, ok := r.Header["Token"]
+		assert.True(t, ok, "Expected to receive Token header")
+		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
+
 		decoder := json.NewDecoder(r.Body)
 		var req HTTPRequest
 		err := decoder.Decode(&req)
@@ -137,6 +142,10 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 		assert.True(t, ok, "Expected to receive Content-Type header")
 		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
 		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
+
+		tokenHeaders, ok := r.Header["Token"]
+		assert.True(t, ok, "Expected to receive Token header")
+		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
 
 		decoder := json.NewDecoder(r.Body)
 		var req HTTPRequest
