@@ -96,6 +96,8 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 		assert.True(t, ok, "Expected to receive Token header")
 		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
 
+		assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+
 		decoder := json.NewDecoder(r.Body)
 		var req HTTPRequest
 		err := decoder.Decode(&req)
@@ -118,7 +120,7 @@ func TestHttpNotifier_Notify_Open(t *testing.T) {
 	defer ts.Close()
 
 	module := fixtureHTTPNotifier()
-	viper.Set("notifier.test.url-open", ts.URL)
+	viper.Set("notifier.test.url-open", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
 
 	// Template sends the ID, cluster, and group
 	module.templateOpen, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
@@ -147,6 +149,8 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 		assert.True(t, ok, "Expected to receive Token header")
 		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
 
+		assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+
 		decoder := json.NewDecoder(r.Body)
 		var req HTTPRequest
 		err := decoder.Decode(&req)
@@ -170,7 +174,7 @@ func TestHttpNotifier_Notify_Close(t *testing.T) {
 
 	module := fixtureHTTPNotifier()
 	viper.Set("notifier.test.send-close", true)
-	viper.Set("notifier.test.url-close", ts.URL)
+	viper.Set("notifier.test.url-close", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
 
 	// Template sends the ID, cluster, and group
 	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
