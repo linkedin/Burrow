@@ -56,7 +56,8 @@ Install Docker Compose and then:
    docker-compose down; docker-compose up
    ```
 
-3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v2/kafka`
+3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v3/kafka`
+
 
 ### Configuration
 For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)
