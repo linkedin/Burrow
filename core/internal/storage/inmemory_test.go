@@ -351,8 +351,8 @@ func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
 
 type testset struct {
 	regexFilter  string
-	whitelistedGroups []string
-	blacklistedGroups []string
+	matchGroups []string
+	noMatchGroups []string
 }
 
 var whitelistTests = []testset{
@@ -367,11 +367,11 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 		module := fixtureModule(testSet.regexFilter, "")
 		module.Configure("test", "storage.test")
 
-		for _, group := range testSet.whitelistedGroups {
+		for _, group := range testSet.matchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
 		}
-		for _, group := range testSet.blacklistedGroups {
+		for _, group := range testSet.noMatchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
 		}
@@ -381,16 +381,16 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 
 func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
 	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
-	// 
+	// so noMatchGroups will return true and matchGroup entries will be false.
 	for i, testSet := range whitelistTests {
 		module := fixtureModule("", testSet.regexFilter)
 		module.Configure("test", "storage.test")
 
-		for _, group := range testSet.blacklistedGroups {
+		for _, group := range testSet.noMatchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
 		}
-		for _, group := range testSet.whitelistedGroups {
+		for _, group := range testSet.matchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
 		}
