@@ -354,13 +354,13 @@ func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
 }
 
 type testset struct {
-	regexFilter  string
-	matchGroups []string
+	regexFilter   string
+	matchGroups   []string
 	noMatchGroups []string
 }
 
 var regexFilterTests = []testset{
-	{".*", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
+	{"", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
 	{"test.*", []string{"testgroup"}, []string{"ok_group", "dash-group", "num02group"}},
 	{".*[0-9]+.*", []string{"num02group"}, []string{"ok_group", "dash-group", "testgroup"}},
 	{"onlygroup", []string{"onlygroup"}, []string{"testgroup", "ok_group", "dash-group", "num02group"}},
@@ -382,7 +382,6 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 	}
 }
 
-
 func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
 	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
 	// so noMatchGroups will return true and matchGroup entries will be false.
@@ -400,7 +399,6 @@ func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
 		}
 	}
 }
-
 
 func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
