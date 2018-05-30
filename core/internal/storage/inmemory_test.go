@@ -355,7 +355,7 @@ type testset struct {
 	noMatchGroups []string
 }
 
-var whitelistTests = []testset{
+var regexFilterTests = []testset{
 	{"", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
 	{"test.*", []string{"testgroup"}, []string{"ok_group", "dash-group", "num02group"}},
 	{".*[0-9]+.*", []string{"num02group"}, []string{"ok_group", "dash-group", "testgroup"}},
@@ -363,7 +363,7 @@ var whitelistTests = []testset{
 }
 
 func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
-	for i, testSet := range whitelistTests {
+	for i, testSet := range regexFilterTests {
 		module := fixtureModule(testSet.regexFilter, "")
 		module.Configure("test", "storage.test")
 
@@ -382,7 +382,7 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
 	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
 	// so noMatchGroups will return true and matchGroup entries will be false.
-	for i, testSet := range whitelistTests {
+	for i, testSet := range regexFilterTests {
 		module := fixtureModule("", testSet.regexFilter)
 		module.Configure("test", "storage.test")
 
