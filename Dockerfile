@@ -1,4 +1,4 @@
-FROM golang:1.9-alpine as builder
+FROM golang:1.10-alpine as builder
 
 ENV DEP_VERSION="0.3.2"
 RUN apk add --no-cache git curl && \

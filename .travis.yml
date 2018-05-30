@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.9.1
   - 1.9.2
+  - 1.10.3
   - master
 
 env:
@@ -12,7 +12,7 @@ sudo: required
 
 services:
   - docker
-  
+
 before_install:
   # Download the binary to bin folder in $GOPATH
   - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
@@ -65,4 +65,4 @@ script:
 # goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi
+  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == "1.10.3" ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi
