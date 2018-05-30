@@ -24,7 +24,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func fixtureModule(whitelist string) *InMemoryStorage {
+func fixtureModule(whitelist string, blacklist string) *InMemoryStorage {
 	module := InMemoryStorage{
 		Log: zap.NewNop(),
 	}
@@ -35,13 +35,14 @@ func fixtureModule(whitelist string) *InMemoryStorage {
 	viper.Reset()
 	viper.Set("storage.test.class-name", "inmemory")
 	viper.Set("storage.test.group-whitelist", whitelist)
+	viper.Set("storage.test.group-blacklist", blacklist)
 	viper.Set("storage.test.min-distance", 1)
 
 	return &module
 }
 
 func startWithTestCluster(whitelist string) *InMemoryStorage {
-	module := fixtureModule(whitelist)
+	module := fixtureModule(whitelist, "")
 
 	// Start needs at least one cluster defined, but it only needs to have a name here
 	viper.Set("cluster.testcluster.class-name", "kafka")
@@ -94,18 +95,18 @@ func TestInMemoryStorage_ImplementsStorageModule(t *testing.T) {
 }
 
 func TestInMemoryStorage_Configure(t *testing.T) {
-	module := fixtureModule("")
+	module := fixtureModule("", "")
 	module.Configure("test", "storage.test")
 }
 
 func TestInMemoryStorage_Configure_DefaultIntervals(t *testing.T) {
-	module := fixtureModule("")
+	module := fixtureModule("", "")
 	module.Configure("test", "storage.test")
 	assert.Equal(t, 10, module.intervals, "Default Intervals value of 10 did not get set")
 }
 
 func TestInMemoryStorage_Configure_BadRegexp(t *testing.T) {
-	module := fixtureModule("")
+	module := fixtureModule("", "")
 	viper.Set("storage.test.group-whitelist", "[")
 
 	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
@@ -349,9 +350,9 @@ func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
 }
 
 type testset struct {
-	whitelist  string
-	passGroups []string
-	failGroups []string
+	regexFilter  string
+	whitelistedGroups []string
+	blacklistedGroups []string
 }
 
 var whitelistTests = []testset{
@@ -363,19 +364,39 @@ var whitelistTests = []testset{
 
 func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 	for i, testSet := range whitelistTests {
-		module := fixtureModule(testSet.whitelist)
+		module := fixtureModule(testSet.regexFilter, "")
 		module.Configure("test", "storage.test")
 
-		for _, group := range testSet.passGroups {
+		for _, group := range testSet.whitelistedGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
 		}
-		for _, group := range testSet.failGroups {
+		for _, group := range testSet.blacklistedGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
 		}
 	}
 }
+
+
+func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
+	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
+	// 
+	for i, testSet := range whitelistTests {
+		module := fixtureModule("", testSet.regexFilter)
+		module.Configure("test", "storage.test")
+
+		for _, group := range testSet.blacklistedGroups {
+			result := module.acceptConsumerGroup(group)
+			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
+		}
+		for _, group := range testSet.whitelistedGroups {
+			result := module.acceptConsumerGroup(group)
+			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
+		}
+	}
+}
+
 
 func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
