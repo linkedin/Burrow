@@ -34,8 +34,12 @@ func fixtureModule(whitelist string, blacklist string) *InMemoryStorage {
 
 	viper.Reset()
 	viper.Set("storage.test.class-name", "inmemory")
-	viper.Set("storage.test.group-whitelist", whitelist)
-	viper.Set("storage.test.group-blacklist", blacklist)
+	if whitelist != "" {
+		viper.Set("storage.test.group-whitelist", whitelist)
+	}
+	if blacklist != "" {
+		viper.Set("storage.test.group-blacklist", blacklist)
+	}
 	viper.Set("storage.test.min-distance", 1)
 
 	return &module
