@@ -48,6 +48,7 @@ type InMemoryStorage struct {
 	mainRunning    sync.WaitGroup
 	offsets        map[string]clusterOffsets
 	groupWhitelist *regexp.Regexp
+	groupBlacklist *regexp.Regexp
 	workers        []chan *protocol.StorageRequest
 }
 
@@ -112,6 +113,16 @@ func (module *InMemoryStorage) Configure(name string, configRoot string) {
 			panic(err)
 		}
 		module.groupWhitelist = re
+	}
+
+	blacklist := viper.GetString(configRoot + ".group-blacklist")
+	if blacklist != "" {
+		re, err := regexp.Compile(blacklist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group blacklist")
+			panic(err)
+		}
+		module.groupBlacklist = re
 	}
 }
 
@@ -320,11 +331,13 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *consumerGroup, topi
 }
 
 func (module *InMemoryStorage) acceptConsumerGroup(group string) bool {
-	// No whitelist means everything passes
-	if module.groupWhitelist == nil {
-		return true
+	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
+		return false
 	}
-	return module.groupWhitelist.MatchString(group)
+	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+		return false
+	}
+	return true
 }
 
 func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageRequest, requestLogger *zap.Logger) {

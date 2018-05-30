@@ -171,7 +171,6 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 }
 
 func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
-	// No whitelist means everything passes
 	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
 		return false
 	}
