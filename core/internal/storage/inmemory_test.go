@@ -360,7 +360,7 @@ type testset struct {
 }
 
 var regexFilterTests = []testset{
-	{"", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
+	{".*", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
 	{"test.*", []string{"testgroup"}, []string{"ok_group", "dash-group", "num02group"}},
 	{".*[0-9]+.*", []string{"num02group"}, []string{"ok_group", "dash-group", "testgroup"}},
 	{"onlygroup", []string{"onlygroup"}, []string{"testgroup", "ok_group", "dash-group", "num02group"}},
