@@ -109,9 +109,16 @@ func TestInMemoryStorage_Configure_DefaultIntervals(t *testing.T) {
 	assert.Equal(t, 10, module.intervals, "Default Intervals value of 10 did not get set")
 }
 
-func TestInMemoryStorage_Configure_BadRegexp(t *testing.T) {
+func TestInMemoryStorage_Configure_BadWhitelistRegexp(t *testing.T) {
 	module := fixtureModule("", "")
 	viper.Set("storage.test.group-whitelist", "[")
+
+	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
+}
+
+func TestInMemoryStorage_Configure_BadBlacklistRegexp(t *testing.T) {
+	module := fixtureModule("", "")
+	viper.Set("storage.test.group-blacklist", "[")
 
 	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
 }
