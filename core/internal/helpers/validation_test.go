@@ -49,7 +49,7 @@ var testHostnames = []TestSet{
 	{"host.example.com", true},
 	{"example.com", true},
 	{"thissegmentiswaytoolongbecauseitshouldnotbemorethansixtythreecharacters.foo.com", false},
-	{"underscores_are.not.valid.com", false},
+	{"underscores_are.valid.com", true},
 	{"800.hostnames.starting.with.numbers.are.valid.because.people.suck.org", true},
 	{"hostnames-.may.not.end.with.a.dash.com", false},
 	{"no spaces.com", false},
@@ -172,7 +172,7 @@ var testHostPorts = []TestSet{
 	{"host0:4234", true},
 	{"host.example.com:23", true},
 	{"thissegmentiswaytoolongbecauseitshouldnotbemorethansixtythreecharacters.foo.com:36334", false},
-	{"underscores_are.not.valid.com:3453", false},
+	{"underscores_are.valid.com:3453", true},
 }
 
 func TestValidateHostList(t *testing.T) {
