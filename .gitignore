@@ -1,12 +1,4 @@
-burrow-src
-.*.swp
-!config
-dist
-log
-.idea
-*.cov
-Burrow
-Burrow.exe
-Burrow.iml
-tmp
-vendor
+/.gygdev-dc.yml
+/.gygdev_generated
+/.config
+/.secrets

@@ -1,0 +1,11 @@
+version: '1'
+service:
+  name: burrow
+  owner: devops
+  containers:
+    web:
+      dockerfile: Dockerfile
+      needs:
+        - kafka
+      config_files:
+        burrow: template:/etc/burrow/
