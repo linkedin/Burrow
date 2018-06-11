@@ -58,6 +58,11 @@ intervals=15
 expire-group=604800
 min-distance=1
 
+[sasl.kafka1]
+username="${SASL_PLAIN_USERNAME}"
+password="${SASL_PLAIN_PASSWORD}"
+handshake-first=false
+
 # [notifier.default]
 # class-name="http"
 # url-open="http://someservice.example.com:1467/v1/event"
