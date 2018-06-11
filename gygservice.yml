@@ -7,7 +7,7 @@ service:
       dockerfile: Dockerfile
       needs:
         - kafka
-      config_files:
-        burrow: template:/etc/burrow/config/
+      # config_files:
+      #   burrow: template:/etc/burrow/config/
       secret_files:
-        sasl: /etc/burrow/secrets/
+        sasl: /etc/burrow/
