@@ -1,4 +1,0 @@
-[sasl.kafka1]
-username="${SASL_PLAIN_USERNAME}"
-password="${SASL_PLAIN_PASSWORD}"
-handshake-first=false

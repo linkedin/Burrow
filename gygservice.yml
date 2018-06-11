@@ -8,4 +8,6 @@ service:
       needs:
         - kafka
       config_files:
-        burrow: template:/etc/burrow/
+        burrow: template:/etc/burrow/config/
+      secret_files:
+        sasl: /etc/burrow/secrets/
