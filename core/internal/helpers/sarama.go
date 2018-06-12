@@ -14,6 +14,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
+	"log"
+	"os"
 
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
@@ -77,6 +79,9 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	saramaConfig.ClientID = viper.GetString(configRoot + ".client-id")
 	saramaConfig.Version = parseKafkaVersion(viper.GetString(configRoot + ".kafka-version"))
 	saramaConfig.Consumer.Return.Errors = true
+
+	//verbose debugging (comment this line to disable verbose sarama logging)
+	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
 	// Configure TLS if enabled
 	if viper.IsSet(configRoot + ".tls") {
