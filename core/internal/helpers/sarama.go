@@ -80,8 +80,12 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	saramaConfig.Version = parseKafkaVersion(viper.GetString(configRoot + ".kafka-version"))
 	saramaConfig.Consumer.Return.Errors = true
 
-	//verbose debugging (comment this line to disable verbose sarama logging)
-	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+	if (viper.IsSet("logging")) {
+		viper.SetDefault("logging.level", "info")
+		if (viper.GetString("logging.level") == "debug") {
+			sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+		}
+	}
 
 	// Configure TLS if enabled
 	if viper.IsSet(configRoot + ".tls") {
