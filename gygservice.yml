@@ -10,4 +10,4 @@ service:
       # config_files:
       #   burrow: template:/etc/burrow/config/
       secret_files:
-        sasl: /etc/burrow/
+        burrow: /etc/burrow/
