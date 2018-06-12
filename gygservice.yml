@@ -12,3 +12,7 @@ service:
       ports:
       - name: http
         container: 8000
+      annotations:
+        service-discovery.datadoghq.com/check_names: '["burrow"]'
+        service-discovery.datadoghq.com/init_configs: '[{}]'
+        service-discovery.datadoghq.com/instances: '[{"burrow_uri": "http://%%host%%:8000", "clusters": ["kafka1"]}]'
