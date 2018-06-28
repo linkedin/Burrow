@@ -47,6 +47,14 @@ func CheckAndCreatePidFile(filename string) bool {
 			return false
 		}
 
+		if pid == os.Getpid() {
+			// This could happen inside a docker
+			// container, e.g. the pid of Burrow could be
+			// equal to 1 each time the container is
+			// restarted.
+			return true
+		}
+
 		// Try sending a signal to the process to see if it is still running
 		process, err := os.FindProcess(int(pid))
 		if err == nil {
