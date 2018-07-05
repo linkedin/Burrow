@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"crypto/tls"
+
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -56,7 +58,7 @@ type HTTPNotifier struct {
 // Configure validates the configuration of the http notifier. At minimum, there must be a url-open specified, and if
 // send-close is set to true there must also be a url-close. If these are missing or incorrect, this func will panic
 // with an explanatory message. It is also possible to configure a specific method (such as POST or DELETE) to be used
-// with these URLs, as well as a timeout and keepalive for the HTTP client.
+// with these URLs, as well as a timeout and keepalive for the HTTP smtpClient.
 func (module *HTTPNotifier) Configure(name string, configRoot string) {
 	module.name = name
 
@@ -66,6 +68,7 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 		module.Log.Panic("no url-open specified")
 		panic(errors.New("configuration error"))
 	}
+
 	viper.SetDefault(configRoot+".method-open", "POST")
 	module.methodOpen = viper.GetString(configRoot + ".method-open")
 
@@ -84,7 +87,7 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 	viper.SetDefault(configRoot+".timeout", 5)
 	viper.SetDefault(configRoot+".keepalive", 300)
 
-	// Set up HTTP client
+	// Set up HTTP smtpClient
 	module.httpClient = &http.Client{
 		Timeout: viper.GetDuration(configRoot+".timeout") * time.Second,
 		Transport: &http.Transport{
@@ -92,7 +95,19 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
 			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: buildHttpTLSConfig(
+				viper.GetString(configRoot+".extra-ca"),
+				viper.GetBool(configRoot+".noverify")),
 		},
+	}
+}
+
+func buildHttpTLSConfig(extraCaFile string, noVerify bool) *tls.Config {
+	rootCAs := buildRootCAs(extraCaFile, noVerify)
+
+	return &tls.Config{
+		InsecureSkipVerify: noVerify,
+		RootCAs:            rootCAs,
 	}
 }
 
