@@ -11,7 +11,6 @@
 package notifier
 
 import (
-	"net/smtp"
 	"text/template"
 	"time"
 
@@ -22,6 +21,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"
+	"net"
+	"strconv"
 )
 
 func fixtureEmailNotifier() *EmailNotifier {
@@ -39,6 +40,7 @@ func fixtureEmailNotifier() *EmailNotifier {
 	viper.Set("notifier.test.port", 587)
 	viper.Set("notifier.test.from", "sender@example.com")
 	viper.Set("notifier.test.to", "receiver@example.com")
+	viper.Set("notifier.test.noverify", true)
 
 	return &module
 }
@@ -52,9 +54,7 @@ func TestEmailNotifier_Configure(t *testing.T) {
 	module := fixtureEmailNotifier()
 
 	module.Configure("test", "notifier.test")
-	assert.Equalf(t, "test.example.com:587", module.serverWithPort, "Expected serverWithPort to be test.example.com:587, not %v", module.serverWithPort)
-	assert.NotNil(t, module.sendMailFunc, "Expected sendMailFunc to get set to smtp.SendMail")
-	assert.Nil(t, module.auth, "Expected auth to be set to nil")
+	assert.NotNil(t, module.smtpDialer, "Expected smtpDialer")
 }
 
 func TestEmailNotifier_Configure_BasicAuth(t *testing.T) {
@@ -64,7 +64,6 @@ func TestEmailNotifier_Configure_BasicAuth(t *testing.T) {
 	viper.Set("notifier.test.password", "pass")
 
 	module.Configure("test", "notifier.test")
-	assert.NotNil(t, module.auth, "Expected auth to be set")
 }
 
 func TestEmailNotifier_Configure_CramMD5(t *testing.T) {
@@ -74,7 +73,6 @@ func TestEmailNotifier_Configure_CramMD5(t *testing.T) {
 	viper.Set("notifier.test.password", "pass")
 
 	module.Configure("test", "notifier.test")
-	assert.NotNil(t, module.auth, "Expected auth to be set")
 }
 
 func TestEmailNotifier_StartStop(t *testing.T) {
@@ -101,18 +99,34 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 	viper.Set("notifier.test.username", "user")
 	viper.Set("notifier.test.password", "pass")
 
-	module.sendMailFunc = func(server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
-		assert.Equalf(t, "test.example.com:587", server, "Expected server to be test.example.com:587, not %v", server)
-		assert.NotNil(t, auth, "Expected auth to not be nil")
-		assert.Equalf(t, "sender@example.com", from, "Expected from to be sender@example.com, not %v", from)
-		assert.Lenf(t, to, 1, "Expected one to address, not %v", len(to))
-		assert.Equalf(t, "receiver@example.com", to[0], "Expected to to be receiver@example.com, not %v", to[0])
-		assert.Equalf(t, []byte("From: sender@example.com\nTo: receiver@example.com\ntestidstring testcluster testgroup WARN"), bytesToSend, "Unexpected bytes, got: %v", bytesToSend)
+	module.sendMailFunc = func(emailMessage *EmailMessage) error {
+		d := module.smtpDialer
+		serverWithPort := net.JoinHostPort(d.Host, strconv.Itoa(d.Port))
+		assert.Equalf(t, "test.example.com:587", serverWithPort, "Expected server to be test.example.com:587, not %v", serverWithPort)
+		assert.NotNil(t, d.Auth, "Expected auth to not be nil")
+		assert.Equalf(t, "sender@example.com", module.from, "Expected from to be sender@example.com, not %v", module.from)
+		assert.Lenf(t, []string{module.to}, 1, "Expected one to address, not %v", len([]string{module.to}))
+		assert.Equalf(t, "receiver@example.com", []string{module.to}[0], "Expected to to be receiver@example.com, not %v", []string{module.to}[0])
+
+		assert.Equalf(t, "[Burrow] Kafka Consumer Lag Alert", emailMessage.Subject, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", emailMessage.Subject)
+		assert.Equalf(t, "text/plain", emailMessage.ContentType, "Expected contentType to be text/plain, not %v", emailMessage.ContentType)
+		assert.Equalf(t, "", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
+		assert.NotNil(t, emailMessage.Body, "Expected auth to not be nil")
+		assert.True(t, d.TLSConfig.InsecureSkipVerify)
+
 		return nil
 	}
 
 	// Template for testing
-	module.templateOpen, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
+	module.templateOpen, _ = template.New("test").Parse("Subject: [Burrow] Kafka Consumer Lag Alert\n\n" +
+		"The Kafka consumer groups you are monitoring are currently showing problems. The following groups are in a problem state (groups not listed are OK):\n\n" +
+		"Cluster:  {{.Result.Cluster}}\n" +
+		"Group:    {{.Result.Group}}\n" +
+		"Status:   {{.Result.Status.String}}\n" +
+		"Complete: {{.Result.Complete}}\n" +
+		"Errors:   {{len .Result.Partitions}} partitions have problems\n" +
+		"{{range .Result.Partitions}}          {{.Status.String}} {{.Topic}}:{{.Partition}} ({{.Start.Timestamp}}, {{.Start.Offset}}, {{.Start.Lag}}) -> ({{.End.Timestamp}}, {{.End.Offset}}, {{.End.Lag}})\n" +
+		"{{end}}")
 
 	module.Configure("test", "notifier.test")
 
@@ -128,18 +142,35 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 func TestEmailNotifier_Notify_Close(t *testing.T) {
 	module := fixtureEmailNotifier()
 
-	module.sendMailFunc = func(server string, auth smtp.Auth, from string, to []string, bytesToSend []byte) error {
-		assert.Equalf(t, "test.example.com:587", server, "Expected server to be test.example.com:587, not %v", server)
-		assert.Nil(t, auth, "Expected auth to be nil")
-		assert.Equalf(t, "sender@example.com", from, "Expected from to be sender@example.com, not %v", from)
-		assert.Lenf(t, to, 1, "Expected one to address, not %v", len(to))
-		assert.Equalf(t, "receiver@example.com", to[0], "Expected to to be receiver@example.com, not %v", to[0])
-		assert.Equalf(t, []byte("From: sender@example.com\nTo: receiver@example.com\ntestidstring testcluster testgroup OK"), bytesToSend, "Unexpected bytes, got: %v", bytesToSend)
+	module.sendMailFunc = func(emailMessage *EmailMessage) error {
+		d := module.smtpDialer
+		serverWithPort := net.JoinHostPort(d.Host, strconv.Itoa(d.Port))
+
+		assert.Equalf(t, "test.example.com:587", serverWithPort, "Expected server to be test.example.com:587, not %v", serverWithPort)
+		assert.Nil(t, d.Auth, "Expected auth to be nil")
+		assert.Equalf(t, "sender@example.com", module.from, "Expected from to be sender@example.com, not %v", module.from)
+		assert.Lenf(t, []string{module.to}, 1, "Expected one to address, not %v", len([]string{module.to}))
+		assert.Equalf(t, "receiver@example.com", []string{module.to}[0], "Expected to to be receiver@example.com, not %v", []string{module.to}[0])
+
+		assert.Equalf(t, "[Burrow] Kafka Consumer Healthy", emailMessage.Subject, "Expected subject to be [Burrow] Kafka Consumer Healthy, not %v", emailMessage.Subject)
+		assert.Equalf(t, "text/html", emailMessage.ContentType, "Expected contentType to be text/html, not %v", emailMessage.ContentType)
+		assert.Equalf(t, "", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
+		assert.NotNil(t, emailMessage.Body, "Expected auth to not be nil")
+		assert.True(t, d.TLSConfig.InsecureSkipVerify)
+
 		return nil
 	}
 
 	// Template for testing
-	module.templateClose, _ = template.New("test").Parse("{{.Id}} {{.Cluster}} {{.Group}} {{.Result.Status}}")
+	module.templateClose, _ = template.New("test").Parse("Subject: [Burrow] Kafka Consumer Healthy\n\n" +
+		"Content-Type: text/html\n" +
+		"Consumer is now in a healthy state" +
+		"Cluster:  {{.Result.Cluster}}\n" +
+		"Group:    {{.Result.Group}}\n" +
+		"Status:   {{.Result.Status.String}}\n" +
+		"Complete: {{.Result.Complete}}\n" +
+		"{{range .Result.Partitions}}          {{.Status.String}} {{.Topic}}:{{.Partition}} ({{.Start.Timestamp}}, {{.Start.Offset}}, {{.Start.Lag}}) -> ({{.End.Timestamp}}, {{.End.Offset}}, {{.End.Lag}})\n" +
+		"{{end}}")
 
 	module.Configure("test", "notifier.test")
 

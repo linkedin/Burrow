@@ -201,6 +201,8 @@ type httpResponseConfigModuleNotifierHTTP struct {
 	TemplateClose  string            `json:"template-close"`
 	Extras         map[string]string `json:"extra"`
 	SendClose      bool              `json:"send-close"`
+	ExtraCa        string            `json:"extra-ca"`
+	NoVerify       string            `json:"noverify"`
 }
 
 type httpResponseConfigModuleNotifierSlack struct {
@@ -235,6 +237,8 @@ type httpResponseConfigModuleNotifierEmail struct {
 	Username       string            `json:"username"`
 	From           string            `json:"from"`
 	To             string            `json:"to"`
+	ExtraCa        string            `json:"extra-ca"`
+	NoVerify       string            `json:"noverify"`
 }
 
 type httpResponseConfigModuleNotifierNull struct {
