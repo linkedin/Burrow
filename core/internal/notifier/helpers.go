@@ -127,7 +127,7 @@ func buildRootCAs(extraCaFile string, noVerify bool) *x509.CertPool {
 		rootCAs = x509.NewCertPool()
 	}
 
-	if extraCaFile != "" && noVerify != true {
+	if extraCaFile != "" && !noVerify {
 		certs, err := ioutil.ReadFile(extraCaFile)
 
 		if err != nil {

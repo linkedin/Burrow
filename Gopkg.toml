@@ -37,7 +37,7 @@
 [[constraint]]
   name = "github.com/spf13/viper"
   version = "1.0.0"
-  
+
 [[constraint]]
   name = "gopkg.in/gomail.v2"
   branch = "v2"

@@ -89,7 +89,7 @@ func (module *EmailNotifier) Configure(name string, configRoot string) {
 	noVerify := viper.GetBool(configRoot + ".noverify")
 
 	d := gomail.NewDialer(host, port, "", "")
-	d.Auth = module.getSmtpAuth(configRoot)
+	d.Auth = module.getSMTPAuth(configRoot)
 	d.TLSConfig = buildEmailTLSConfig(extraCa, noVerify, host)
 
 	module.smtpDialer = d
@@ -106,7 +106,7 @@ func buildEmailTLSConfig(extraCaFile string, noVerify bool, smtpHost string) *tl
 }
 
 // Builds authentication profile for smtp client
-func (module *EmailNotifier) getSmtpAuth(configRoot string) smtp.Auth {
+func (module *EmailNotifier) getSMTPAuth(configRoot string) smtp.Auth {
 	var auth smtp.Auth
 	// Set up SMTP authentication
 	switch strings.ToLower(viper.GetString(configRoot + ".auth-type")) {
@@ -218,6 +218,8 @@ func (module *EmailNotifier) sendEmail(emailMessage *EmailMessage) error {
 	return nil
 }
 
+
+// EmailMessage has all relevant content related properties for an email message
 type EmailMessage struct {
 	Subject     string
 	ContentType string

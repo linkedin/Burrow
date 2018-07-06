@@ -95,14 +95,14 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
 			Proxy: http.ProxyFromEnvironment,
-			TLSClientConfig: buildHttpTLSConfig(
+			TLSClientConfig: buildHTTPTLSConfig(
 				viper.GetString(configRoot+".extra-ca"),
 				viper.GetBool(configRoot+".noverify")),
 		},
 	}
 }
 
-func buildHttpTLSConfig(extraCaFile string, noVerify bool) *tls.Config {
+func buildHTTPTLSConfig(extraCaFile string, noVerify bool) *tls.Config {
 	rootCAs := buildRootCAs(extraCaFile, noVerify)
 
 	return &tls.Config{
