@@ -123,7 +123,7 @@ func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Eve
 // Exists mocks protocol.ZookeeperClient.Exists
 func (m *MockZookeeperClient) Exists(path string) (bool, *zk.Stat, error) {
 	args := m.Called(path)
-	return args.Bool(0), args.Get(1).(*zk.Stat), args.Error(3)
+	return args.Bool(0), args.Get(1).(*zk.Stat), args.Error(2)
 }
 
 // ExistsW mocks protocol.ZookeeperClient.ExistsW
