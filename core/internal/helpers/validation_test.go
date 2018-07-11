@@ -96,6 +96,13 @@ func TestValidateTopic(t *testing.T) {
 	}
 }
 
+func TestValidateFilename(t *testing.T) {
+	for i, testSet := range testTopics {
+		result := ValidateFilename(testSet.TestValue)
+		assert.Equalf(t, testSet.Result, result, "Test %v - Expected '%v' to return %v, not %v", i, testSet.TestValue, testSet.Result, result)
+	}
+}
+
 var testEmails = []TestSet{
 	{"ok@example.com", true},
 	{"need@domain", false},
@@ -173,10 +180,13 @@ var testHostPorts = []TestSet{
 	{"host.example.com:23", true},
 	{"thissegmentiswaytoolongbecauseitshouldnotbemorethansixtythreecharacters.foo.com:36334", false},
 	{"underscores_are.not.valid.com:3453", false},
+	{":2453", true},
+	{"hostname:stringsNotValid", false},
 }
 
 func TestValidateHostList(t *testing.T) {
 	for i, testSet := range testHostPorts {
+		// Test allow blank hostname
 		result := ValidateHostList([]string{testSet.TestValue})
 		assert.Equalf(t, testSet.Result, result, "Test %v - Expected '%v' to return %v, not %v", i, testSet.TestValue, testSet.Result, result)
 	}
