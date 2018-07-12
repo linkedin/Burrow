@@ -141,8 +141,8 @@ type ZookeeperClient interface {
 	// the children of the specified path, providing an event channel that will receive a message when the watch fires
 	GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error)
 
-	// For the given path in Zookeeper, return a boolean stating whether or not the node exists. 
-	// If the node exists, skip zc.App.Zookeeper.Create and avoid the "zk: not authenticated" error. 
+	// For the given path in Zookeeper, return a boolean stating whether or not the node exists.
+	// The method does not set watch on the node, but verifies existence of a node to avoid authentication error.
 	Exists(path string) (bool, *zk.Stat, error)
 
 	// For the given path in Zookeeper, return a boolean stating whether or not the node exists. This method also sets
@@ -151,7 +151,7 @@ type ZookeeperClient interface {
 	ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error)
 
 	// Create makes a new ZNode at the specified path with the contents set to the data byte-slice. Flags can be
-	// provided to specify that this is an ephemeral or sequence node, and an ACL must be provided. If no ACL is\
+	// provided to specify that this is an ephemeral or sequence node, and an ACL must be provided. If no ACL is
 	// desired, specify
 	//  zk.WorldACL(zk.PermAll)
 	Create(string, []byte, int32, []zk.ACL) (string, error)
