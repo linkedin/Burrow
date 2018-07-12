@@ -56,7 +56,7 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 	return z.client.GetW(path)
 }
 
-// Exists returns a boolean stating whether or not the specified path exists. 
+// Exists returns a boolean stating whether or not the specified path exists.
 func (z *BurrowZookeeperClient) Exists(path string) (bool, *zk.Stat, error) {
 	return z.client.Exists(path)
 }
