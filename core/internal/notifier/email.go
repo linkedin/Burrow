@@ -218,7 +218,6 @@ func (module *EmailNotifier) sendEmail(emailMessage *EmailMessage) error {
 	return nil
 }
 
-
 // EmailMessage has all relevant content related properties for an email message
 type EmailMessage struct {
 	Subject     string
