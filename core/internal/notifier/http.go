@@ -87,17 +87,16 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 	viper.SetDefault(configRoot+".timeout", 5)
 	viper.SetDefault(configRoot+".keepalive", 300)
 
-	// Set up HTTP smtpClient
+	tlsConfig := buildHTTPTLSConfig(viper.GetString(configRoot+".extra-ca"), viper.GetBool(configRoot+".noverify"))
+
 	module.httpClient = &http.Client{
 		Timeout: viper.GetDuration(configRoot+".timeout") * time.Second,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
 				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
-			Proxy: http.ProxyFromEnvironment,
-			TLSClientConfig: buildHTTPTLSConfig(
-				viper.GetString(configRoot+".extra-ca"),
-				viper.GetBool(configRoot+".noverify")),
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: tlsConfig,
 		},
 	}
 }

@@ -41,6 +41,7 @@ func fixtureHTTPNotifier() *HTTPNotifier {
 	viper.Set("notifier.test.template-close", "template_close")
 	viper.Set("notifier.test.send-close", false)
 	viper.Set("notifier.test.headers", map[string]string{"Token": "testtoken"})
+	viper.Set("notifier.test.noverify", true)
 
 	return &module
 }
