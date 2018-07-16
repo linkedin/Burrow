@@ -213,7 +213,7 @@ func (hc *Coordinator) configNotifierHTTP(w http.ResponseWriter, r *http.Request
 			Extras:         viper.GetStringMapString(configRoot + ".extras"),
 			SendClose:      viper.GetBool(configRoot + ".send-close"),
 			ExtraCa:        viper.GetString(configRoot + ".extra-ca"),
-			NoVerify:        viper.GetString(configRoot + ".noverify"),
+			NoVerify:       viper.GetString(configRoot + ".noverify"),
 		},
 		Request: requestInfo,
 	})
@@ -265,7 +265,7 @@ func (hc *Coordinator) configNotifierEmail(w http.ResponseWriter, r *http.Reques
 			From:           viper.GetString(configRoot + ".from"),
 			To:             viper.GetString(configRoot + ".to"),
 			ExtraCa:        viper.GetString(configRoot + ".extra-ca"),
-			NoVerify:        viper.GetString(configRoot + ".noverify"),
+			NoVerify:       viper.GetString(configRoot + ".noverify"),
 		},
 		Request: requestInfo,
 	})
