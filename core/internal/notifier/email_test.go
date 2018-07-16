@@ -110,7 +110,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 
 		assert.Equalf(t, "[Burrow] Kafka Consumer Lag Alert", emailMessage.Subject, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", emailMessage.Subject)
 		assert.Equalf(t, "text/plain", emailMessage.ContentType, "Expected contentType to be text/plain, not %v", emailMessage.ContentType)
-		assert.Equalf(t, "", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
+		assert.Equalf(t, "1.0", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
 		assert.NotNil(t, emailMessage.Body, "Expected auth to not be nil")
 		assert.True(t, d.TLSConfig.InsecureSkipVerify)
 
@@ -119,6 +119,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 
 	// Template for testing
 	module.templateOpen, _ = template.New("test").Parse("Subject: [Burrow] Kafka Consumer Lag Alert\n\n" +
+		"MIME-version: 1.0\n" +
 		"The Kafka consumer groups you are monitoring are currently showing problems. The following groups are in a problem state (groups not listed are OK):\n\n" +
 		"Cluster:  {{.Result.Cluster}}\n" +
 		"Group:    {{.Result.Group}}\n" +
@@ -179,6 +180,9 @@ func TestEmailNotifier_Notify_Close(t *testing.T) {
 		Cluster: "testcluster",
 		Group:   "testgroup",
 	}
+
+	// Test appending file that doesn't exist
+	assert.Panics(t, func() { buildRootCAs("/etc/no/file", false) }, "The code did not panic")
 
 	module.Notify(status, "testidstring", time.Now(), true)
 }

@@ -236,7 +236,7 @@ func getTemplateKeywords(messageContent string) (*EmailMessage, error) {
 	contentTypeDelimiter := "Content-Type: "
 	mimeTypeDelimiter := "MIME-version: "
 
-	if !strings.HasPrefix(messageContent, "Subject:") {
+	if !strings.HasPrefix(messageContent, subjectDelimiter) {
 		return nil, errors.New("no subject line detected. Please make sure" +
 			" \"Subject: my_subject_line\" is included in your template")
 	}

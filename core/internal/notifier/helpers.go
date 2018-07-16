@@ -127,7 +127,7 @@ func buildRootCAs(extraCaFile string, noVerify bool) *x509.CertPool {
 		certs, err := ioutil.ReadFile(extraCaFile)
 
 		if err != nil {
-			log.Fatalf("Failed to append %q to RootCAs: %v", extraCaFile, err)
+			log.Panicf("Failed to append %q to RootCAs: %v", extraCaFile, err)
 		}
 
 		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
