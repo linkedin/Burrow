@@ -186,7 +186,8 @@ var testHostPorts = []TestSet{
 
 func TestValidateHostList(t *testing.T) {
 	for i, testSet := range testHostPorts {
-		result := ValidateHostList([]string{testSet.TestValue})
+		// Test allow blank hostname
+		result := ValidateHostList([]string{testSet.TestValue}, true)
 		assert.Equalf(t, testSet.Result, result, "Test %v - Expected '%v' to return %v, not %v", i, testSet.TestValue, testSet.Result, result)
 	}
 }
