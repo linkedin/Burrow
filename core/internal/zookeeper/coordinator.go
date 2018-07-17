@@ -121,8 +121,13 @@ func (zc *Coordinator) createRecursive(path string) error {
 
 	parts := strings.Split(path, "/")
 	for i := 2; i <= len(parts); i++ {
+		// If the rootpath exists, skip the Create process to avoid "zk: not authenticated" error
+		exist, _, errExists := zc.App.Zookeeper.Exists(strings.Join(parts[:i], "/"))
+		if (!exist) && (errExists == nil) {
+			continue
+		}
 		_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, zk.WorldACL(zk.PermAll))
-		// Ignore when the node exists already
+		// Ignore when the node exists git already
 		if (err != nil) && (err != zk.ErrNodeExists) {
 			return err
 		}
