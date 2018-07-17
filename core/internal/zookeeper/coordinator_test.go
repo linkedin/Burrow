@@ -70,7 +70,7 @@ func TestCoordinator_StartStop(t *testing.T) {
 	mockClient.On("Create", "/test", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", zk.ErrNodeExists)
 	mockClient.On("Exists", "/test/path").Return(true, offsetStat, nil)
 	mockClient.On("Create", "/test/path", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", zk.ErrNodeExists)
-	mockClient.On("Exists", "/test/path/burrow").Return(false, nil, nil)
+	mockClient.On("Exists", "/test/path/burrow").Return(false, offsetStat, nil)
 	mockClient.On("Create", "/test/path/burrow", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", nil)
 	mockClient.On("Close").Run(func(args mock.Arguments) { close(eventChan) }).Return()
 
