@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"
+	"gopkg.in/gomail.v2"
 	"net"
 	"strconv"
 )
@@ -99,7 +100,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 	viper.Set("notifier.test.username", "user")
 	viper.Set("notifier.test.password", "pass")
 
-	module.sendMailFunc = func(emailMessage *EmailMessage) error {
+	module.sendMailFunc = func(m *gomail.Message) error {
 		d := module.smtpDialer
 		serverWithPort := net.JoinHostPort(d.Host, strconv.Itoa(d.Port))
 		assert.Equalf(t, "test.example.com:587", serverWithPort, "Expected server to be test.example.com:587, not %v", serverWithPort)
@@ -108,10 +109,12 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 		assert.Lenf(t, []string{module.to}, 1, "Expected one to address, not %v", len([]string{module.to}))
 		assert.Equalf(t, "receiver@example.com", []string{module.to}[0], "Expected to to be receiver@example.com, not %v", []string{module.to}[0])
 
-		assert.Equalf(t, "[Burrow] Kafka Consumer Lag Alert", emailMessage.Subject, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", emailMessage.Subject)
-		assert.Equalf(t, "text/plain", emailMessage.ContentType, "Expected contentType to be text/plain, not %v", emailMessage.ContentType)
-		assert.Equalf(t, "1.0", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
-		assert.NotNil(t, emailMessage.Body, "Expected auth to not be nil")
+		mimeHeader := m.GetHeader("MIME-version")
+		subHeader := m.GetHeader("Subject")
+
+		assert.Equalf(t, []string([]string{"[Burrow] Kafka Consumer Lag Alert"}), subHeader, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", subHeader)
+		assert.Equalf(t, []string([]string{"1.0"}), mimeHeader, "Expected MimeVersion of 1.0", mimeHeader)
+		assert.NotNil(t, m, "Expected auth to not be nil")
 		assert.True(t, d.TLSConfig.InsecureSkipVerify)
 
 		return nil
@@ -143,7 +146,7 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 func TestEmailNotifier_Notify_Close(t *testing.T) {
 	module := fixtureEmailNotifier()
 
-	module.sendMailFunc = func(emailMessage *EmailMessage) error {
+	module.sendMailFunc = func(m *gomail.Message) error {
 		d := module.smtpDialer
 		serverWithPort := net.JoinHostPort(d.Host, strconv.Itoa(d.Port))
 
@@ -153,10 +156,12 @@ func TestEmailNotifier_Notify_Close(t *testing.T) {
 		assert.Lenf(t, []string{module.to}, 1, "Expected one to address, not %v", len([]string{module.to}))
 		assert.Equalf(t, "receiver@example.com", []string{module.to}[0], "Expected to to be receiver@example.com, not %v", []string{module.to}[0])
 
-		assert.Equalf(t, "[Burrow] Kafka Consumer Healthy", emailMessage.Subject, "Expected subject to be [Burrow] Kafka Consumer Healthy, not %v", emailMessage.Subject)
-		assert.Equalf(t, "text/html", emailMessage.ContentType, "Expected contentType to be text/html, not %v", emailMessage.ContentType)
-		assert.Equalf(t, "", emailMessage.MimeType, "Expected empty MimeType, not %v", emailMessage.MimeType)
-		assert.NotNil(t, emailMessage.Body, "Expected auth to not be nil")
+		mimeHeader := m.GetHeader("MIME-version")
+		subHeader := m.GetHeader("Subject")
+
+		assert.Equalf(t, []string([]string{"[Burrow] Kafka Consumer Healthy"}), subHeader, "Expected subject to be [Burrow] Kafka Consumer Healthy, not %v", subHeader)
+		assert.Equalf(t, []string([]string(nil)), mimeHeader, "Expected empty MimeVersion, not %v", mimeHeader)
+		assert.NotNil(t, m, "Expected auth to not be nil")
 		assert.True(t, d.TLSConfig.InsecureSkipVerify)
 
 		return nil

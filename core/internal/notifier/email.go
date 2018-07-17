@@ -48,7 +48,7 @@ type EmailNotifier struct {
 	from string
 
 	smtpDialer   *gomail.Dialer
-	sendMailFunc func(message *EmailMessage) error
+	sendMailFunc func(message *gomail.Message) error
 }
 
 // Configure validates the configuration of the email notifier. At minimum, there must be a valid server, port, from
@@ -186,8 +186,8 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	}
 
 	// Process template headers and send email
-	if emailMessage, err := getTemplateKeywords(messageContent.String()); err == nil {
-		if err := module.sendMailFunc(emailMessage); err != nil {
+	if m, err := module.createMessage(messageContent.String()); err == nil {
+		if err := module.sendMailFunc(m); err != nil {
 			logger.Error("failed to send", zap.Error(err))
 		}
 	} else {
@@ -195,22 +195,8 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	}
 }
 
-func (module *EmailNotifier) sendEmail(emailMessage *EmailMessage) error {
-	// Three possible key variables followed by blank line: Subject, Mime-Version, Content-Type,
-	m := gomail.NewMessage()
-	m.SetHeader("From", module.from)
-
-	recipients := strings.Split(module.to, ",")
-
-	m.SetHeader("To", recipients...)
-	m.SetHeader("Subject", emailMessage.Subject)
-
-	if emailMessage.MimeType != "" {
-		m.SetHeader("MIME-version", emailMessage.MimeType)
-	}
-
-	m.SetBody(emailMessage.ContentType, emailMessage.Body)
-
+// sendEmail uses the gomail smtpDialer to send a constructed message. This function is mocked for testing purposes
+func (module *EmailNotifier) sendEmail(m *gomail.Message) error {
 	if err := module.smtpDialer.DialAndSend(m); err != nil {
 		return err
 	}
@@ -218,23 +204,17 @@ func (module *EmailNotifier) sendEmail(emailMessage *EmailMessage) error {
 	return nil
 }
 
-// EmailMessage has all relevant content related properties for an email message
-type EmailMessage struct {
-	Subject     string
-	ContentType string
-	MimeType    string
-	Body        string
-}
-
-func getTemplateKeywords(messageContent string) (*EmailMessage, error) {
+// createMessage organizes all relevant email message content into a structure for easy use
+func (module *EmailNotifier) createMessage(messageContent string) (*gomail.Message, error) {
+	m := gomail.NewMessage()
 	var subject string
-	var mimeType string
+	var mimeVersion string
 
 	contentType := "text/plain"
 
 	subjectDelimiter := "Subject: "
 	contentTypeDelimiter := "Content-Type: "
-	mimeTypeDelimiter := "MIME-version: "
+	mimeVersionDelimiter := "MIME-version: "
 
 	if !strings.HasPrefix(messageContent, subjectDelimiter) {
 		return nil, errors.New("no subject line detected. Please make sure" +
@@ -249,19 +229,25 @@ func getTemplateKeywords(messageContent string) (*EmailMessage, error) {
 			subject = getKeywordContent(line, subjectDelimiter)
 		} else if strings.HasPrefix(line, contentTypeDelimiter) {
 			contentType = strings.Replace(getKeywordContent(line, contentTypeDelimiter), ";", "", -1)
-		} else if strings.HasPrefix(line, mimeTypeDelimiter) {
-			mimeType = strings.Replace(getKeywordContent(line, mimeTypeDelimiter), ";", "", -1)
+		} else if strings.HasPrefix(line, mimeVersionDelimiter) {
+			mimeVersion = strings.Replace(getKeywordContent(line, mimeVersionDelimiter), ";", "", -1)
 		} else {
 			body = body + line + "\n"
 		}
 	}
 
-	return &EmailMessage{
-		Subject:     subject,
-		ContentType: contentType,
-		MimeType:    mimeType,
-		Body:        body,
-	}, nil
+	recipients := strings.Split(module.to, ",")
+	m.SetHeader("To", recipients...)
+	m.SetHeader("From", module.from)
+	m.SetHeader("Subject", subject)
+
+	if mimeVersion != "" {
+		m.SetHeader("MIME-version", mimeVersion)
+	}
+
+	m.SetBody(contentType, body)
+
+	return m, nil
 }
 
 func getKeywordContent(header string, subjectDelimiter string) string {
