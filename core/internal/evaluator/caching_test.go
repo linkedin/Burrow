@@ -11,8 +11,10 @@
 package evaluator
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -470,4 +472,37 @@ func TestCachingEvaluator_CheckRules(t *testing.T) {
 		status := calculatePartitionStatus(testSet.offsets, testSet.brokerOffsets, testSet.currentLag, testSet.timeNow)
 		assert.Equalf(t, testSet.status, status, "TEST %v: Expected calculatePartitionStatus to return %v, not %v", i, testSet.status.String(), status.String())
 	}
+}
+
+// TODO this test should fail, ie a group should not exist if all its topics are deleted.
+func TestCachingEvaluator_TopicDeleted(t *testing.T) {
+	storageCoordinator, module := fixtureModule()
+	module.Configure("test", "evaluator.test")
+	module.Start()
+
+	// Deleting a topic will not delete the consumer group even if the consumer group has no topics
+	storageCoordinator.App.StorageChannel <- &protocol.StorageRequest{
+		RequestType: protocol.StorageSetDeleteTopic,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	evalRequest := &protocol.EvaluatorRequest{
+		Reply:   make(chan *protocol.ConsumerGroupStatus),
+		Cluster: "testcluster",
+		Group:   "testgroup",
+		ShowAll: true,
+	}
+
+	module.GetCommunicationChannel() <- evalRequest
+	evalResponse := <-evalRequest.Reply
+
+	// The status is returned as 'OK' as the topic has previously existed and
+	// belonged to a group therefore if the group has a recent timestamp in the
+	// consumerMap the evaluator continues as normal but processes no
+	// partitions.
+	assert.Equalf(t, protocol.StatusOK, evalResponse.Status, "Expected status to be OK, not %v", evalResponse.Status.String())
+	assert.Emptyf(t, evalResponse.Partitions, "Expected no partitions to be returned")
+	assert.Equalf(t, float32(0.0), evalResponse.Complete, "Expected 'Complete' to be 0.0")
 }
