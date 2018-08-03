@@ -129,7 +129,7 @@ func (zc *Coordinator) createRecursive(path string) error {
 			return errExists
 		}
 		_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, zk.WorldACL(zk.PermAll))
-		// Ignore when the node exists git already
+		// Ignore when the node exists already
 		if (err != nil) && (err != zk.ErrNodeExists) {
 			return err
 		}
