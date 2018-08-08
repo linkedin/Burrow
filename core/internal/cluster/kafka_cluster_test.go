@@ -22,9 +22,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"sync"
+
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"sync"
 )
 
 func fixtureModule() *KafkaCluster {
@@ -90,6 +91,32 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoDelete(t *testing.T) 
 	topic, ok := module.topicPartitions["testtopic"]
 	assert.True(t, ok, "Expected to find testtopic in topicPartitions")
 	assert.Equalf(t, 1, len(topic), "Expected testtopic to be recorded with 1 partition, not %v", len(topic))
+}
+
+func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_PartialUpdate(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "cluster.test")
+
+	// Set up the mock to return a test topic and partition
+	client := &helpers.MockSaramaClient{}
+	client.On("RefreshMetadata").Return(nil)
+	client.On("Topics").Return([]string{"testtopic"}, nil)
+	client.On("Partitions", "testtopic").Return([]int32{0, 1}, nil)
+
+	var nilBroker *helpers.BurrowSaramaBroker
+	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
+	client.On("Leader", "testtopic", int32(1)).Return(&helpers.MockSaramaBroker{}, nil)
+
+	module.fetchMetadata = true
+	module.maybeUpdateMetadataAndDeleteTopics(client)
+
+	client.AssertExpectations(t)
+	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
+	assert.Lenf(t, module.topicPartitions, 1, "Expected 1 topic entry, not %v", len(module.topicPartitions))
+	topic, ok := module.topicPartitions["testtopic"]
+	assert.True(t, ok, "Expected to find testtopic in topicPartitions")
+	assert.Equalf(t, len(topic), 1, "Expected testtopic's length to be 1, not %v", len(topic))
+	assert.Equalf(t, cap(topic), 2, "Expected testtopic's capacity to be 2, not %v", cap(topic))
 }
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
