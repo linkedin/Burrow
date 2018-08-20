@@ -47,8 +47,7 @@ type Coordinator struct {
 	router  *httprouter.Router
 	servers map[string]*http.Server
 	theCert map[string]string
-	theKey	map[string]string
-
+	theKey  map[string]string
 }
 
 // Configure is called to configure the HTTP server. This includes validating all configurations for each configured
@@ -120,7 +119,7 @@ func (hc *Coordinator) Configure() {
 		}
 		hc.servers[name] = server
 		hc.theCert[name] = certFile
-		hc.theKey[name]  = keyFile
+		hc.theKey[name] = keyFile
 	}
 
 	// Configure URL routes here
@@ -193,11 +192,11 @@ func (hc *Coordinator) Start() error {
 
 	// Start the HTTP server on the listeners
 	for name, server := range hc.servers {
-	  if hc.theCert[name] != "" || hc.theKey[name] != "" {
-		go server.ServeTLS(listeners[name],hc.theCert[name],hc.theKey[name])
-	} else {
-		go server.Serve(listeners[name])
-	}
+		if hc.theCert[name] != "" || hc.theKey[name] != "" {
+			go server.ServeTLS(listeners[name], hc.theCert[name], hc.theKey[name])
+		} else {
+			go server.Serve(listeners[name])
+		}
 
 	}
 	return nil
