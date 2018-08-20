@@ -194,7 +194,7 @@ func (hc *Coordinator) Start() error {
 	// Start the HTTP server on the listeners
 	for name, server := range hc.servers {
 	  if hc.theCert[name] != "" || hc.theKey[name] != "" {
-		go server.ServeTLS(listeners[name],hc.thecert[name],hc.thekey[name])
+		go server.ServeTLS(listeners[name],hc.theCert[name],hc.theKey[name])
 	} else {
 		go server.Serve(listeners[name])
 	}
