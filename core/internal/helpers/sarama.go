@@ -46,6 +46,8 @@ func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
 		return sarama.V1_0_0_0
 	case "1.1.0":
 		return sarama.V1_1_0_0
+	case "2.0.0":
+		return sarama.V2_0_0_0
 	default:
 		panic("Unknown Kafka Version: " + kafkaVersion)
 	}
