@@ -2,6 +2,7 @@ version: '1'
 service:
   name: burrow
   owner: devops
+  owner: office hours
   containers:
     web:
       dockerfile: Dockerfile
