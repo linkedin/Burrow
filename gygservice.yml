@@ -5,6 +5,13 @@ service:
   level: office hours
   containers:
     web:
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 200m
+        limits:
+          memory: 64Mi
+          cpu: 200m
       dockerfile: Dockerfile
       needs:
         - kafka
