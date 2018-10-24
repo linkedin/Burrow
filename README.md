@@ -56,7 +56,7 @@ Install Docker Compose and then:
    docker-compose down; docker-compose up
    ```
 
-3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v3/kafka`
+3. Some test topics have already been created by default and Burrow can be accessed on `http://localhost:8000/v3/kafka`.
 
 
 ### Configuration
@@ -68,4 +68,3 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied.
-
