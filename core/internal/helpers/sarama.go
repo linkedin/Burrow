@@ -70,6 +70,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = viper.GetString(configRoot + ".client-id")
 	saramaConfig.Version = parseKafkaVersion(viper.GetString(configRoot + ".kafka-version"))
+	saramaConfig.Consumer.Return.Errors = true
 
 	// Configure TLS if enabled
 	if viper.IsSet(configRoot + ".tls") {
