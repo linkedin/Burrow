@@ -283,7 +283,6 @@ func readString(buf *bytes.Buffer) (string, error) {
 }
 
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
-	// No whitelist means everything passes
 	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
 		return false
 	}

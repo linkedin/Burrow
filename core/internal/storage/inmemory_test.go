@@ -24,7 +24,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func fixtureModule(whitelist string) *InMemoryStorage {
+func fixtureModule(whitelist string, blacklist string) *InMemoryStorage {
 	module := InMemoryStorage{
 		Log: zap.NewNop(),
 	}
@@ -34,14 +34,19 @@ func fixtureModule(whitelist string) *InMemoryStorage {
 
 	viper.Reset()
 	viper.Set("storage.test.class-name", "inmemory")
-	viper.Set("storage.test.group-whitelist", whitelist)
+	if whitelist != "" {
+		viper.Set("storage.test.group-whitelist", whitelist)
+	}
+	if blacklist != "" {
+		viper.Set("storage.test.group-blacklist", blacklist)
+	}
 	viper.Set("storage.test.min-distance", 1)
 
 	return &module
 }
 
 func startWithTestCluster(whitelist string) *InMemoryStorage {
-	module := fixtureModule(whitelist)
+	module := fixtureModule(whitelist, "")
 
 	// Start needs at least one cluster defined, but it only needs to have a name here
 	viper.Set("cluster.testcluster.class-name", "kafka")
@@ -94,19 +99,26 @@ func TestInMemoryStorage_ImplementsStorageModule(t *testing.T) {
 }
 
 func TestInMemoryStorage_Configure(t *testing.T) {
-	module := fixtureModule("")
+	module := fixtureModule("", "")
 	module.Configure("test", "storage.test")
 }
 
 func TestInMemoryStorage_Configure_DefaultIntervals(t *testing.T) {
-	module := fixtureModule("")
+	module := fixtureModule("", "")
 	module.Configure("test", "storage.test")
 	assert.Equal(t, 10, module.intervals, "Default Intervals value of 10 did not get set")
 }
 
-func TestInMemoryStorage_Configure_BadRegexp(t *testing.T) {
-	module := fixtureModule("")
+func TestInMemoryStorage_Configure_BadWhitelistRegexp(t *testing.T) {
+	module := fixtureModule("", "")
 	viper.Set("storage.test.group-whitelist", "[")
+
+	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
+}
+
+func TestInMemoryStorage_Configure_BadBlacklistRegexp(t *testing.T) {
+	module := fixtureModule("", "")
+	viper.Set("storage.test.group-blacklist", "[")
 
 	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
 }
@@ -349,28 +361,46 @@ func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
 }
 
 type testset struct {
-	whitelist  string
-	passGroups []string
-	failGroups []string
+	regexFilter   string
+	matchGroups   []string
+	noMatchGroups []string
 }
 
-var whitelistTests = []testset{
-	{"", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
+var regexFilterTests = []testset{
+	{".*", []string{"testgroup", "ok_group", "dash-group", "num02group"}, []string{}},
 	{"test.*", []string{"testgroup"}, []string{"ok_group", "dash-group", "num02group"}},
 	{".*[0-9]+.*", []string{"num02group"}, []string{"ok_group", "dash-group", "testgroup"}},
 	{"onlygroup", []string{"onlygroup"}, []string{"testgroup", "ok_group", "dash-group", "num02group"}},
 }
 
 func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
-	for i, testSet := range whitelistTests {
-		module := fixtureModule(testSet.whitelist)
+	for i, testSet := range regexFilterTests {
+		module := fixtureModule(testSet.regexFilter, "")
 		module.Configure("test", "storage.test")
 
-		for _, group := range testSet.passGroups {
+		for _, group := range testSet.matchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
 		}
-		for _, group := range testSet.failGroups {
+		for _, group := range testSet.noMatchGroups {
+			result := module.acceptConsumerGroup(group)
+			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
+		}
+	}
+}
+
+func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
+	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
+	// so noMatchGroups will return true and matchGroup entries will be false.
+	for i, testSet := range regexFilterTests {
+		module := fixtureModule("", testSet.regexFilter)
+		module.Configure("test", "storage.test")
+
+		for _, group := range testSet.noMatchGroups {
+			result := module.acceptConsumerGroup(group)
+			assert.Truef(t, result, "TEST %v: Expected group %v to pass", i, group)
+		}
+		for _, group := range testSet.matchGroups {
 			result := module.acceptConsumerGroup(group)
 			assert.Falsef(t, result, "TEST %v: Expected group %v to fail", i, group)
 		}
