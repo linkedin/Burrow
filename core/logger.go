@@ -52,6 +52,7 @@ func CheckAndCreatePidFile(filename string) bool {
 			// container, e.g. the pid of Burrow could be
 			// equal to 1 each time the container is
 			// restarted.
+			fmt.Println("Found existing pidfile matching current pid")
 			return true
 		}
 
@@ -61,7 +62,7 @@ func CheckAndCreatePidFile(filename string) bool {
 			err = process.Signal(syscall.Signal(0))
 			if (err == nil) || (err == syscall.EPERM) {
 				// The process exists, so we're going to assume it's an old Burrow and we shouldn't start
-				fmt.Printf("Existing process running on PID %d. Exiting", pid)
+				fmt.Printf("Existing process running on PID %d. Exiting (my pid = %d)", pid, os.Getpid())
 				return false
 			}
 		}
