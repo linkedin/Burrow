@@ -1,18 +1,19 @@
 language: go
 
 go:
-  - 1.9.1
   - 1.9.2
+  - 1.10.2
+  - 1.11.2
   - master
 
 env:
-  - DEP_VERSION="0.3.2"
+  - DEP_VERSION="0.5.0"
 
 sudo: required
 
 services:
   - docker
-  
+
 before_install:
   # Download the binary to bin folder in $GOPATH
   - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
@@ -56,7 +57,7 @@ script:
   - test -z $(gofmt -s -l $GO_FILES)         # Fail if a .go file hasn't been formatted with gofmt
   - go test --timeout 5s -v -race ./...      # Run all the tests with the race detector enabled
   - ./testAndCover.sh                        # Run the tests again to get coverage info
-  - go vet ./...                             # go vet is the official Go static analyzer
+  - go vet -composites=false ./...           # go vet is the official Go static analyzer
   - megacheck ./...                          # "go vet on steroids" + linter
   - gocyclo -over 15 $GO_FILES               # forbid code with huge functions
   - golint -set_exit_status $(go list ./...) # one last linter
@@ -65,4 +66,4 @@ script:
 # goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == "1.9.2" ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi
+  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == 1.11* ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi

@@ -1,6 +1,6 @@
-FROM golang:1.9-alpine as builder
+FROM golang:1.11-alpine as builder
 
-ENV DEP_VERSION="0.3.2"
+ENV DEP_VERSION="0.5.0"
 RUN apk add --no-cache git curl && \
 	curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep && \
 	chmod +x $GOPATH/bin/dep && \
