@@ -20,39 +20,43 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var kafkaVersions = map[string]sarama.KafkaVersion{
+	"":         sarama.V0_10_2_0,
+	"0.8.0":    sarama.V0_8_2_0,
+	"0.8.1":    sarama.V0_8_2_1,
+	"0.8.2":    sarama.V0_8_2_2,
+	"0.8":      sarama.V0_8_2_0,
+	"0.9.0.0":  sarama.V0_9_0_0,
+	"0.9.0.1":  sarama.V0_9_0_1,
+	"0.9.0":    sarama.V0_9_0_0,
+	"0.9":      sarama.V0_9_0_0,
+	"0.10.0.0": sarama.V0_10_0_0,
+	"0.10.0.1": sarama.V0_10_0_1,
+	"0.10.0":   sarama.V0_10_0_0,
+	"0.10.1.0": sarama.V0_10_1_0,
+	"0.10.1":   sarama.V0_10_1_0,
+	"0.10.2.0": sarama.V0_10_2_0,
+	"0.10.2.1": sarama.V0_10_2_0,
+	"0.10.2":   sarama.V0_10_2_0,
+	"0.10":     sarama.V0_10_0_0,
+	"0.11.0.1": sarama.V0_11_0_0,
+	"0.11.0.2": sarama.V0_11_0_0,
+	"0.11.0":   sarama.V0_11_0_0,
+	"1.0.0":    sarama.V1_0_0_0,
+	"1.1.0":    sarama.V1_1_0_0,
+	"1.1.1":    sarama.V1_1_0_0,
+	"2.0.0":    sarama.V2_0_0_0,
+	"2.0.1":    sarama.V2_0_0_0,
+	"2.1.0":    sarama.V2_1_0_0,
+}
+
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
-	switch kafkaVersion {
-	case "0.8", "0.8.0":
-		return sarama.V0_8_2_0
-	case "0.8.1":
-		return sarama.V0_8_2_1
-	case "0.8.2":
-		return sarama.V0_8_2_2
-	case "0.9", "0.9.0", "0.9.0.0":
-		return sarama.V0_9_0_0
-	case "0.9.0.1":
-		return sarama.V0_9_0_1
-	case "0.10", "0.10.0", "0.10.0.0":
-		return sarama.V0_10_0_0
-	case "0.10.0.1":
-		return sarama.V0_10_0_1
-	case "0.10.1", "0.10.1.0":
-		return sarama.V0_10_1_0
-	case "", "0.10.2", "0.10.2.0", "0.10.2.1":
-		return sarama.V0_10_2_0
-	case "0.11.0", "0.11.0.1", "0.11.0.2":
-		return sarama.V0_11_0_0
-	case "1.0.0":
-		return sarama.V1_0_0_0
-	case "1.1.0":
-		return sarama.V1_1_0_0
-	case "2.0.0":
-		return sarama.V2_0_0_0
-	case "2.1.0":
-		return sarama.V2_1_0_0
-	default:
+	version, ok := kafkaVersions[string(kafkaVersion)]
+	if !ok {
 		panic("Unknown Kafka Version: " + kafkaVersion)
 	}
+
+	return version
 }
 
 // GetSaramaConfigFromClientProfile takes the name of a client-profile configuration entry and returns a sarama.Config
