@@ -12,7 +12,7 @@ RUN cd $GOPATH/src/github.com/linkedin/Burrow && \
 	go build -o /tmp/burrow .
 
 FROM iron/go
-MAINTAINER LinkedIn Burrow "https://github.com/linkedin/Burrow"
+LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
 WORKDIR /app
 COPY --from=builder /tmp/burrow /app/
