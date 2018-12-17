@@ -246,6 +246,8 @@ func (hc *Coordinator) writeResponse(w http.ResponseWriter, r *http.Request, sta
 		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	if jsonBytes, err := json.Marshal(jsonObj); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("{\"error\":true,\"message\":\"could not encode JSON\",\"result\":{}}"))
