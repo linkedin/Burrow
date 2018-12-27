@@ -346,12 +346,12 @@ var decodeOffsetValueV3Errors = []errorTestSetBytesWithString{
 	{[]byte("\x00\x00\x00\x00\x00"), "offset"},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00"), "leaderEpoch"},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), "metadata"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00"), "timestamp"},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x00\x08testdata\x00\x00\x00\x00"), "timestamp"},
 }
 
 func TestKafkaClient_decodeOffsetValueV3_Errors(t *testing.T) {
-	for _, values := range decodeOffsetValueV0Errors {
-		_, errorAt := decodeOffsetValueV0(bytes.NewBuffer(values.Bytes))
+	for _, values := range decodeOffsetValueV3Errors {
+		_, errorAt := decodeOffsetValueV3(bytes.NewBuffer(values.Bytes))
 		assert.Equalf(t, values.ErrorAt, errorAt, "Expected errorAt to be %v, not %v", values.ErrorAt, errorAt)
 	}
 }
