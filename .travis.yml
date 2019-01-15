@@ -1,9 +1,9 @@
 language: go
 
 go:
-  - 1.9.2
-  - 1.10.2
-  - 1.11.2
+  - 1.9.7
+  - 1.10.7
+  - 1.11.4
   - master
 
 env:
@@ -46,8 +46,8 @@ notifications:
 # set -e enabled in bash.
 before_script:
   - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/) # All the .go files, excluding vendor/
-  - go get golang.org/x/lint/golint                        # Linter
-  - go get honnef.co/go/tools/cmd/megacheck                     # Badass static analyzer/linter
+  - go get golang.org/x/lint/golint                             # Linter
+  - go get honnef.co/go/tools/cmd/staticcheck                   # Badass static analyzer/linter
   - go get github.com/fzipp/gocyclo
   - go get github.com/mattn/goveralls
 
@@ -58,7 +58,7 @@ script:
   - go test --timeout 5s -v -race ./...      # Run all the tests with the race detector enabled
   - ./testAndCover.sh                        # Run the tests again to get coverage info
   - go vet -composites=false ./...           # go vet is the official Go static analyzer
-  - megacheck ./...                          # "go vet on steroids" + linter
+  - staticcheck ./...                        # "go vet on steroids" + linter
   - gocyclo -over 15 $GO_FILES               # forbid code with huge functions
   - golint -set_exit_status $(go list ./...) # one last linter
 
