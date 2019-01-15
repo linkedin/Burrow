@@ -42,9 +42,9 @@ $ $GOPATH/bin/Burrow --config-dir /path/containing/config
 A Docker file is available which builds this project on top of an Alpine Linux image.
 To use it, build your docker container, mount your Burrow configuration into `/etc/burrow` and run docker.
 
-A [Docker Compose](https://docs.docker.com/compose/) is also available for quick and easy development.
+A [Docker Compose](docker-compose.yml) is also available for quick and easy development.
 
-Install Docker Compose and then:
+Install [Docker Compose](https://docs.docker.com/compose/) and then:
 
 1. Build the docker container:
    ```
