@@ -19,7 +19,7 @@ root-path="/burrow"
 
 [client-profile.test]
 client-id="burrow-test"
-kafka-version="0.10.0"
+kafka-version="2.1.0"
 
 [cluster.local]
 class-name="kafka"
