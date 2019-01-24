@@ -21,6 +21,6 @@ service:
       - name: http
         container: 8000
       annotations:
-        service-discovery.datadoghq.com/web.check_names: ["burrow"]
-        service-discovery.datadoghq.com/web.init_configs: [{}]
-        service-discovery.datadoghq.com/web.instances: [{"burrow_uri": "http://%%host%%:8000", "clusters": ["kafka1"]}]
+        ad.datadoghq.com/web.check_names: ["burrow"]
+        ad.datadoghq.com/web.init_configs: [{}]
+        ad.datadoghq.com/web.instances: [{"burrow_uri": "http://%%host%%:8000", "clusters": ["kafka1"]}]
