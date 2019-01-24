@@ -18,6 +18,4 @@ WORKDIR /app
 COPY --from=builder /tmp/burrow /app/
 ADD /docker-config/burrow.toml /etc/burrow/
 
-EXPOSE 8000
-
 CMD ["/app/burrow", "--config-dir", "/etc/burrow"]
