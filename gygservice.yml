@@ -7,10 +7,10 @@ service:
     web:
       resources:
         requests:
-          memory: 64Mi
+          memory: 256Mi
           cpu: 200m
         limits:
-          memory: 64Mi
+          memory: 256Mi
           cpu: 200m
       dockerfile: Dockerfile
       needs:
