@@ -249,7 +249,11 @@ func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string
 	}
 
 	// Calculate completeness as a percentage of the number of partitions that are complete
-	status.Complete = float32(completePartitions) / float32(status.TotalPartitions)
+	if status.TotalPartitions > 0 {
+		status.Complete = float32(completePartitions) / float32(status.TotalPartitions)
+	} else {
+		status.Complete = 0
+	}
 
 	module.Log.Debug("evaluation result",
 		zap.String("cluster", cluster),
