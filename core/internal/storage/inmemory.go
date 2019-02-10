@@ -58,8 +58,9 @@ type brokerOffset struct {
 }
 
 type consumerPartition struct {
-	offsets *ring.Ring
-	owner   string
+	offsets  *ring.Ring
+	owner    string
+	clientID string
 }
 
 type consumerGroup struct {
@@ -207,6 +208,7 @@ func (module *InMemoryStorage) requestWorker(workerNum int, requestChannel chan 
 				zap.Int64("offset", r.Offset),
 				zap.Int64("timestamp", r.Timestamp),
 				zap.String("owner", r.Owner),
+				zap.String("client_id", r.ClientID),
 				zap.String("request", r.RequestType.String())))
 		}
 	}
@@ -475,6 +477,7 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	// Write the owner for the given topic/partition
 	requestLogger.Debug("ok")
 	consumerMap.topics[request.Topic][request.Partition].owner = request.Owner
+	consumerMap.topics[request.Topic][request.Partition].clientID = request.ClientID
 }
 
 func (module *InMemoryStorage) clearConsumerOwners(request *protocol.StorageRequest, requestLogger *zap.Logger) {
@@ -507,6 +510,7 @@ func (module *InMemoryStorage) clearConsumerOwners(request *protocol.StorageRequ
 	for topic, partitions := range consumerMap.topics {
 		for partitionID := range partitions {
 			consumerMap.topics[topic][partitionID].owner = ""
+			consumerMap.topics[topic][partitionID].clientID = ""
 		}
 	}
 
@@ -638,7 +642,7 @@ func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 		topicList[topic] = make(protocol.ConsumerPartitions, len(partitions))
 
 		for partitionID, partition := range partitions {
-			consumerPartition := &protocol.ConsumerPartition{Owner: partition.owner}
+			consumerPartition := &protocol.ConsumerPartition{Owner: partition.owner, ClientID: partition.clientID}
 			if partition.offsets != nil {
 				offsetRing := partition.offsets
 				consumerPartition.Offsets = make([]*protocol.ConsumerOffset, offsetRing.Len())
