@@ -28,9 +28,11 @@ dockers:
     goos: linux
     goarch: amd64
     goarm: ''
-    binary: burrow
-    image: toddpalino/burrow
+    binaries:
+      - burrow
     dockerfile: Dockerfile.gorelease
-    latest: true
+    image_templates:
+      - 'toddpalino/burrow:latest'
+      - 'toddpalino/burrow:{{ .Tag }}'
     extra_files:
     - docker-config/burrow.toml
