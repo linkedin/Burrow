@@ -462,6 +462,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 					Partition:   partition,
 					Group:       group,
 					Owner:       member.ClientHost,
+					ClientID:    member.ClientID,
 				}, 1)
 			}
 		}

@@ -133,6 +133,9 @@ type StorageRequest struct {
 
 	// For StorageSetConsumerOwner requests, a string describing the consumer host that owns the partition
 	Owner string
+
+	// For StorageSetConsumerOwner requests, a string containing the client_id set by the consumer
+	ClientID string
 }
 
 // ConsumerPartition represents the information stored for a group for a single partition. It is used as part of the
@@ -150,6 +153,9 @@ type ConsumerPartition struct {
 	// A string that describes the consumer host that currently owns this partition, if the information is available
 	// (for active new consumers)
 	Owner string `json:"owner"`
+
+	// A string containing the client_id set by the consumer (for active new consumers)
+	ClientID string `json:"client_id"`
 
 	// The current number of messages that the consumer is behind for this partition. This is calculated using the
 	// last committed offset and the current broker end offset

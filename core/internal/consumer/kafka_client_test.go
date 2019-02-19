@@ -435,6 +435,7 @@ func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, "testclienthost", request.Owner, "Expected request sent with Owner testclienthost, not %v", request.Owner)
+	assert.Equalf(t, "testclientid", request.ClientID, "Expected request set with ClientID testclientid, not %v", request.ClientID)
 }
 
 var decodeGroupMetadataErrors = []errorTestSetBytes{
@@ -493,6 +494,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, "testclienthost", request.Owner, "Expected request sent with Owner testclienthost, not %v", request.Owner)
+	assert.Equalf(t, "testclientid", request.ClientID, "Expected request set with ClientID testclientid, no %v", request.ClientID)
 }
 
 func TestKafkaClient_processConsumerOffsetsMessage_Metadata(t *testing.T) {

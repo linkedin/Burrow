@@ -323,6 +323,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 	assert.Len(t, partitions, 1, "One partition not created")
 	assert.Equal(t, 10, partitions[0].offsets.Len(), "10 offset ring entries not created")
 	assert.Equal(t, "", partitions[0].owner, "Expected owner to be empty")
+	assert.Equal(t, "", partitions[0].clientID, "Expected clientID to be empty")
 
 	// All the ring values should be not nil
 	r := partitions[0].offsets
@@ -502,6 +503,7 @@ func TestInMemoryStorage_addConsumerOwner(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Owner:       "testhost.example.com",
+		ClientID:    "test_client_id",
 	}
 	module.addConsumerOwner(&request, module.Log)
 
@@ -511,6 +513,7 @@ func TestInMemoryStorage_addConsumerOwner(t *testing.T) {
 	assert.True(t, ok, "Topic not created")
 	assert.Len(t, partitions, 1, "One partition not created")
 	assert.Equal(t, "testhost.example.com", partitions[0].owner, "Expected owner to be testhost.example.com, not %v", partitions[0].owner)
+	assert.Equal(t, "test_client_id", partitions[0].clientID, "Expected clientID to be test_client_id, not %v", partitions[0].clientID)
 }
 
 func TestInMemoryStorage_deleteTopic(t *testing.T) {
@@ -789,6 +792,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Owner:       "testhost.example.com",
+		ClientID:    "test_client_id",
 	}
 	module.addConsumerOwner(&request, module.Log)
 
@@ -811,6 +815,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
 	assert.Equalf(t, uint64(2421), val["testtopic"][0].CurrentLag, "Expected current lag to be 2421, not %v", val["testtopic"][0].CurrentLag)
 	assert.Equalf(t, "testhost.example.com", val["testtopic"][0].Owner, "Expected owner to be testhost.example.com, not %v", val["testtopic"][0].Owner)
+	assert.Equalf(t, "test_client_id", val["testtopic"][0].ClientID, "Expected client_id to be test_client_id, not %v", val["testtopic"][0].ClientID)
 
 	offsets := val["testtopic"][0].Offsets
 	assert.Lenf(t, offsets, 10, "Expected to get 10 offsets for the partition, not %v", len(offsets))
@@ -929,6 +934,7 @@ func TestInMemoryStorage_fetchConsumersForTopic(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Owner:       "testhost.example.com",
+		ClientID:    "test_client_id",
 	}
 	module.addConsumerOwner(&request, module.Log)
 
@@ -964,6 +970,7 @@ func TestInMemoryStorage_fetchConsumersForTopic_MultipleConsumers(t *testing.T) 
 		Group:       "testgroup",
 		Partition:   0,
 		Owner:       "testhost.example.com",
+		ClientID:    "test_client_id",
 	}
 	module.addConsumerOwner(&request, module.Log)
 	request = protocol.StorageRequest{
@@ -973,6 +980,7 @@ func TestInMemoryStorage_fetchConsumersForTopic_MultipleConsumers(t *testing.T) 
 		Group:       "testgroup2",
 		Partition:   0,
 		Owner:       "testhost.example.com",
+		ClientID:    "test_client_id",
 	}
 	module.addConsumerOwner(&request, module.Log)
 
