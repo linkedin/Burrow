@@ -1,3 +1,11 @@
+## 1.2.1 (2019-02-21)
+
+**Release Highlights**
+
+* Fix binary release process.
+* Report `ClientID` for consumers.
+* Fix division by zero error in evaluator.
+
 ## 1.2.0 (2019-01-18)
 
 **Release Highlights**
