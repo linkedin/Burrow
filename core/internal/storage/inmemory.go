@@ -625,7 +625,9 @@ func (module *InMemoryStorage) fetchTopic(request *protocol.StorageRequest, requ
 
 	offsetList := make([]int64, 0, len(topicList))
 	for _, partition := range topicList {
-		offsetList = append(offsetList, partition.Value.(*brokerOffset).Offset)
+		if partition.Value != nil {
+			offsetList = append(offsetList, partition.Value.(*brokerOffset).Offset)
+		}
 	}
 	clusterMap.brokerLock.RUnlock()
 
