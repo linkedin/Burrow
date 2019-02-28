@@ -1,3 +1,9 @@
+## 1.2.2 (2019-02-28)
+
+**Release Highlights**
+
+* More fixes to binary release process.
+
 ## 1.2.1 (2019-02-21)
 
 **Release Highlights**
