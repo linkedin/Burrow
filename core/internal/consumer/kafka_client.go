@@ -19,10 +19,11 @@ import (
 	"github.com/Shopify/sarama"
 	"go.uber.org/zap"
 
+	"regexp"
+
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/spf13/viper"
-	"regexp"
 )
 
 // KafkaClient is a consumer module which connects to a single Apache Kafka cluster and reads consumer group information
@@ -283,7 +284,6 @@ func readString(buf *bytes.Buffer) (string, error) {
 }
 
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
-	// No whitelist means everything passes
 	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
 		return false
 	}
@@ -331,7 +331,9 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 
 	switch valueVersion {
 	case 0, 1:
-		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger)
+		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
+	case 3:
+		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
 	default:
 		offsetLogger.Warn("failed to decode",
 			zap.String("reason", "value version"),
@@ -340,8 +342,8 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 	}
 }
 
-func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger) {
-	offsetValue, errorAt := decodeOffsetValueV0(valueBuffer)
+func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
+	offsetValue, errorAt := decoder(valueBuffer)
 	if errorAt != "" {
 		logger.Warn("failed to decode",
 			zap.Int64("offset", offsetValue.Offset),
@@ -460,6 +462,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 					Partition:   partition,
 					Group:       group,
 					Owner:       member.ClientHost,
+					ClientID:    member.ClientID,
 				}, 1)
 			}
 		}
@@ -622,6 +625,30 @@ func decodeOffsetValueV0(valueBuffer *bytes.Buffer) (offsetValue, string) {
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
 	if err != nil {
 		return offsetValue, "offset"
+	}
+	_, err = readString(valueBuffer)
+	if err != nil {
+		return offsetValue, "metadata"
+	}
+	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Timestamp)
+	if err != nil {
+		return offsetValue, "timestamp"
+	}
+	return offsetValue, ""
+}
+
+func decodeOffsetValueV3(valueBuffer *bytes.Buffer) (offsetValue, string) {
+	var err error
+	offsetValue := offsetValue{}
+
+	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
+	if err != nil {
+		return offsetValue, "offset"
+	}
+	var leaderEpoch int32
+	err = binary.Read(valueBuffer, binary.BigEndian, &leaderEpoch)
+	if err != nil {
+		return offsetValue, "leaderEpoch"
 	}
 	_, err = readString(valueBuffer)
 	if err != nil {

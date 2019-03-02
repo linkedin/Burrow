@@ -333,6 +333,29 @@ func TestKafkaClient_decodeOffsetValueV0_Errors(t *testing.T) {
 	}
 }
 
+func TestKafkaClient_decodeOffsetValueV3(t *testing.T) {
+	buf := bytes.NewBuffer([]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65"))
+	result, errorAt := decodeOffsetValueV3(buf)
+
+	assert.Equalf(t, "", errorAt, "Expected decodeOffsetValueV3 to return empty errorAt, not %v", errorAt)
+	assert.Equalf(t, int64(8372), result.Offset, "Expected Offset to be 8372, not %v", result.Offset)
+	assert.Equalf(t, int64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
+}
+
+var decodeOffsetValueV3Errors = []errorTestSetBytesWithString{
+	{[]byte("\x00\x00\x00\x00\x00"), "offset"},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00"), "leaderEpoch"},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), "metadata"},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x00\x08testdata\x00\x00\x00\x00"), "timestamp"},
+}
+
+func TestKafkaClient_decodeOffsetValueV3_Errors(t *testing.T) {
+	for _, values := range decodeOffsetValueV3Errors {
+		_, errorAt := decodeOffsetValueV3(bytes.NewBuffer(values.Bytes))
+		assert.Equalf(t, values.ErrorAt, errorAt, "Expected errorAt to be %v, not %v", values.ErrorAt, errorAt)
+	}
+}
+
 func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	module := fixtureModule()
 	viper.Set("consumer.test.group-whitelist", "test.*")
@@ -392,7 +415,7 @@ func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 	}
 	valueBuf := bytes.NewBuffer([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testd"))
 
-	module.decodeAndSendOffset(offsetKey, valueBuf, zap.NewNop())
+	module.decodeAndSendOffset(offsetKey, valueBuf, zap.NewNop(), decodeOffsetValueV0)
 	// Should not timeout
 }
 
@@ -412,6 +435,7 @@ func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, "testclienthost", request.Owner, "Expected request sent with Owner testclienthost, not %v", request.Owner)
+	assert.Equalf(t, "testclientid", request.ClientID, "Expected request set with ClientID testclientid, not %v", request.ClientID)
 }
 
 var decodeGroupMetadataErrors = []errorTestSetBytes{
@@ -470,6 +494,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, "testclienthost", request.Owner, "Expected request sent with Owner testclienthost, not %v", request.Owner)
+	assert.Equalf(t, "testclientid", request.ClientID, "Expected request set with ClientID testclientid, no %v", request.ClientID)
 }
 
 func TestKafkaClient_processConsumerOffsetsMessage_Metadata(t *testing.T) {

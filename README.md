@@ -1,5 +1,5 @@
 [![Join the chat at https://gitter.im/linkedin-Burrow/Lobby](https://badges.gitter.im/linkedin-Burrow/Lobby.svg)](https://gitter.im/linkedin-Burrow/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/linkedin/kafka-tools.svg)](https://travis-ci.org/linkedin/kafka-tools)
+[![Build Status](https://travis-ci.org/linkedin/Burrow.svg)](https://travis-ci.org/linkedin/Burrow)
 [![go report card](https://goreportcard.com/badge/github.com/linkedin/Burrow)](https://goreportcard.com/report/github.com/linkedin/Burrow)
 [![Coverage Status](https://coveralls.io/repos/github/linkedin/Burrow/badge.svg?branch=master)](https://coveralls.io/github/linkedin/Burrow?branch=master)
 [![GoDoc](https://godoc.org/github.com/linkedin/Burrow?status.svg)](https://godoc.org/github.com/linkedin/Burrow)
@@ -42,9 +42,9 @@ $ $GOPATH/bin/Burrow --config-dir /path/containing/config
 A Docker file is available which builds this project on top of an Alpine Linux image.
 To use it, build your docker container, mount your Burrow configuration into `/etc/burrow` and run docker.
 
-A [Docker Compose](https://docs.docker.com/compose/) is also available for quick and easy development.
+A [Docker Compose](docker-compose.yml) is also available for quick and easy development.
 
-Install Docker Compose and then:
+Install [Docker Compose](https://docs.docker.com/compose/) and then:
 
 1. Build the docker container:
    ```
@@ -56,7 +56,8 @@ Install Docker Compose and then:
    docker-compose down; docker-compose up
    ```
 
-3. Some test topics have already been created by default and Burrow can be accessed on port 8000 of your docker-machine. e.g. `http://192.168.99.100:8000/v2/kafka`
+3. Some test topics have already been created by default and Burrow can be accessed on `http://localhost:8000/v3/kafka`.
+
 
 ### Configuration
 For information on how to write your configuration file, check out the [detailed wiki](https://github.com/linkedin/Burrow/wiki)
@@ -67,4 +68,3 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied.
-

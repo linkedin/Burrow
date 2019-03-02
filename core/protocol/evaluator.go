@@ -44,6 +44,9 @@ type PartitionStatus struct {
 	// If available (for active new consumers), the consumer host that currently owns this partiton
 	Owner string `json:"owner"`
 
+	// If available (for active new consumers), the client_id of the consumer that currently owns this partition
+	ClientID string `json:"client_id"`
+
 	// The status of the partition
 	Status StatusConstant `json:"status"`
 

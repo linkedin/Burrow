@@ -22,9 +22,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"sync"
+
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"sync"
 )
 
 func fixtureModule() *KafkaCluster {
@@ -79,16 +80,43 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoDelete(t *testing.T) 
 	client.On("RefreshMetadata").Return(nil)
 	client.On("Topics").Return([]string{"testtopic"}, nil)
 	client.On("Partitions", "testtopic").Return([]int32{0}, nil)
+	client.On("Leader", "testtopic", int32(0)).Return(&helpers.MockSaramaBroker{}, nil)
 
 	module.fetchMetadata = true
 	module.maybeUpdateMetadataAndDeleteTopics(client)
 
 	client.AssertExpectations(t)
 	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
-	assert.Lenf(t, module.topicMap, 1, "Expected 1 topic entry, not %v", len(module.topicMap))
-	topic, ok := module.topicMap["testtopic"]
-	assert.True(t, ok, "Expected to find testtopic in topicMap")
-	assert.Equalf(t, 1, topic, "Expected testtopic to be recorded with 1 partition, not %v", topic)
+	assert.Lenf(t, module.topicPartitions, 1, "Expected 1 topic entry, not %v", len(module.topicPartitions))
+	topic, ok := module.topicPartitions["testtopic"]
+	assert.True(t, ok, "Expected to find testtopic in topicPartitions")
+	assert.Equalf(t, 1, len(topic), "Expected testtopic to be recorded with 1 partition, not %v", len(topic))
+}
+
+func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_PartialUpdate(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "cluster.test")
+
+	// Set up the mock to return a test topic and partition
+	client := &helpers.MockSaramaClient{}
+	client.On("RefreshMetadata").Return(nil)
+	client.On("Topics").Return([]string{"testtopic"}, nil)
+	client.On("Partitions", "testtopic").Return([]int32{0, 1}, nil)
+
+	var nilBroker *helpers.BurrowSaramaBroker
+	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
+	client.On("Leader", "testtopic", int32(1)).Return(&helpers.MockSaramaBroker{}, nil)
+
+	module.fetchMetadata = true
+	module.maybeUpdateMetadataAndDeleteTopics(client)
+
+	client.AssertExpectations(t)
+	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
+	assert.Lenf(t, module.topicPartitions, 1, "Expected 1 topic entry, not %v", len(module.topicPartitions))
+	topic, ok := module.topicPartitions["testtopic"]
+	assert.True(t, ok, "Expected to find testtopic in topicPartitions")
+	assert.Equalf(t, len(topic), 1, "Expected testtopic's length to be 1, not %v", len(topic))
+	assert.Equalf(t, cap(topic), 2, "Expected testtopic's capacity to be 2, not %v", cap(topic))
 }
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
@@ -100,10 +128,14 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 	client.On("RefreshMetadata").Return(nil)
 	client.On("Topics").Return([]string{"testtopic"}, nil)
 	client.On("Partitions", "testtopic").Return([]int32{0}, nil)
+	client.On("Leader", "testtopic", int32(0)).Return(&helpers.MockSaramaBroker{}, nil)
 
 	module.fetchMetadata = true
-	module.topicMap = make(map[string]int)
-	module.topicMap["topictodelete"] = 10
+	module.topicPartitions = make(map[string][]int32)
+	module.topicPartitions["topictodelete"] = make([]int32, 0, 10)
+	for i := 0; i < cap(module.topicPartitions["topictodelete"]); i++ {
+		module.topicPartitions["topictodelete"] = append(module.topicPartitions["topictodelete"], int32(i))
+	}
 
 	// Need to wait for this request to come in and finish, which happens when we call maybeUpdate...
 	wg := &sync.WaitGroup{}
@@ -120,17 +152,17 @@ func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_Delete(t *testing.T) {
 
 	client.AssertExpectations(t)
 	assert.False(t, module.fetchMetadata, "Expected fetchMetadata to be reset to false")
-	assert.Lenf(t, module.topicMap, 1, "Expected 1 topic entry, not %v", len(module.topicMap))
-	topic, ok := module.topicMap["testtopic"]
-	assert.True(t, ok, "Expected to find testtopic in topicMap")
-	assert.Equalf(t, 1, topic, "Expected testtopic to be recorded with 1 partition, not %v", topic)
+	assert.Lenf(t, module.topicPartitions, 1, "Expected 1 topic entry, not %v", len(module.topicPartitions))
+	topic, ok := module.topicPartitions["testtopic"]
+	assert.True(t, ok, "Expected to find testtopic in topicPartitions")
+	assert.Equalf(t, 1, len(topic), "Expected testtopic to be recorded with 1 partition, not %v", len(topic))
 }
 
 func TestKafkaCluster_generateOffsetRequests(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "cluster.test")
-	module.topicMap = make(map[string]int)
-	module.topicMap["testtopic"] = 1
+	module.topicPartitions = make(map[string][]int32)
+	module.topicPartitions["testtopic"] = []int32{0}
 
 	// Set up a broker mock
 	broker := &helpers.MockSaramaBroker{}
@@ -154,8 +186,8 @@ func TestKafkaCluster_generateOffsetRequests(t *testing.T) {
 func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "cluster.test")
-	module.topicMap = make(map[string]int)
-	module.topicMap["testtopic"] = 2
+	module.topicPartitions = make(map[string][]int32)
+	module.topicPartitions["testtopic"] = []int32{0, 1}
 
 	// Set up a broker mock
 	broker := &helpers.MockSaramaBroker{}
@@ -182,8 +214,8 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 func TestKafkaCluster_getOffsets(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "cluster.test")
-	module.topicMap = make(map[string]int)
-	module.topicMap["testtopic"] = 2
+	module.topicPartitions = make(map[string][]int32)
+	module.topicPartitions["testtopic"] = []int32{0, 1}
 	module.fetchMetadata = false
 
 	// Set up an OffsetResponse
@@ -227,8 +259,8 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 func TestKafkaCluster_getOffsets_BrokerFailed(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "cluster.test")
-	module.topicMap = make(map[string]int)
-	module.topicMap["testtopic"] = 1
+	module.topicPartitions = make(map[string][]int32)
+	module.topicPartitions["testtopic"] = []int32{0}
 	module.fetchMetadata = false
 
 	// Set up a broker mock
