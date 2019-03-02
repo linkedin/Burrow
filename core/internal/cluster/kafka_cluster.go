@@ -45,8 +45,8 @@ type KafkaCluster struct {
 	quitChannel    chan struct{}
 	running        sync.WaitGroup
 
-	fetchMetadata bool
-	topicMap      map[string]int
+	fetchMetadata   bool
+	topicPartitions map[string][]int32
 }
 
 // Configure validates the configuration for the cluster. At minimum, there must be a list of servers provided for the
@@ -144,21 +144,34 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.Sa
 			return
 		}
 
-		// We'll use the partition counts later
-		topicMap := make(map[string]int)
+		// We'll use topicPartitions later
+		topicPartitions := make(map[string][]int32)
 		for _, topic := range topicList {
 			partitions, err := client.Partitions(topic)
 			if err != nil {
 				module.Log.Error("failed to fetch partition list", zap.String("sarama_error", err.Error()))
 				return
 			}
-			topicMap[topic] = len(partitions)
+
+			topicPartitions[topic] = make([]int32, 0, len(partitions))
+			for _, partitionID := range partitions {
+				if _, err := client.Leader(topic, partitionID); err != nil {
+					module.Log.Warn("failed to fetch leader for partition",
+						zap.String("topic", topic),
+						zap.Int32("partition", partitionID),
+						zap.String("sarama_error", err.Error()))
+				} else { // partitionID has a leader
+					// NOTE: append only happens here
+					// so cap(topicPartitions[topic]) is the partition count
+					topicPartitions[topic] = append(topicPartitions[topic], partitionID)
+				}
+			}
 		}
 
 		// Check for deleted topics if we have a previous map to check against
-		if module.topicMap != nil {
-			for topic := range module.topicMap {
-				if _, ok := topicMap[topic]; !ok {
+		if module.topicPartitions != nil {
+			for topic := range module.topicPartitions {
+				if _, ok := topicPartitions[topic]; !ok {
 					// Topic no longer exists - tell storage to delete it
 					module.App.StorageChannel <- &protocol.StorageRequest{
 						RequestType: protocol.StorageSetDeleteTopic,
@@ -169,8 +182,8 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.Sa
 			}
 		}
 
-		// Save the new topicMap for next time
-		module.topicMap = topicMap
+		// Save the new topicPartitions for next time
+		module.topicPartitions = topicPartitions
 	}
 }
 
@@ -179,29 +192,23 @@ func (module *KafkaCluster) generateOffsetRequests(client helpers.SaramaClient) 
 	brokers := make(map[int32]helpers.SaramaBroker)
 
 	// Generate an OffsetRequest for each topic:partition and bucket it to the leader broker
-	errorTopics := make(map[string]bool)
-	for topic, partitions := range module.topicMap {
-		for i := 0; i < partitions; i++ {
-			broker, err := client.Leader(topic, int32(i))
+	for topic, partitions := range module.topicPartitions {
+		for _, partitionID := range partitions {
+			broker, err := client.Leader(topic, partitionID)
 			if err != nil {
 				module.Log.Warn("failed to fetch leader for partition",
 					zap.String("topic", topic),
-					zap.Int("partition", i),
+					zap.Int32("partition", partitionID),
 					zap.String("sarama_error", err.Error()))
-				errorTopics[topic] = true
+				module.fetchMetadata = true
 				continue
 			}
 			if _, ok := requests[broker.ID()]; !ok {
 				requests[broker.ID()] = &sarama.OffsetRequest{}
 			}
 			brokers[broker.ID()] = broker
-			requests[broker.ID()].AddBlock(topic, int32(i), sarama.OffsetNewest, 1)
+			requests[broker.ID()].AddBlock(topic, partitionID, sarama.OffsetNewest, 1)
 		}
-	}
-
-	// If there are any topics that had errors, force a metadata refresh on the next run
-	if len(errorTopics) > 0 {
-		module.fetchMetadata = true
 	}
 
 	return requests, brokers
@@ -251,7 +258,7 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 					Partition:           partition,
 					Offset:              offsetResponse.Offsets[0],
 					Timestamp:           ts,
-					TopicPartitionCount: int32(module.topicMap[topic]),
+					TopicPartitionCount: int32(cap(module.topicPartitions[topic])),
 				}
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, offset, 1)
 			}
