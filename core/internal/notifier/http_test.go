@@ -41,6 +41,7 @@ func fixtureHTTPNotifier() *HTTPNotifier {
 	viper.Set("notifier.test.template-close", "template_close")
 	viper.Set("notifier.test.send-close", false)
 	viper.Set("notifier.test.headers", map[string]string{"Token": "testtoken"})
+	viper.Set("notifier.test.noverify", true)
 
 	return &module
 }
@@ -55,6 +56,13 @@ func TestHttpNotifier_Configure(t *testing.T) {
 
 	module.Configure("test", "notifier.test")
 	assert.NotNil(t, module.httpClient, "Expected httpClient to be set with a client object")
+}
+
+func TestHttpNotifier_Bad_Configuration(t *testing.T) {
+	module := fixtureHTTPNotifier()
+	viper.Set("notifier.test.url-open", "")
+
+	assert.Panics(t, func() { module.Configure("test", "notifier.test") }, "HTTP notifier needs a supplied email")
 }
 
 func TestHttpNotifier_StartStop(t *testing.T) {

@@ -11,7 +11,7 @@
 package notifier
 
 import (
-	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/smtp"
@@ -20,11 +20,11 @@ import (
 	"text/template"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"gopkg.in/gomail.v2"
 )
 
 // EmailNotifier is a module which can be used to send notifications of consumer group status via email messages. One
@@ -43,12 +43,12 @@ type EmailNotifier struct {
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
-	from           string
-	to             string
 
-	auth           smtp.Auth
-	serverWithPort string
-	sendMailFunc   func(string, smtp.Auth, string, []string, []byte) error
+	to   string
+	from string
+
+	smtpDialer   *gomail.Dialer
+	sendMailFunc func(message *gomail.Message) error
 }
 
 // Configure validates the configuration of the email notifier. At minimum, there must be a valid server, port, from
@@ -59,18 +59,22 @@ func (module *EmailNotifier) Configure(name string, configRoot string) {
 
 	// Abstract the SendMail call so we can test
 	if module.sendMailFunc == nil {
-		module.sendMailFunc = smtp.SendMail
+		module.sendMailFunc = module.sendEmail
 	}
 
-	module.serverWithPort = fmt.Sprintf("%s:%v", viper.GetString(configRoot+".server"), viper.GetString(configRoot+".port"))
-	if !helpers.ValidateHostList([]string{module.serverWithPort}) {
+	host := viper.GetString(configRoot + ".server")
+	port := viper.GetInt(configRoot + ".port")
+
+	serverWithPort := fmt.Sprintf("%s:%v", host, port)
+
+	if !helpers.ValidateHostList([]string{serverWithPort}) {
 		module.Log.Panic("bad server or port")
 		panic(errors.New("configuration error"))
 	}
 
 	module.from = viper.GetString(configRoot + ".from")
 	if module.from == "" {
-		module.Log.Panic("missing from address")
+		module.Log.Panic("missing 	from address")
 		panic(errors.New("configuration error"))
 	}
 
@@ -80,18 +84,44 @@ func (module *EmailNotifier) Configure(name string, configRoot string) {
 		panic(errors.New("configuration error"))
 	}
 
+	// Set up dialer and extra TLS configuration
+	extraCa := viper.GetString(configRoot + ".extra-ca")
+	noVerify := viper.GetBool(configRoot + ".noverify")
+
+	d := gomail.NewDialer(host, port, "", "")
+	d.Auth = module.getSMTPAuth(configRoot)
+	d.TLSConfig = buildEmailTLSConfig(extraCa, noVerify, host)
+
+	module.smtpDialer = d
+}
+
+func buildEmailTLSConfig(extraCaFile string, noVerify bool, smtpHost string) *tls.Config {
+	rootCAs := buildRootCAs(extraCaFile, noVerify)
+
+	return &tls.Config{
+		InsecureSkipVerify: noVerify,
+		ServerName:         smtpHost,
+		RootCAs:            rootCAs,
+	}
+}
+
+// Builds authentication profile for smtp client
+func (module *EmailNotifier) getSMTPAuth(configRoot string) smtp.Auth {
+	var auth smtp.Auth
 	// Set up SMTP authentication
 	switch strings.ToLower(viper.GetString(configRoot + ".auth-type")) {
 	case "plain":
-		module.auth = smtp.PlainAuth("", viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"), viper.GetString(configRoot+".server"))
+		auth = smtp.PlainAuth("", viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"), viper.GetString(configRoot+".server"))
 	case "crammd5":
-		module.auth = smtp.CRAMMD5Auth(viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"))
+		auth = smtp.CRAMMD5Auth(viper.GetString(configRoot+".username"), viper.GetString(configRoot+".password"))
 	case "":
-		module.auth = nil
+		auth = nil
 	default:
 		module.Log.Panic("unknown auth type")
 		panic(errors.New("configuration error"))
 	}
+
+	return auth
 }
 
 // Start is a no-op for the email notifier. It always returns no error
@@ -148,16 +178,78 @@ func (module *EmailNotifier) Notify(status *protocol.ConsumerGroupStatus, eventI
 	}
 
 	// Put the from and to lines in without the template. Template should set the subject line, followed by a blank line
-	bytesToSend := bytes.NewBufferString("From: " + module.from + "\nTo: " + module.to + "\n")
-	messageBody, err := executeTemplate(tmpl, module.extras, status, eventID, startTime)
+	messageContent, err := executeTemplate(tmpl, module.extras, status, eventID, startTime)
+
 	if err != nil {
 		logger.Error("failed to assemble", zap.Error(err))
 		return
 	}
-	bytesToSend.Write(messageBody.Bytes())
 
-	err = module.sendMailFunc(module.serverWithPort, module.auth, module.from, []string{module.to}, bytesToSend.Bytes())
-	if err != nil {
+	// Process template headers and send email
+	if m, err := module.createMessage(messageContent.String()); err == nil {
+		if err := module.sendMailFunc(m); err != nil {
+			logger.Error("failed to send", zap.Error(err))
+		}
+	} else {
 		logger.Error("failed to send", zap.Error(err))
 	}
+}
+
+// sendEmail uses the gomail smtpDialer to send a constructed message. This function is mocked for testing purposes
+func (module *EmailNotifier) sendEmail(m *gomail.Message) error {
+	if err := module.smtpDialer.DialAndSend(m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createMessage organizes all relevant email message content into a structure for easy use
+func (module *EmailNotifier) createMessage(messageContent string) (*gomail.Message, error) {
+	m := gomail.NewMessage()
+	var subject string
+	var mimeVersion string
+
+	contentType := "text/plain"
+
+	subjectDelimiter := "Subject: "
+	contentTypeDelimiter := "Content-Type: "
+	mimeVersionDelimiter := "MIME-version: "
+
+	if !strings.HasPrefix(messageContent, subjectDelimiter) {
+		return nil, errors.New("no subject line detected. Please make sure" +
+			" \"Subject: my_subject_line\" is included in your template")
+	}
+
+	var body string
+
+	// Go doesn't support regex lookaheads yet
+	for _, line := range strings.Split(messageContent, "\n") {
+		if strings.HasPrefix(line, subjectDelimiter) && subject == "" {
+			subject = getKeywordContent(line, subjectDelimiter)
+		} else if strings.HasPrefix(line, contentTypeDelimiter) {
+			contentType = strings.Replace(getKeywordContent(line, contentTypeDelimiter), ";", "", -1)
+		} else if strings.HasPrefix(line, mimeVersionDelimiter) {
+			mimeVersion = strings.Replace(getKeywordContent(line, mimeVersionDelimiter), ";", "", -1)
+		} else {
+			body = body + line + "\n"
+		}
+	}
+
+	recipients := strings.Split(module.to, ",")
+	m.SetHeader("To", recipients...)
+	m.SetHeader("From", module.from)
+	m.SetHeader("Subject", subject)
+
+	if mimeVersion != "" {
+		m.SetHeader("MIME-version", mimeVersion)
+	}
+
+	m.SetBody(contentType, body)
+
+	return m, nil
+}
+
+func getKeywordContent(header string, subjectDelimiter string) string {
+	return strings.Split(header, subjectDelimiter)[1]
 }

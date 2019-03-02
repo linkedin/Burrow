@@ -11,11 +11,15 @@
 package notifier
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"io/ioutil"
+	"log"
 	"text/template"
 	"time"
 
 	"bytes"
+
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -113,6 +117,25 @@ func templateCountPartitions(partitions []*protocol.PartitionStatus) map[string]
 	}
 
 	return rv
+}
+
+// Appends supplied certificates to trusted certificate chain
+func buildRootCAs(extraCaFile string, noVerify bool) *x509.CertPool {
+	rootCAs := x509.NewCertPool()
+
+	if extraCaFile != "" && !noVerify {
+		certs, err := ioutil.ReadFile(extraCaFile)
+
+		if err != nil {
+			log.Panicf("Failed to append %q to RootCAs: %v", extraCaFile, err)
+		}
+
+		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+			log.Println("No certs appended, using system certs only")
+		}
+	}
+
+	return rootCAs
 }
 
 // Template Helper - do maths
