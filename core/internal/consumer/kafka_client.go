@@ -544,7 +544,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMembe
 	if err != nil {
 		return memberMetadata, "client_host"
 	}
-	if memberVersion == 1 {
+	if memberVersion == 1 || memberVersion == 2 {
 		err = binary.Read(buf, binary.BigEndian, &memberMetadata.RebalanceTimeout)
 		if err != nil {
 			return memberMetadata, "rebalance_timeout"
