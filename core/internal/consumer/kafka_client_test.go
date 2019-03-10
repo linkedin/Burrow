@@ -12,7 +12,9 @@ package consumer
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -214,6 +216,33 @@ func TestKafkaClient_decodeMetadataValueHeader(t *testing.T) {
 	assert.Equalf(t, int32(1), result.Generation, "Expected Generation to be 1, not %v", result.Generation)
 	assert.Equalf(t, "testprotocol", result.Protocol, "Expected Protocol to be testprotocol, not %v", result.Protocol)
 	assert.Equalf(t, "testleader", result.Leader, "Expected Leader to be testleader, not %v", result.Leader)
+	assert.Equalf(t, "", errorAt, "Expected decodeMetadataValueHeader to return empty errorAt, not %v", errorAt)
+}
+
+func TestKafkaClient_decodeMetadataValueHeaderV2(t *testing.T) {
+	var valueVersion int16
+	metadata := "\x00\x02\x00"                                                                                       // Header Version 2
+	metadata += "\x08consumer"                                                                                       // Protocol Type
+	metadata += "\x00\x00\x00\x03\x00\x05range\x00,tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2"                     // Generation, Protocol, Leader
+	metadata += "\x00\x00\x01i_\x1cJJ\x00\x00\x00\x01"                                                               // Timestamp
+	metadata += "\x00,tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2"                                                  // Member Metadata
+	metadata += "\x00\x07tMember\x00\x0b/172.18.0.1\x00\x00u0\x00\x00u0\x00\x00\x00\x15\x00\x00\x00\x00\x00\x01\x00" // Member Metadata
+	metadata += "\x09testtopic\x00\x00\x00\x00\x00\x00\x00=\x00\x00\x00\x00\x00\x01\x00"                             // Member Metadata
+	metadata += "\x09testtopic\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03"      // Member Metadata
+	metadata += "\x00\x00\x00\x04\x00\x00\x00\x05\x00\x00\x00\x06\x00\x00\x00\x07\x00\x00\x00\x08\x00\x00\x00\x00"   // Member Metadata
+	value := []byte(metadata)
+
+	valueBuffer := bytes.NewBuffer(value)
+	binary.Read(valueBuffer, binary.BigEndian, &valueVersion)
+	assert.Equalf(t, int16(2), valueVersion, "Expected valueVersion to be 2, not %v", valueVersion)
+
+	result, errorAt := decodeMetadataValueHeaderV2(valueBuffer)
+	fmt.Printf("%+v\n\n", result.ProtocolType)
+	assert.Equalf(t, "consumer", result.ProtocolType, "Expected ProtocolType to be consumer, not %v", result.ProtocolType)
+	assert.Equalf(t, int32(3), result.Generation, "Expected Generation to be 3, not %v", result.Generation)
+	assert.Equalf(t, "range", result.Protocol, "Expected Protocol to be range, not %v", result.Protocol)
+	assert.Equalf(t, "tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2", result.Leader, "Expected Leader to be tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2, not %v", result.Leader)
+	assert.Equalf(t, int64(1552078883402), result.CurrentStateTimestamp, "Expected CurrentStateTimestamp to be 1552078883402, not %v", result.CurrentStateTimestamp)
 	assert.Equalf(t, "", errorAt, "Expected decodeMetadataValueHeader to return empty errorAt, not %v", errorAt)
 }
 
