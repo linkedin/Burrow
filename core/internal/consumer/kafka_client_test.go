@@ -424,7 +424,7 @@ func TestKafkaClient_decodeGroupMetadata(t *testing.T) {
 	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup"))
-	valueBytes := []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x1a\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00")
+	valueBytes := []byte("\x00\x01\x00\x08consumer\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x1a\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00")
 
 	go module.decodeGroupMetadata(keyBuf, valueBytes, zap.NewNop())
 	request := <-module.App.StorageChannel
@@ -478,7 +478,7 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 
 	msg := &sarama.ConsumerMessage{
 		Key:       []byte("\x00\x02\x00\x09testgroup"),
-		Value:     []byte("\x00\x01\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x1a\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00"),
+		Value:     []byte("\x00\x01\x00\x08consumer\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x1a\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00"),
 		Topic:     "__consumer_offsets",
 		Partition: 0,
 		Offset:    8232,
@@ -495,6 +495,29 @@ func TestKafkaClient_processConsumerOffsetsMessage_Offset(t *testing.T) {
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, "testclienthost", request.Owner, "Expected request sent with Owner testclienthost, not %v", request.Owner)
 	assert.Equalf(t, "testclientid", request.ClientID, "Expected request set with ClientID testclientid, no %v", request.ClientID)
+}
+
+func TestKafkaClient_processConsumerOffsetsMessage_DifferentProtocolType(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "consumer.test")
+
+	msg := &sarama.ConsumerMessage{
+		Key:       []byte("\x00\x02\x00\x09testgroup"),
+		Value:     []byte("\x00\x01\x00\x08badprotocol\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader\x00\x00\x00\x01\x00\x0ctestmemberid\x00\x0ctestclientid\x00\x0etestclienthost\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x1a\x00\x00\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00"),
+		Topic:     "__consumer_offsets",
+		Partition: 0,
+		Offset:    8232,
+		Timestamp: time.Now(),
+	}
+
+	go module.processConsumerOffsetsMessage(msg)
+
+	select {
+	case <-module.App.StorageChannel:
+		t.Fatal("Message with protocol_type != 'consumer' should be skipped")
+	case <-time.After(100 * time.Millisecond):
+		break
+	}
 }
 
 func TestKafkaClient_processConsumerOffsetsMessage_Metadata(t *testing.T) {

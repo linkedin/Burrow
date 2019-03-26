@@ -421,6 +421,11 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 		)
 		return
 	}
+	metadataLogger.Debug("group metadata")
+	if metadataHeader.ProtocolType != "consumer" {
+		metadataLogger.Debug("skipped metadata because of unknown protocolType")
+		return
+	}
 
 	var memberCount int32
 	err := binary.Read(valueBuffer, binary.BigEndian, &memberCount)
@@ -452,7 +457,6 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 			return
 		}
 
-		metadataLogger.Debug("group metadata")
 		for topic, partitions := range member.Assignment {
 			for _, partition := range partitions {
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, &protocol.StorageRequest{
