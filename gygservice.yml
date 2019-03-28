@@ -8,10 +8,10 @@ service:
       resources:
         requests:
           memory: 256Mi
-          cpu: 200m
+          cpu: 1000m
         limits:
           memory: 256Mi
-          cpu: 200m
+          cpu: 1000m
       dockerfile: Dockerfile
       needs:
         - kafka
