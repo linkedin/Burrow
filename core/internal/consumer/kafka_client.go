@@ -62,10 +62,11 @@ type offsetValue struct {
 	ErrorAt   string
 }
 type metadataHeader struct {
-	ProtocolType string
-	Generation   int32
-	Protocol     string
-	Leader       string
+	ProtocolType          string
+	Generation            int32
+	Protocol              string
+	Leader                string
+	CurrentStateTimestamp int64
 }
 type metadataMember struct {
 	MemberID         string
@@ -392,7 +393,7 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 	}
 
 	switch valueVersion {
-	case 0, 1:
+	case 0, 1, 2:
 		module.decodeAndSendGroupMetadata(valueVersion, group, valueBuffer, logger.With(
 			zap.String("message_type", "metadata"),
 			zap.String("group", group),
@@ -408,12 +409,20 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 }
 
 func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group string, valueBuffer *bytes.Buffer, logger *zap.Logger) {
-	metadataHeader, errorAt := decodeMetadataValueHeader(valueBuffer)
+	var metadataHeader metadataHeader
+	var errorAt string
+	switch valueVersion {
+	case 2:
+		metadataHeader, errorAt = decodeMetadataValueHeaderV2(valueBuffer)
+	default:
+		metadataHeader, errorAt = decodeMetadataValueHeader(valueBuffer)
+	}
 	metadataLogger := logger.With(
 		zap.String("protocol_type", metadataHeader.ProtocolType),
 		zap.Int32("generation", metadataHeader.Generation),
 		zap.String("protocol", metadataHeader.Protocol),
 		zap.String("leader", metadataHeader.Leader),
+		zap.Int64("current_state_timestamp", metadataHeader.CurrentStateTimestamp),
 	)
 	if errorAt != "" {
 		metadataLogger.Warn("failed to decode",
@@ -496,6 +505,33 @@ func decodeMetadataValueHeader(buf *bytes.Buffer) (metadataHeader, string) {
 	return metadataHeader, ""
 }
 
+func decodeMetadataValueHeaderV2(buf *bytes.Buffer) (metadataHeader, string) {
+	var err error
+	metadataHeader := metadataHeader{}
+
+	metadataHeader.ProtocolType, err = readString(buf)
+	if err != nil {
+		return metadataHeader, "protocol_type"
+	}
+	err = binary.Read(buf, binary.BigEndian, &metadataHeader.Generation)
+	if err != nil {
+		return metadataHeader, "generation"
+	}
+	metadataHeader.Protocol, err = readString(buf)
+	if err != nil {
+		return metadataHeader, "protocol"
+	}
+	metadataHeader.Leader, err = readString(buf)
+	if err != nil {
+		return metadataHeader, "leader"
+	}
+	err = binary.Read(buf, binary.BigEndian, &metadataHeader.CurrentStateTimestamp)
+	if err != nil {
+		return metadataHeader, "current_state_timestamp"
+	}
+	return metadataHeader, ""
+}
+
 func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMember, string) {
 	var err error
 	memberMetadata := metadataMember{}
@@ -512,7 +548,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMembe
 	if err != nil {
 		return memberMetadata, "client_host"
 	}
-	if memberVersion == 1 {
+	if memberVersion == 1 || memberVersion == 2 {
 		err = binary.Read(buf, binary.BigEndian, &memberMetadata.RebalanceTimeout)
 		if err != nil {
 			return memberMetadata, "rebalance_timeout"
