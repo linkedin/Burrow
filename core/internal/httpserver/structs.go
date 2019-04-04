@@ -184,6 +184,7 @@ type httpResponseConfigModuleConsumer struct {
 type httpResponseConfigModuleEvaluator struct {
 	ClassName   string `json:"class-name"`
 	ExpireCache int64  `json:"expire-cache"`
+	MinimumComplete int64 `json:"minimum-complete"`
 }
 
 type httpResponseConfigModuleNotifierHTTP struct {

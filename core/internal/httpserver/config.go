@@ -186,6 +186,7 @@ func (hc *Coordinator) configEvaluatorDetail(w http.ResponseWriter, r *http.Requ
 			Module: httpResponseConfigModuleEvaluator{
 				ClassName:   viper.GetString(configRoot + ".class-name"),
 				ExpireCache: viper.GetInt64(configRoot + ".expire-cache"),
+				MinimumComplete: viper.GetInt64(configRoot + ".minimum-complete"),
 			},
 			Request: requestInfo,
 		})
