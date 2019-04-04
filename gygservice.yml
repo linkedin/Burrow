@@ -24,5 +24,3 @@ service:
         ad.datadoghq.com/web.check_names: ["burrow"]
         ad.datadoghq.com/web.init_configs: [{}]
         ad.datadoghq.com/web.instances: [{"burrow_uri": "http://%%host%%:8000", "clusters": ["kafka1"]}]
-    testburrow:
-      image: mthoretton1/test-burrow
