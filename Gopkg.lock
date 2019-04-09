@@ -18,12 +18,12 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:072c4df72b72758253d774fe5602c1a9ab86056e55ec806def5aa139e5ac7a4d"
+  digest = "1:10ff6d0124af07664e2c0815e87ac1e04f5bfb6aae3c7bc408dfea51f4c6c64d"
   name = "github.com/Shopify/sarama"
   packages = ["."]
   pruneopts = ""
-  revision = "03a43f93cd29dc549e6d9b11892795c206f9c38c"
-  version = "v1.20.1"
+  revision = "4602b5a8c6e826f9e0737865818dd43b2339a092"
+  version = "v1.21.0"
 
 [[projects]]
   digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
@@ -293,7 +293,7 @@
     "internal/ucd",
     "transform",
     "unicode/cldr",
-   "unicode/norm",
+    "unicode/norm",
   ]
   pruneopts = ""
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
@@ -301,14 +301,18 @@
 
 [[projects]]
   branch = "v3"
+  digest = "1:fa33d1dde8ce5b0b37c38c767c250a7684ecd385f9dbabe594ea8543e4d55807"
   name = "gopkg.in/alexcesaro/quotedprintable.v3"
   packages = ["."]
+  pruneopts = ""
   revision = "2caba252f4dc53eaf6b553000885530023f54623"
 
 [[projects]]
   branch = "v2"
+  digest = "1:a601673ef8af35a7b815b312ed9c4213c3837ddc43e99a000ea2e855376b637c"
   name = "gopkg.in/gomail.v2"
   packages = ["."]
+  pruneopts = ""
   revision = "81ebce5c23dfd25c6c67194b37d3dd3f338c98b1"
 
 [[projects]]
@@ -342,6 +346,7 @@
     "github.com/stretchr/testify/mock",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
+    "gopkg.in/gomail.v2",
     "gopkg.in/natefinch/lumberjack.v2",
   ]
   solver-name = "gps-cdcl"
