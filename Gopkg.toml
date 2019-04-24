@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/Shopify/sarama"
-  version = "1.21.0"
+  version = "1.22.0"
 
 [[constraint]]
   name = "go.uber.org/zap"
