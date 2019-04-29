@@ -18,12 +18,12 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:10ff6d0124af07664e2c0815e87ac1e04f5bfb6aae3c7bc408dfea51f4c6c64d"
+  digest = "1:512a8ed4fcd5f35911f8e90a8af9668148835b6e2de8b591ea6f9db5bf45d2d5"
   name = "github.com/Shopify/sarama"
   packages = ["."]
   pruneopts = ""
-  revision = "4602b5a8c6e826f9e0737865818dd43b2339a092"
-  version = "v1.21.0"
+  revision = "ea9ab1c316850bee881a07bb2555ee8a685cd4b6"
+  version = "v1.22.1"
 
 [[projects]]
   digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
@@ -275,6 +275,17 @@
   pruneopts = ""
   revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
   version = "v1.9.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:368c063ff749ce9640ae6b8b7ce31b863f351b3ce24687ddd78d3c005b9fe248"
+  name = "golang.org/x/net"
+  packages = [
+    "internal/socks",
+    "proxy",
+  ]
+  pruneopts = ""
+  revision = "4829fb13d2c62012c17688fa7f629f371014946d"
 
 [[projects]]
   branch = "master"
