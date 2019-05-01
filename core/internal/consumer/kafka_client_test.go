@@ -111,6 +111,43 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	consumer.AssertExpectations(t)
 }
 
+func TestKafkaClient_partitionConsumer_reports_own_progress(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "consumer.test")
+
+	// Channels for testing
+	messageChan := make(chan *sarama.ConsumerMessage)
+	errorChan := make(chan *sarama.ConsumerError)
+
+	consumer := &helpers.MockSaramaPartitionConsumer{}
+	consumer.On("AsyncClose").Return()
+	consumer.On("Messages").Return(func() <-chan *sarama.ConsumerMessage { return messageChan }())
+	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
+
+	module.running.Add(1)
+	go module.partitionConsumer(consumer)
+
+	// Send a message over the Messages channel and ensure progress gets reported
+	message := &sarama.ConsumerMessage{
+		Topic:     "testtopic",
+		Partition: 11,
+		Offset:    1234,
+	}
+	messageChan <- message
+	request := <-module.App.StorageChannel
+
+	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
+	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+	assert.Equalf(t, "testtopic", request.Topic, "Expected request sent with topic testtopic, not %v", request.Topic)
+	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
+	assert.Equalf(t, "burrow-test", request.Group, "Expected request sent with Group burrow-test, not %v", request.Group)
+	assert.Equalf(t, int64(1235), request.Offset, "Expected Offset to be 1235, not %v", request.Offset)
+
+	// Assure the partitionConsumer closes properly
+	close(module.quitChannel)
+	module.running.Wait()
+}
+
 func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "consumer.test")
