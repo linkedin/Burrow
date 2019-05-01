@@ -43,6 +43,11 @@ func fixtureModule() *KafkaClient {
 	viper.Set("consumer.test.class-name", "kafka")
 	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
 	viper.Set("consumer.test.cluster", "test")
+	viper.Set("consumer.test-backfill.class-name", "kafka")
+	viper.Set("consumer.test-backfill.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test-backfill.cluster", "test")
+	viper.Set("consumer.test-backfill.start-latest", true)
+	viper.Set("consumer.test-backfill.backfill-earliest", true)
 
 	return &module
 }
@@ -94,7 +99,7 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	module.running.Add(1)
-	go module.partitionConsumer(consumer)
+	go module.partitionConsumer(consumer, nil)
 
 	// Send a message over the error channel to make sure it doesn't block
 	testError := &sarama.ConsumerError{
@@ -125,7 +130,7 @@ func TestKafkaClient_partitionConsumer_reports_own_progress(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	module.running.Add(1)
-	go module.partitionConsumer(consumer)
+	go module.partitionConsumer(consumer, nil)
 
 	// Send a message over the Messages channel and ensure progress gets reported
 	message := &sarama.ConsumerMessage{
@@ -166,6 +171,40 @@ func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(mockPartitionConsumer, nil)
 
 	client := &helpers.MockSaramaClient{}
+	client.On("NewConsumerFromClient").Return(consumer, nil)
+	client.On("Partitions", "__consumer_offsets").Return([]int32{0}, nil)
+
+	err := module.startKafkaConsumer(client)
+	assert.Nil(t, err, "Expected startKafkaConsumer to return no error")
+
+	close(module.quitChannel)
+	module.running.Wait()
+
+	consumer.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+func TestKafkaClient_startKafkaConsumerWithBackfill(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "consumer.test-backfill")
+
+	// Channels for testing
+	messageChan := make(chan *sarama.ConsumerMessage)
+	errorChan := make(chan *sarama.ConsumerError)
+
+	// Don't assert expectations on this - the way it goes down, they're called but don't show up
+	mockPartitionConsumer := &helpers.MockSaramaPartitionConsumer{}
+	mockPartitionConsumer.On("AsyncClose").Return()
+	mockPartitionConsumer.On("Messages").Return(func() <-chan *sarama.ConsumerMessage { return messageChan }())
+	mockPartitionConsumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
+
+	consumer := &helpers.MockSaramaConsumer{}
+	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(mockPartitionConsumer, nil)
+	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetNewest).Return(mockPartitionConsumer, nil)
+
+	client := &helpers.MockSaramaClient{}
+	client.On("GetOffset", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(int64(123), nil)
+	client.On("GetOffset", "__consumer_offsets", int32(0), sarama.OffsetNewest).Return(int64(456), nil)
 	client.On("NewConsumerFromClient").Return(consumer, nil)
 	client.On("Partitions", "__consumer_offsets").Return([]int32{0}, nil)
 
