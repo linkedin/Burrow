@@ -261,7 +261,7 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 		response["testtopic"][0].Offsets[0] = &protocol.ConsumerOffset{
 			Offset:    9837458,
 			Timestamp: 12837487,
-			Lag:       2355,
+			Lag:       &protocol.Lag{2355},
 		}
 		request.Reply <- response
 		close(request.Reply)
@@ -306,7 +306,7 @@ func TestHttpServer_handleConsumerDetail(t *testing.T) {
 	assert.Lenf(t, topic[0].Offsets, 1, "Expected partition to have exactly one offset, not %v", topic[0].Offsets)
 	assert.Equalf(t, int64(9837458), topic[0].Offsets[0].Offset, "Expected Offset to be 9837458, not %v", topic[0].Offsets[0].Offset)
 	assert.Equalf(t, int64(12837487), topic[0].Offsets[0].Timestamp, "Expected Timestamp to be 12837487, not %v", topic[0].Offsets[0].Timestamp)
-	assert.Equalf(t, uint64(2355), topic[0].Offsets[0].Lag, "Expected Lag to be 2355, not %v", topic[0].Offsets[0].Lag)
+	assert.Equalf(t, &protocol.Lag{uint64(2355)}, topic[0].Offsets[0].Lag, "Expected Lag to be 2355, not %v", topic[0].Offsets[0].Lag)
 
 	// Call again for a 404
 	req, err = http.NewRequest("GET", "/v3/kafka/nocluster/consumer/testgroup", nil)
@@ -373,12 +373,12 @@ func TestHttpServer_handleConsumerStatus(t *testing.T) {
 				Start: &protocol.ConsumerOffset{
 					Offset:    9836458,
 					Timestamp: 12836487,
-					Lag:       3254,
+					Lag:       &protocol.Lag{3254},
 				},
 				End: &protocol.ConsumerOffset{
 					Offset:    9837458,
 					Timestamp: 12837487,
-					Lag:       2355,
+					Lag:       &protocol.Lag{2355},
 				},
 			},
 			TotalLag: 2345,

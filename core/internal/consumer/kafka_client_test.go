@@ -430,7 +430,7 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"))
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
-	go module.decodeKeyAndOffset(keyBuf, valueBytes, zap.NewNop())
+	go module.decodeKeyAndOffset(543, keyBuf, valueBytes, zap.NewNop())
 	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
@@ -439,6 +439,7 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, int64(8372), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
+	assert.Equalf(t, int64(543), request.Order, "Expected Order to be 543, not %v", request.Offset)
 	assert.Equalf(t, int64(1637), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
 }
 
@@ -454,7 +455,7 @@ func TestKafkaClient_decodeKeyAndOffset_BadValueVersion(t *testing.T) {
 
 	for _, values := range decodeKeyAndOffsetErrors {
 		// Should not timeout
-		module.decodeKeyAndOffset(bytes.NewBuffer(values.KeyBytes), values.ValueBytes, zap.NewNop())
+		module.decodeKeyAndOffset(0, bytes.NewBuffer(values.KeyBytes), values.ValueBytes, zap.NewNop())
 	}
 }
 
@@ -467,7 +468,7 @@ func TestKafkaClient_decodeKeyAndOffset_Whitelist(t *testing.T) {
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
 	// Should not timeout as the group should be dropped by the whitelist
-	module.decodeKeyAndOffset(keyBuf, valueBytes, zap.NewNop())
+	module.decodeKeyAndOffset(0, keyBuf, valueBytes, zap.NewNop())
 }
 
 func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
@@ -481,7 +482,7 @@ func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 	}
 	valueBuf := bytes.NewBuffer([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testd"))
 
-	module.decodeAndSendOffset(offsetKey, valueBuf, zap.NewNop(), decodeOffsetValueV0)
+	module.decodeAndSendOffset(0, offsetKey, valueBuf, zap.NewNop(), decodeOffsetValueV0)
 	// Should not timeout
 }
 

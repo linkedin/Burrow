@@ -84,6 +84,7 @@ func startWithTestConsumerOffsets(whitelist string, startTime int64) *InMemorySt
 	}
 	for i := 0; i < 10; i++ {
 		request.Offset = int64(1000 + (i * 100))
+		request.Order = int64(500 + i)
 		request.Timestamp = startTime + int64(i*10000)
 		module.addConsumerOffset(&request, module.Log)
 	}
@@ -312,6 +313,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Offset:      2000,
+		Order:       1000,
 		Timestamp:   startTime + 100000,
 	}
 	module.addConsumerOffset(&request, module.Log)
@@ -338,7 +340,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
-		assert.Equalf(t, lagValue, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
+		assert.Equalf(t, &protocol.Lag{lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
 
 		r = r.Next()
 	}
@@ -420,6 +422,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 		Group:       "testgroup",
 		Partition:   0,
 		Offset:      2000,
+		Order:       1000,
 		Timestamp:   startTime + 90001,
 	}
 	module.addConsumerOffset(&request, module.Log)
@@ -448,7 +451,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
-		assert.Equalf(t, lagValue, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
+		assert.Equalf(t, &protocol.Lag{lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
 
 		r = r.Next()
 	}
@@ -828,7 +831,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
 		assert.Equalf(t, timestampValue, offsets[i].Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offsets[i].Timestamp)
-		assert.Equalf(t, lagValue, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
+		assert.Equalf(t, &protocol.Lag{lagValue}, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
 
 	_, ok = <-request.Reply
@@ -899,7 +902,7 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 		consumerPartitionRing.Value = &protocol.ConsumerOffset{
 			Offset:    int64(offset),
 			Timestamp: ts,
-			Lag:       4321 - offset,
+			Lag:       &protocol.Lag{4321 - offset},
 		}
 		consumerMap.lastCommit = ts
 		consumerMap.topics["testtopic"][0].offsets = consumerMap.topics["testtopic"][0].offsets.Next()

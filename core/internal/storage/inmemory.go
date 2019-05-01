@@ -401,32 +401,34 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 		}
 	}
 	// Calculate the lag against the brokerOffset
-	var partitionLag uint64
+	var partitionLag = &protocol.Lag{0}
 	if brokerOffset < request.Offset {
 		// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
 		// is. In this case, just mark it as zero lag.
-		partitionLag = 0
+		partitionLag.Value = 0
 	} else {
-		partitionLag = uint64(brokerOffset - request.Offset)
+		partitionLag.Value = uint64(brokerOffset - request.Offset)
 	}
 
 	// Update or create the ring value at the current pointer
 	if consumerPartitionRing.Value == nil {
 		consumerPartitionRing.Value = &protocol.ConsumerOffset{
 			Offset:    request.Offset,
+			Order:     request.Order,
 			Timestamp: request.Timestamp,
 			Lag:       partitionLag,
 		}
 	} else {
 		ringval, _ := consumerPartitionRing.Value.(*protocol.ConsumerOffset)
 		ringval.Offset = request.Offset
+		ringval.Order = request.Order
 		ringval.Timestamp = request.Timestamp
 		ringval.Lag = partitionLag
 	}
 	consumerMap.lastCommit = request.Timestamp
 
 	// Advance the ring pointer
-	requestLogger.Debug("ok", zap.Uint64("lag", partitionLag))
+	requestLogger.Debug("ok", zap.Uint64("lag", partitionLag.Value))
 	consumerMap.topics[request.Topic][request.Partition].offsets = consumerMap.topics[request.Topic][request.Partition].offsets.Next()
 }
 
@@ -659,6 +661,7 @@ func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 						// Make a copy so that we can release the lock and be safe
 						consumerPartition.Offsets[i] = &protocol.ConsumerOffset{
 							Offset:    ringval.Offset,
+							Order:     ringval.Order,
 							Lag:       ringval.Lag,
 							Timestamp: ringval.Timestamp,
 						}

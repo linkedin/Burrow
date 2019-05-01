@@ -128,6 +128,9 @@ type StorageRequest struct {
 	// For StorageSetBrokerOffset and StorageSetConsumerOffset requests, the offset to store
 	Offset int64
 
+	// For StorageSetConsumerOffset requests, the offset of the offset commit itself (i.e. the __consumer_offsets offset)
+	Order int64
+
 	// For StorageSetConsumerOffset requests, the timestamp of the offset being stored
 	Timestamp int64
 
@@ -162,18 +165,36 @@ type ConsumerPartition struct {
 	CurrentLag uint64 `json:"current-lag"`
 }
 
+// Lag is just a wrapper for a uint64, but it can be `nil`
+type Lag struct {
+	Value uint64
+}
+
+// MarshalJSON should just treat lag as a nullable number, not a nested struct
+func (lag Lag) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lag.Value)
+}
+
+// UnmarshalJSON reads lag from a JSON number
+func (lag *Lag) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &lag.Value)
+}
+
 // ConsumerOffset represents a single offset stored. It is used as part of the response to a StorageFetchConsumer
 // request
 type ConsumerOffset struct {
 	// The offset that is stored
 	Offset int64 `json:"offset"`
 
+	// The offst of this __consumer_offsets commit
+	Order int64 `json:"-"`
+
 	// The timestamp at which the offset was committed
 	Timestamp int64 `json:"timestamp"`
 
 	// The number of messages that the consumer was behind at the time that the offset was committed. This number is
 	// not updated after the offset was committed, so it does not represent the current lag of the consumer.
-	Lag uint64 `json:"lag"`
+	Lag *Lag `json:"lag"`
 }
 
 // ConsumerTopics is the response that is sent for a StorageFetchConsumer request. It is a map of topic names to

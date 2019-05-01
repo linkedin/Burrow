@@ -270,7 +270,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 
 	switch keyver {
 	case 0, 1:
-		module.decodeKeyAndOffset(keyBuffer, msg.Value, logger)
+		module.decodeKeyAndOffset(msg.Offset, keyBuffer, msg.Value, logger)
 	case 2:
 		module.decodeGroupMetadata(keyBuffer, msg.Value, logger)
 	default:
@@ -309,7 +309,7 @@ func (module *KafkaClient) acceptConsumerGroup(group string) bool {
 	return true
 }
 
-func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {
+func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {
 	// Version 0 and 1 keys are decoded the same way
 	offsetKey, errorAt := decodeOffsetKeyV0(keyBuffer)
 	if errorAt != "" {
@@ -347,9 +347,9 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 
 	switch valueVersion {
 	case 0, 1:
-		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
+		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
 	case 3:
-		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
+		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
 	default:
 		offsetLogger.Warn("failed to decode",
 			zap.String("reason", "value version"),
@@ -358,7 +358,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 	}
 }
 
-func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
+func (module *KafkaClient) decodeAndSendOffset(offsetOrder int64, offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
 	offsetValue, errorAt := decoder(valueBuffer)
 	if errorAt != "" {
 		logger.Warn("failed to decode",
@@ -377,6 +377,7 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer 
 		Group:       offsetKey.Group,
 		Timestamp:   int64(offsetValue.Timestamp),
 		Offset:      int64(offsetValue.Offset),
+		Order:       offsetOrder,
 	}
 	logger.Debug("consumer offset",
 		zap.Int64("offset", offsetValue.Offset),
