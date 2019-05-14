@@ -15,6 +15,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"go.uber.org/zap"
@@ -37,14 +38,15 @@ type KafkaClient struct {
 	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
-	name           string
-	cluster        string
-	servers        []string
-	offsetsTopic   string
-	startLatest    bool
-	saramaConfig   *sarama.Config
-	groupWhitelist *regexp.Regexp
-	groupBlacklist *regexp.Regexp
+	name                  string
+	cluster               string
+	servers               []string
+	offsetsTopic          string
+	startLatest           bool
+	reportedConsumerGroup string
+	saramaConfig          *sarama.Config
+	groupWhitelist        *regexp.Regexp
+	groupBlacklist        *regexp.Regexp
 
 	quitChannel chan struct{}
 	running     sync.WaitGroup
@@ -107,6 +109,7 @@ func (module *KafkaClient) Configure(name string, configRoot string) {
 	viper.SetDefault(configRoot+".offsets-topic", "__consumer_offsets")
 	module.offsetsTopic = viper.GetString(configRoot + ".offsets-topic")
 	module.startLatest = viper.GetBool(configRoot + ".start-latest")
+	module.reportedConsumerGroup = "burrow-" + module.name
 
 	whitelist := viper.GetString(configRoot + ".group-whitelist")
 	if whitelist != "" {
@@ -169,6 +172,18 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) 
 	for {
 		select {
 		case msg := <-consumer.Messages():
+			if module.reportedConsumerGroup != "" {
+				burrowOffset := &protocol.StorageRequest{
+					RequestType: protocol.StorageSetConsumerOffset,
+					Cluster:     module.cluster,
+					Topic:       msg.Topic,
+					Partition:   msg.Partition,
+					Group:       module.reportedConsumerGroup,
+					Timestamp:   time.Now().Unix() * 1000,
+					Offset:      msg.Offset + 1, // emulating a consumer which should commit (lastSeenOffset+1)
+				}
+				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, burrowOffset, 1)
+			}
 			module.processConsumerOffsetsMessage(msg)
 		case err := <-consumer.Errors():
 			module.Log.Error("consume error",
