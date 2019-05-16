@@ -94,7 +94,7 @@ func ValidateURL(rawURL string) bool {
 // ValidateHostList returns true if the provided slice of strings can all be parsed by ValidateHostPort
 func ValidateHostList(hosts []string) bool {
 	for _, host := range hosts {
-		if !ValidateHostPort(host, false) {
+		if !ValidateHostPort(host, true) {
 			return false
 		}
 	}
