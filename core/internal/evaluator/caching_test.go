@@ -360,7 +360,7 @@ var tests = []testset{
 		checkIfOffsetsRewind:    true,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
-		checkIfLagNotDecreasing: false,
+		checkIfLagNotDecreasing: true,
 		checkIfRecentLagZero:    false,
 		status:                  protocol.StatusRewind,
 	},
@@ -446,6 +446,27 @@ var tests = []testset{
 		checkIfLagNotDecreasing: true,
 		checkIfRecentLagZero:    true,
 		status:                  protocol.StatusOK,
+	},
+
+	// 11 - status is WARN because the offsets are not decreasing but commits continue
+	{
+		offsets: []*protocol.ConsumerOffset{
+			{1000, 100000, 50},
+			{2000, 200000, 100},
+			{3000, 300000, 150},
+			{4000, 400000, 200},
+			{5000, 500000, 250},
+		},
+		brokerOffsets:           []int64{6000},
+		currentLag:              100,
+		timeNow:                 900,
+		isLagAlwaysNotZero:      true,
+		checkIfOffsetsRewind:    false,
+		checkIfOffsetsStopped:   false,
+		checkIfOffsetsStalled:   false,
+		checkIfLagNotDecreasing: true,
+		checkIfRecentLagZero:    false,
+		status:                  protocol.StatusWarning,
 	},
 }
 

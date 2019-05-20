@@ -379,12 +379,15 @@ func checkIfOffsetsStalled(offsets []*protocol.ConsumerOffset) bool {
 
 // Rule 5 - If the consumer offsets are advancing, but the lag is not decreasing somewhere, it's a warning (consumer is slow)
 func checkIfLagNotDecreasing(offsets []*protocol.ConsumerOffset) bool {
+	lagChange := int64(0)
 	for i := 1; i < len(offsets); i++ {
-		if offsets[i].Lag < offsets[i-1].Lag {
-			return false
+		if offsets[i].Lag == 0 {
+			lagChange = 0
+		} else {
+			lagChange += int64(offsets[i].Lag - offsets[i-1].Lag)
 		}
 	}
-	return true
+	return lagChange >= 0
 }
 
 // Using the most recent committed offset, return true if there was zero lag at some point in the stored broker
