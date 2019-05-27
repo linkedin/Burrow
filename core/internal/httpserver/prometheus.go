@@ -180,14 +180,15 @@ func (hc *Coordinator) handlePrometheusMetrics(w http.ResponseWriter, r *http.Re
 				}
 
 				consumerGroupPartitionLabels := map[string]string{
-					"host":             hostLabel,
-					"cluster":          clusterLabel,
-					"consumer_group":   replacer.Replace(consumerGroup),
-					"topic":            replacer.Replace(partitionStatus.Topic),
-					"partition":        strconv.Itoa(int(partitionStatus.Partition)),
-					"owner":            replacer.Replace(partitionStatus.Owner),
-					"client_id":        replacer.Replace(partitionStatus.ClientID),
-					"partition_status": replacer.Replace(partitionStatus.Status.String()),
+					"host":                  hostLabel,
+					"cluster":               clusterLabel,
+					"consumer_group":        replacer.Replace(consumerGroup),
+					"consumer_group_status": replacer.Replace(responseConsumerGroupStatus.Status.String()),
+					"topic":                 replacer.Replace(partitionStatus.Topic),
+					"partition":             strconv.Itoa(int(partitionStatus.Partition)),
+					"partition_status":      replacer.Replace(partitionStatus.Status.String()),
+					"owner":                 replacer.Replace(partitionStatus.Owner),
+					"client_id":             replacer.Replace(partitionStatus.ClientID),
 				}
 
 				metric = httpPrometheusMetric{
