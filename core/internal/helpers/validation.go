@@ -31,8 +31,9 @@ func ValidateIP(ipaddr string) bool {
 // * Valid characters in a segment are letters, numbers, and dashes
 // * Segments may not start or end with a dash
 // * The exception is IPv6 addresses, which are also permitted.
+// * An underscore is allowed to support Docker Swarm service names.
 func ValidateHostname(hostname string) bool {
-	matches, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$`, hostname)
+	matches, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-\_]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$`, hostname)
 	if !matches {
 		// Try as an IP address
 		return ValidateIP(hostname)
