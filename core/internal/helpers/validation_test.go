@@ -59,7 +59,7 @@ var testHostnames = []TestSet{
 	{"invalid-docker-_service-name", false},
 	{"invalid-docker_-service-name", false},
 	{"docker-service-may-not-end-with-underscore_", false},
-	{"_docker-service-may-not-start-with-underscore", false}
+	{"_docker-service-may-not-start-with-underscore", false},
 }
 
 func TestValidateHostname(t *testing.T) {
