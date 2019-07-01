@@ -37,13 +37,14 @@ func ValidateHostname(hostname string) bool {
 
 	if !matches {
 		// Try Docker Swarm service name
-		matches, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\_([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])$`, hostname)
+		matchesDocker, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\_([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])$`, hostname)
+		if !matchesDocker {
+			// Try as an IP address
+			return ValidateIP(hostname)
+		}
+		return true
 	}
 
-	if !matches {
-		// Try as an IP address
-		return ValidateIP(hostname)
-	}
 	return matches
 }
 
