@@ -525,10 +525,12 @@ func (m *MockSaramaPartitionConsumer) HighWaterMarkOffset() int64 {
 }
 
 func newSaramaZapLogger(logger *zap.Logger) sarama.StdLogger {
-	sl, _ := zap.NewStdLogAt(logger.With(zap.String("library", "sarama")), zapcore.DebugLevel)
+	sl, _ := zap.NewStdLogAt(logger.With(zap.String("name", "sarama")), zapcore.DebugLevel)
 	return sl
 }
 
+// InitSaramaLogging assigns a new logger to sarama.Logger, which
+// will send messages to given zap logger at debug level
 func InitSaramaLogging(logger *zap.Logger) {
 	sarama.Logger = newSaramaZapLogger(logger)
 }
