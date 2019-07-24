@@ -1,7 +1,8 @@
 version: '1'
 service:
   name: burrow
-  owner: devops
+  owner: di
+  image_name: service/burrow
   level: office hours
   containers:
     web:

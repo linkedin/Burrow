@@ -5,7 +5,7 @@ pipeline:
     privileged: true
     context: .
     dockerfile: ./Dockerfile
-    repo: hub.gyg.io/devops/burrow
+    repo: hub.gyg.io/service/burrow
     tags:
       - ${DRONE_BUILD_NUMBER}.${DRONE_COMMIT_SHA:0:7}
     when:
@@ -13,7 +13,6 @@ pipeline:
   register-dss:
     image: hub.gyg.io/drone-plugins/dss
     privileged: true
-    repo: hub.gyg.io/devops/burrow
     tags:
       - ${DRONE_BUILD_NUMBER}.${DRONE_COMMIT_SHA:0:7}
     when:
