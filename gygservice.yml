@@ -21,6 +21,15 @@ service:
       ports:
       - name: http
         container: 8000
+      livenessProbe:
+        httpGet:
+          path: burrow/admin
+          port: 8000
+        periodSeconds: 60
+        initialDelaySeconds: 60
+        successThreshold: 1
+        failureThreshold: 3
+        timeoutSeconds: 15
       annotations:
         ad.datadoghq.com/web.check_names: ["burrow"]
         ad.datadoghq.com/web.init_configs: [{}]
