@@ -176,8 +176,20 @@ func (module *HTTPNotifier) Notify(status *protocol.ConsumerGroupStatus, eventID
 		return
 	}
 
+	urlTmpl, err := template.New("url").Parse(url)
+	if err != nil {
+		logger.Error("failed to parse url", zap.Error(err))
+		return
+	}
+
+	urlToSend, err := executeTemplate(urlTmpl, module.extras, status, eventID, startTime)
+	if err != nil {
+		logger.Error("failed to assemble url", zap.Error(err))
+		return
+	}
+
 	// Send request to HTTP endpoint
-	req, err := http.NewRequest(method, url, bytesToSend)
+	req, err := http.NewRequest(method, urlToSend.String(), bytesToSend)
 	if err != nil {
 		logger.Error("failed to create request", zap.Error(err))
 		return
