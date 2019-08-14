@@ -43,6 +43,7 @@ type KafkaClient struct {
 	servers               []string
 	offsetsTopic          string
 	startLatest           bool
+	backfillEarliest      bool
 	reportedConsumerGroup string
 	saramaConfig          *sarama.Config
 	groupWhitelist        *regexp.Regexp
@@ -78,6 +79,9 @@ type metadataMember struct {
 	SessionTimeout   int32
 	Assignment       map[string][]int32
 }
+type backfillEndOffset struct {
+	Value int64
+}
 
 // Configure validates the configuration for the consumer. At minimum, there must be a cluster name to which these
 // consumers belong, as well as a list of servers provided for the Kafka cluster, of the form host:port. If not
@@ -109,6 +113,7 @@ func (module *KafkaClient) Configure(name string, configRoot string) {
 	viper.SetDefault(configRoot+".offsets-topic", "__consumer_offsets")
 	module.offsetsTopic = viper.GetString(configRoot + ".offsets-topic")
 	module.startLatest = viper.GetBool(configRoot + ".start-latest")
+	module.backfillEarliest = module.startLatest && viper.GetBool(configRoot+".backfill-earliest")
 	module.reportedConsumerGroup = "burrow-" + module.name
 
 	whitelist := viper.GetString(configRoot + ".group-whitelist")
@@ -165,13 +170,79 @@ func (module *KafkaClient) Stop() error {
 	return nil
 }
 
-func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer) {
+func (module *KafkaClient) startBackfillPartitionConsumer(partition int32, client helpers.SaramaClient, consumer sarama.Consumer) error {
+	pconsumer, err := consumer.ConsumePartition(module.offsetsTopic, partition, sarama.OffsetOldest)
+	if err != nil {
+		module.Log.Error("failed to consume partition",
+			zap.String("topic", module.offsetsTopic),
+			zap.Int32("partition", partition),
+			zap.String("error", err.Error()),
+		)
+		return err
+	}
+
+	// We check for an empty partition after building the consumer, otherwise we
+	// could be unlucky enough to observe a nonempty partition
+	// whose only segment expires right after we check.
+	oldestOffset, err := client.GetOffset(module.offsetsTopic, partition, sarama.OffsetOldest)
+	if err != nil {
+		module.Log.Error("failed to get oldest offset",
+			zap.String("topic", module.offsetsTopic),
+			zap.Int32("partition", partition),
+			zap.String("error", err.Error()),
+		)
+		return err
+	}
+
+	newestOffset, err := client.GetOffset(module.offsetsTopic, partition, sarama.OffsetNewest)
+	if err != nil {
+		module.Log.Error("failed to get newest offset",
+			zap.String("topic", module.offsetsTopic),
+			zap.Int32("partition", partition),
+			zap.String("error", err.Error()),
+		)
+		return err
+	}
+	if newestOffset > 0 {
+		// GetOffset returns the next (not yet published) offset, but we want the latest published offset.
+		newestOffset--
+	}
+
+	if oldestOffset >= newestOffset {
+		module.Log.Info("not backfilling empty partition",
+			zap.String("topic", module.offsetsTopic),
+			zap.Int32("partition", partition),
+			zap.Int64("oldestOffset", oldestOffset),
+			zap.Int64("newestOffset", newestOffset),
+		)
+		pconsumer.AsyncClose()
+	} else {
+		module.running.Add(1)
+		endWaterMark := &backfillEndOffset{newestOffset}
+		module.Log.Debug("consuming backfill",
+			zap.Int32("partition", partition),
+			zap.Int64("oldestOffset", oldestOffset),
+			zap.Int64("newestOffset", newestOffset),
+		)
+		go module.partitionConsumer(pconsumer, endWaterMark)
+	}
+	return nil
+}
+
+func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, stopAtOffset *backfillEndOffset) {
 	defer module.running.Done()
 	defer consumer.AsyncClose()
 
 	for {
 		select {
 		case msg := <-consumer.Messages():
+			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
+				module.Log.Debug("backfill consumer reached target offset, terminating",
+					zap.Int32("partition", msg.Partition),
+					zap.Int64("offset", stopAtOffset.Value),
+				)
+				return
+			}
 			if module.reportedConsumerGroup != "" {
 				burrowOffset := &protocol.StorageRequest{
 					RequestType: protocol.StorageSetConsumerOffset,
@@ -228,18 +299,49 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 		zap.String("topic", module.offsetsTopic),
 		zap.Int("count", len(partitions)),
 	)
-	for i, partition := range partitions {
+	for _, partition := range partitions {
 		pconsumer, err := consumer.ConsumePartition(module.offsetsTopic, partition, startFrom)
 		if err != nil {
 			module.Log.Error("failed to consume partition",
 				zap.String("topic", module.offsetsTopic),
-				zap.Int("partition", i),
+				zap.Int32("partition", partition),
 				zap.String("error", err.Error()),
 			)
 			return err
 		}
 		module.running.Add(1)
-		go module.partitionConsumer(pconsumer)
+		go module.partitionConsumer(pconsumer, nil)
+	}
+
+	if module.backfillEarliest {
+		module.Log.Debug("backfilling consumer offsets")
+		// Note: since we are consuming each partition twice,
+		// we need a second consumer instance
+		consumer, err := client.NewConsumerFromClient()
+		if err != nil {
+			module.Log.Error("failed to get new consumer", zap.Error(err))
+			client.Close()
+			return err
+		}
+
+		waiting := len(partitions)
+		backfillStartedChan := make(chan error)
+		for _, partition := range partitions {
+			go func(partition int32) {
+				backfillStartedChan <- module.startBackfillPartitionConsumer(partition, client, consumer)
+			}(partition)
+		}
+		for waiting > 0 {
+			select {
+			case err := <-backfillStartedChan:
+				waiting--
+				if err != nil {
+					return err
+				}
+			case <-module.quitChannel:
+				return nil
+			}
+		}
 	}
 
 	return nil
@@ -270,7 +372,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 
 	switch keyver {
 	case 0, 1:
-		module.decodeKeyAndOffset(keyBuffer, msg.Value, logger)
+		module.decodeKeyAndOffset(msg.Offset, keyBuffer, msg.Value, logger)
 	case 2:
 		module.decodeGroupMetadata(keyBuffer, msg.Value, logger)
 	default:
@@ -309,7 +411,7 @@ func (module *KafkaClient) acceptConsumerGroup(group string) bool {
 	return true
 }
 
-func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {
+func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *bytes.Buffer, value []byte, logger *zap.Logger) {
 	// Version 0 and 1 keys are decoded the same way
 	offsetKey, errorAt := decodeOffsetKeyV0(keyBuffer)
 	if errorAt != "" {
@@ -347,9 +449,9 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 
 	switch valueVersion {
 	case 0, 1:
-		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
+		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
 	case 3:
-		module.decodeAndSendOffset(offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
+		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
 	default:
 		offsetLogger.Warn("failed to decode",
 			zap.String("reason", "value version"),
@@ -358,7 +460,7 @@ func (module *KafkaClient) decodeKeyAndOffset(keyBuffer *bytes.Buffer, value []b
 	}
 }
 
-func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
+func (module *KafkaClient) decodeAndSendOffset(offsetOrder int64, offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
 	offsetValue, errorAt := decoder(valueBuffer)
 	if errorAt != "" {
 		logger.Warn("failed to decode",
@@ -377,6 +479,7 @@ func (module *KafkaClient) decodeAndSendOffset(offsetKey offsetKey, valueBuffer 
 		Group:       offsetKey.Group,
 		Timestamp:   int64(offsetValue.Timestamp),
 		Offset:      int64(offsetValue.Offset),
+		Order:       offsetOrder,
 	}
 	logger.Debug("consumer offset",
 		zap.Int64("offset", offsetValue.Offset),

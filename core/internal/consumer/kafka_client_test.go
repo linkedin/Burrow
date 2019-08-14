@@ -43,6 +43,11 @@ func fixtureModule() *KafkaClient {
 	viper.Set("consumer.test.class-name", "kafka")
 	viper.Set("consumer.test.servers", []string{"broker1.example.com:1234"})
 	viper.Set("consumer.test.cluster", "test")
+	viper.Set("consumer.test-backfill.class-name", "kafka")
+	viper.Set("consumer.test-backfill.servers", []string{"broker1.example.com:1234"})
+	viper.Set("consumer.test-backfill.cluster", "test")
+	viper.Set("consumer.test-backfill.start-latest", true)
+	viper.Set("consumer.test-backfill.backfill-earliest", true)
 
 	return &module
 }
@@ -94,7 +99,7 @@ func TestKafkaClient_partitionConsumer(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	module.running.Add(1)
-	go module.partitionConsumer(consumer)
+	go module.partitionConsumer(consumer, nil)
 
 	// Send a message over the error channel to make sure it doesn't block
 	testError := &sarama.ConsumerError{
@@ -125,7 +130,7 @@ func TestKafkaClient_partitionConsumer_reports_own_progress(t *testing.T) {
 	consumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
 
 	module.running.Add(1)
-	go module.partitionConsumer(consumer)
+	go module.partitionConsumer(consumer, nil)
 
 	// Send a message over the Messages channel and ensure progress gets reported
 	message := &sarama.ConsumerMessage{
@@ -166,6 +171,40 @@ func TestKafkaClient_startKafkaConsumer(t *testing.T) {
 	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(mockPartitionConsumer, nil)
 
 	client := &helpers.MockSaramaClient{}
+	client.On("NewConsumerFromClient").Return(consumer, nil)
+	client.On("Partitions", "__consumer_offsets").Return([]int32{0}, nil)
+
+	err := module.startKafkaConsumer(client)
+	assert.Nil(t, err, "Expected startKafkaConsumer to return no error")
+
+	close(module.quitChannel)
+	module.running.Wait()
+
+	consumer.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+func TestKafkaClient_startKafkaConsumerWithBackfill(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "consumer.test-backfill")
+
+	// Channels for testing
+	messageChan := make(chan *sarama.ConsumerMessage)
+	errorChan := make(chan *sarama.ConsumerError)
+
+	// Don't assert expectations on this - the way it goes down, they're called but don't show up
+	mockPartitionConsumer := &helpers.MockSaramaPartitionConsumer{}
+	mockPartitionConsumer.On("AsyncClose").Return()
+	mockPartitionConsumer.On("Messages").Return(func() <-chan *sarama.ConsumerMessage { return messageChan }())
+	mockPartitionConsumer.On("Errors").Return(func() <-chan *sarama.ConsumerError { return errorChan }())
+
+	consumer := &helpers.MockSaramaConsumer{}
+	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(mockPartitionConsumer, nil)
+	consumer.On("ConsumePartition", "__consumer_offsets", int32(0), sarama.OffsetNewest).Return(mockPartitionConsumer, nil)
+
+	client := &helpers.MockSaramaClient{}
+	client.On("GetOffset", "__consumer_offsets", int32(0), sarama.OffsetOldest).Return(int64(123), nil)
+	client.On("GetOffset", "__consumer_offsets", int32(0), sarama.OffsetNewest).Return(int64(456), nil)
 	client.On("NewConsumerFromClient").Return(consumer, nil)
 	client.On("Partitions", "__consumer_offsets").Return([]int32{0}, nil)
 
@@ -430,7 +469,7 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"))
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
-	go module.decodeKeyAndOffset(keyBuf, valueBytes, zap.NewNop())
+	go module.decodeKeyAndOffset(543, keyBuf, valueBytes, zap.NewNop())
 	request := <-module.App.StorageChannel
 
 	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
@@ -439,6 +478,7 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 0, not %v", request.Partition)
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, int64(8372), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
+	assert.Equalf(t, int64(543), request.Order, "Expected Order to be 543, not %v", request.Offset)
 	assert.Equalf(t, int64(1637), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
 }
 
@@ -454,7 +494,7 @@ func TestKafkaClient_decodeKeyAndOffset_BadValueVersion(t *testing.T) {
 
 	for _, values := range decodeKeyAndOffsetErrors {
 		// Should not timeout
-		module.decodeKeyAndOffset(bytes.NewBuffer(values.KeyBytes), values.ValueBytes, zap.NewNop())
+		module.decodeKeyAndOffset(0, bytes.NewBuffer(values.KeyBytes), values.ValueBytes, zap.NewNop())
 	}
 }
 
@@ -467,7 +507,7 @@ func TestKafkaClient_decodeKeyAndOffset_Whitelist(t *testing.T) {
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
 	// Should not timeout as the group should be dropped by the whitelist
-	module.decodeKeyAndOffset(keyBuf, valueBytes, zap.NewNop())
+	module.decodeKeyAndOffset(0, keyBuf, valueBytes, zap.NewNop())
 }
 
 func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
@@ -481,7 +521,7 @@ func TestKafkaClient_decodeAndSendOffset_ErrorValue(t *testing.T) {
 	}
 	valueBuf := bytes.NewBuffer([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testd"))
 
-	module.decodeAndSendOffset(offsetKey, valueBuf, zap.NewNop(), decodeOffsetValueV0)
+	module.decodeAndSendOffset(0, offsetKey, valueBuf, zap.NewNop(), decodeOffsetValueV0)
 	// Should not timeout
 }
 

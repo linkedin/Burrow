@@ -82,6 +82,35 @@ type clusterOffsets struct {
 	consumerLock *sync.RWMutex
 }
 
+// Represents the destination of adding an offset into
+// the consumer offsets ring buffer.
+// `insertDest`: the destination for an insert
+// `extendDest`: the next slot in the ring, which will be overridden
+//
+// If only `extendDest` is set, we're appending to the ring.
+// If only `insertDest` is set, we're replacing an existing slot.
+// If both are set, we're inserting before some existing items,
+// i.e. shifting all items past `insertDest` forward by one,
+type offsetRingDestination struct {
+	insertDest *ring.Ring
+	extendDest *ring.Ring
+}
+
+func (destination *offsetRingDestination) destinationSlot() *ring.Ring {
+	if destination.insertDest != nil {
+		return destination.insertDest
+	}
+	return destination.extendDest
+}
+
+func (destination *offsetRingDestination) isAppend() bool {
+	return destination.insertDest == nil
+}
+
+func (destination *offsetRingDestination) isShift() bool {
+	return destination.insertDest != nil && destination.extendDest != nil
+}
+
 // Configure validates the configuration for the module, creates a channel to receive requests on, and sets up the
 // storage map. If no expiration time for groups is set, a default value of 7 days is used. If no interval count is
 // set, a default of 10 intervals is used. If no worker count is set, a default of 20 workers is used.
@@ -307,7 +336,7 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *clusterOffsets, topic
 	return topicPartitionList[partition].Value.(*brokerOffset).Offset, int32(len(topicPartitionList))
 }
 
-func (module *InMemoryStorage) getPartitionRing(consumerMap *consumerGroup, topic string, partition int32, partitionCount int32, requestLogger *zap.Logger) *ring.Ring {
+func (module *InMemoryStorage) getConsumerPartition(consumerMap *consumerGroup, topic string, partition int32, partitionCount int32, requestLogger *zap.Logger) *consumerPartition {
 	// Get or create the topic for the consumer
 	consumerTopicMap, ok := consumerMap.topics[topic]
 	if !ok {
@@ -329,7 +358,7 @@ func (module *InMemoryStorage) getPartitionRing(consumerMap *consumerGroup, topi
 		consumerTopicMap[partition].offsets = ring.New(module.intervals)
 	}
 
-	return consumerTopicMap[partition].offsets
+	return consumerTopicMap[partition]
 }
 
 func (module *InMemoryStorage) acceptConsumerGroup(group string) bool {
@@ -384,50 +413,138 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	defer consumerMap.lock.Unlock()
 
 	// Get the offset ring for this partition - it always points to the earliest offset (or where to insert a new value)
-	consumerPartitionRing := module.getPartitionRing(consumerMap, request.Topic, request.Partition, partitionCount, requestLogger)
+	consumerPartition := module.getConsumerPartition(consumerMap, request.Topic, request.Partition, partitionCount, requestLogger)
+	consumerPartitionRing := consumerPartition.offsets
 
-	if consumerPartitionRing.Prev().Value != nil {
-		// If the offset commit is faster than we are allowing (less than the min-distance config), rewind the ring by one spot
-		// This lets us store the offset commit without dropping an old one
-		if (request.Timestamp - consumerPartitionRing.Prev().Value.(*protocol.ConsumerOffset).Timestamp) < (module.minDistance * 1000) {
-			// We have to change both pointers here, as we're essentially rewinding the ring one spot to add this commit
-			consumerPartitionRing = consumerPartitionRing.Prev()
-			consumerMap.topics[request.Topic][request.Partition].offsets = consumerPartitionRing
+	destination := findConsumerOffsetDestination(consumerPartitionRing, request, requestLogger)
+	if destination == nil {
+		return
+	}
 
-			// We also set the timestamp for the request to the STORED timestamp. The reason for this is that if we
-			// update the timestamp to the new timestamp, we may never create a new offset in the ring (consider the
-			// case where someone is auto-committing with a frequency lower than min-distance)
-			request.Timestamp = consumerPartitionRing.Value.(*protocol.ConsumerOffset).Timestamp
+	var partitionLag *protocol.Lag
+	if destination.isAppend() {
+		// Calculate the lag against the brokerOffset
+		partitionLag = &protocol.Lag{0}
+		if brokerOffset > request.Offset {
+			// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
+			// is. If the broker appears behind, just treat it as zero lag.
+			partitionLag.Value = uint64(brokerOffset - request.Offset)
+		}
+		requestLogger.Debug("ok", zap.Uint64("lag", partitionLag.Value))
+		consumerMap.lastCommit = request.Timestamp
+	}
+
+	destination = module.mergeFrequentCommitIntoPrevious(destination, request, requestLogger)
+	module.storeConsumerOffset(consumerPartition, destination, request, partitionLag)
+}
+
+// Given a consumer offset ring and a storage request, find the destination
+// based on the order of commits.
+func findConsumerOffsetDestination(offsetRing *ring.Ring, request *protocol.StorageRequest, requestLogger *zap.Logger) *offsetRingDestination {
+	destSlot := offsetRing
+	prevSlot := offsetRing.Prev()
+
+	if prevSlot.Value != nil {
+		// nonempty ring, prevSlot is the latest offset
+		if offsetRing.Value != nil {
+			// full ring, offsetRing is the oldest
+			if offsetRing.Value.(*protocol.ConsumerOffset).Order >= request.Order {
+				requestLogger.Debug("dropping backfill commit, already full")
+				return nil
+			}
+		}
+
+		if prevSlot.Value.(*protocol.ConsumerOffset).Order >= request.Order {
+			// the request is not the newest, so we need to insert it somewhere
+			for {
+				prevSlot = destSlot.Prev()
+				if prevSlot.Value == nil || prevSlot == offsetRing {
+					// Reached a blank slot or the oldest slot in the ring, just replace it
+					return &offsetRingDestination{
+						insertDest: prevSlot,
+						extendDest: nil,
+					}
+				}
+
+				// Lookback one previous commit
+				prevOrder := prevSlot.Value.(*protocol.ConsumerOffset).Order
+				if prevOrder < request.Order {
+					// Insert here
+					return &offsetRingDestination{
+						insertDest: destSlot,
+						extendDest: offsetRing,
+					}
+				} else if prevOrder == request.Order {
+					return nil
+				}
+
+				// else Request is older than prevSlot; keep searching
+				destSlot = prevSlot
+			}
 		}
 	}
-	// Calculate the lag against the brokerOffset
-	var partitionLag uint64
-	if brokerOffset < request.Offset {
-		// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
-		// is. In this case, just mark it as zero lag.
-		partitionLag = 0
-	} else {
-		partitionLag = uint64(brokerOffset - request.Offset)
+
+	// If we haven't returned by now we are just appending
+	return &offsetRingDestination{
+		insertDest: nil,
+		extendDest: offsetRing,
+	}
+}
+
+// If the offset commit is faster than we are allowing (less than the min-distance config), replace the previous
+// commit with this one. This lets us store the new offset commit without dropping an old one
+func (module *InMemoryStorage) mergeFrequentCommitIntoPrevious(destination *offsetRingDestination, request *protocol.StorageRequest, requestLogger *zap.Logger) *offsetRingDestination {
+	prevSlot := destination.destinationSlot().Prev()
+	if prevSlot.Value != nil {
+		prevItem, _ := prevSlot.Value.(*protocol.ConsumerOffset)
+		if prevItem.Order < request.Order && (request.Timestamp-prevItem.Timestamp) < (module.minDistance*1000) {
+			// We also set the timestamp for the request to the previous timestamp. The reason for this is that if we
+			// update the timestamp to the new timestamp, we may never create a new offset in the ring (consider the
+			// case where someone is committing with a frequency lower than min-distance)
+			request.Timestamp = prevItem.Timestamp
+			return &offsetRingDestination{
+				insertDest: prevSlot,
+				extendDest: nil,
+			}
+		}
+	}
+	return destination
+}
+
+func (module *InMemoryStorage) storeConsumerOffset(consumerPartition *consumerPartition, destination *offsetRingDestination, request *protocol.StorageRequest, partitionLag *protocol.Lag) {
+	if destination.isShift() {
+		// Shift each item past destination.insertDest forward (so we end up occupying extendDest)
+		copyTo := destination.extendDest
+		var copyFrom *ring.Ring
+		for copyTo != destination.insertDest {
+			copyFrom = copyTo.Prev()
+			copyTo.Value = copyFrom.Value
+			copyFrom.Value = nil
+			copyTo = copyFrom
+		}
 	}
 
-	// Update or create the ring value at the current pointer
-	if consumerPartitionRing.Value == nil {
-		consumerPartitionRing.Value = &protocol.ConsumerOffset{
+	// Write into the destination
+	destSlot := destination.destinationSlot()
+	if destSlot.Value == nil {
+		destSlot.Value = &protocol.ConsumerOffset{
 			Offset:    request.Offset,
+			Order:     request.Order,
 			Timestamp: request.Timestamp,
 			Lag:       partitionLag,
 		}
 	} else {
-		ringval, _ := consumerPartitionRing.Value.(*protocol.ConsumerOffset)
+		ringval, _ := destSlot.Value.(*protocol.ConsumerOffset)
 		ringval.Offset = request.Offset
+		ringval.Order = request.Order
 		ringval.Timestamp = request.Timestamp
 		ringval.Lag = partitionLag
 	}
-	consumerMap.lastCommit = request.Timestamp
 
-	// Advance the ring pointer
-	requestLogger.Debug("ok", zap.Uint64("lag", partitionLag))
-	consumerMap.topics[request.Topic][request.Partition].offsets = consumerMap.topics[request.Topic][request.Partition].offsets.Next()
+	if destination.extendDest != nil {
+		// We've extended the ring by either appending or shifting, update the ring pointer
+		consumerPartition.offsets = destination.extendDest.Next()
+	}
 }
 
 func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest, requestLogger *zap.Logger) {
@@ -466,8 +583,8 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	consumerMap.lock.Lock()
 	defer consumerMap.lock.Unlock()
 
-	// Get the offset ring for this partition - we don't need it, but it will properly create the topic and partitions for us
-	module.getPartitionRing(consumerMap, request.Topic, request.Partition, partitionCount, requestLogger)
+	// Get the consumer partition state for this partition - we don't need it, but it will properly create the topic and partitions for us
+	module.getConsumerPartition(consumerMap, request.Topic, request.Partition, partitionCount, requestLogger)
 
 	if topic, ok := consumerMap.topics[request.Topic]; !ok || (int32(len(topic)) <= request.Partition) {
 		requestLogger.Debug("dropped", zap.String("reason", "no partition"))
@@ -659,6 +776,7 @@ func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 						// Make a copy so that we can release the lock and be safe
 						consumerPartition.Offsets[i] = &protocol.ConsumerOffset{
 							Offset:    ringval.Offset,
+							Order:     ringval.Order,
 							Lag:       ringval.Lag,
 							Timestamp: ringval.Timestamp,
 						}

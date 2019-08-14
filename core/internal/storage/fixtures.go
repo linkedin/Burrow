@@ -49,6 +49,7 @@ func CoordinatorWithOffsets() *Coordinator {
 		Partition:           0,
 		TopicPartitionCount: 1,
 		Offset:              4321,
+		Order:               9,
 		Timestamp:           9876,
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -62,6 +63,7 @@ func CoordinatorWithOffsets() *Coordinator {
 			Topic:       "testtopic",
 			Group:       "testgroup",
 			Partition:   0,
+			Order:       int64(i + 10),
 			Offset:      int64(1000 + (i * 100)),
 			Timestamp:   startTime + int64((i * 10000)),
 		}
@@ -78,6 +80,7 @@ func CoordinatorWithOffsets() *Coordinator {
 			Topic:       "testtopic",
 			Group:       "testgroup2",
 			Partition:   0,
+			Order:       int64(10 + i),
 			Offset:      int64(1000 + (i * 100)),
 			Timestamp:   startTime + int64((i * 10000)),
 		}
