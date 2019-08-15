@@ -170,7 +170,7 @@ func (module *CachingEvaluator) getConsumerStatus(request *protocol.EvaluatorReq
 
 func (module *CachingEvaluator) evaluateConsumerStatus(clusterAndConsumer string) (interface{}, error) {
 	// First off, we need to separate the cluster and consumer values from the string provided
-	parts := strings.Split(clusterAndConsumer, " ")
+	parts := strings.SplitN(clusterAndConsumer, " ", 2)
 	if len(parts) != 2 {
 		module.Log.Error("query with bad clusterAndConsumer", zap.String("arg", clusterAndConsumer))
 		return nil, &cacheError{StatusCode: 500, Reason: "bad request"}
