@@ -27,9 +27,9 @@ If you have not yet installed the [Go Dependency Management Tool](https://github
 
 ### Build and Install
 ```
-$ go get github.com/linkedin/Burrow
-$ cd $GOPATH/src/github.com/linkedin/Burrow
-$ dep ensure
+$ Clone github.com/linkedin/Burrow to a directory outside of $GOPATH. Alternatively, you can export GO111MODULE=on to enable Go module.
+$ cd to the source directory.
+$ go mod tidy
 $ go install
 ```
 
