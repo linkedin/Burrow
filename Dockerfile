@@ -1,15 +1,11 @@
 FROM golang:1.12-alpine as builder
 
-ENV DEP_VERSION="0.5.1"
-RUN apk add --no-cache git curl gcc libc-dev && \
-	curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep && \
-	chmod +x $GOPATH/bin/dep && \
-	mkdir -p $GOPATH/src/github.com/linkedin/Burrow
+ENV BURROW_SRC /usr/src/Burrow/
 
-ADD . $GOPATH/src/github.com/linkedin/Burrow/
-RUN cd $GOPATH/src/github.com/linkedin/Burrow && \
-	dep ensure && \
-	go build -o /tmp/burrow .
+RUN apk add --no-cache git curl gcc libc-dev
+ADD . $BURROW_SRC
+WORKDIR $BURROW_SRC
+RUN go mod tidy && go build -o /tmp/burrow .
 
 FROM iron/go
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
