@@ -319,7 +319,31 @@ func TestKafkaClient_decodeMetadataValueHeaderV2(t *testing.T) {
 	assert.Equalf(t, "range", result.Protocol, "Expected Protocol to be range, not %v", result.Protocol)
 	assert.Equalf(t, "tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2", result.Leader, "Expected Leader to be tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2, not %v", result.Leader)
 	assert.Equalf(t, int64(1552078883402), result.CurrentStateTimestamp, "Expected CurrentStateTimestamp to be 1552078883402, not %v", result.CurrentStateTimestamp)
-	assert.Equalf(t, "", errorAt, "Expected decodeMetadataValueHeader to return empty errorAt, not %v", errorAt)
+	assert.Equalf(t, "", errorAt, "Expected decodeMetadataValueHeaderV2 to return empty errorAt, not %v", errorAt)
+}
+
+func TestKafkaClient_decodeMetadataValueHeaderV3(t *testing.T) {
+	var valueVersion int16
+	metadata := "\x00\x03\x00"                                                                                           // Header Version 3
+	metadata += "\x08consumer"                                                                                           // Protocol Type
+	metadata += "\x00\x00\x00\x01\x00\x12RoundRobinAssigner\x00,tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2"            // Generation, Protocol, Leader
+	metadata += "\x00\x00\x01l\xDF5\x07k\x00\x00\x00\x01"                                                                // Timestamp
+	metadata += "\x00\x06member\xFF\xFF\x00\x06client\x00\x0D/10.10.10.100\xFF\xFF\xFF\xFF\x00\x00\x75\x30"              // Member Metadata
+	metadata += "\x00\x00\x00\x12\x00\x01\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x00"                                 // Member Metadata
+	metadata += "\x00\x00\x00\x1A\x00\x01\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00" // Member Metadata
+	value := []byte(metadata)
+
+	valueBuffer := bytes.NewBuffer(value)
+	binary.Read(valueBuffer, binary.BigEndian, &valueVersion)
+	assert.Equalf(t, int16(3), valueVersion, "Expected valueVersion to be 3, not %v", valueVersion)
+
+	result, errorAt := decodeMetadataValueHeaderV2(valueBuffer)
+	assert.Equalf(t, "consumer", result.ProtocolType, "Expected ProtocolType to be consumer, not %v", result.ProtocolType)
+	assert.Equalf(t, int32(1), result.Generation, "Expected Generation to be 1, not %v", result.Generation)
+	assert.Equalf(t, "RoundRobinAssigner", result.Protocol, "Expected protocol to be RoundRobinAssigner, not %v", result.Protocol)
+	assert.Equalf(t, "tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2", result.Leader, "Expected Leader to be tLeader-a42d2baa-bfaa-4b96-9ea2-dee5f42b2ab2, not %v", result.Leader)
+	assert.Equalf(t, int64(1567112890219), result.CurrentStateTimestamp, "Expected CurrentStateTimestamp to be 1567112890219, not %v", result.CurrentStateTimestamp)
+	assert.Equalf(t, "", errorAt, "Expected decodeMetadataValueHeaderV2 to return empty errorAt, not %v", errorAt)
 }
 
 var decodeMetadataValueHeaderErrors = []errorTestSetBytesWithString{
@@ -346,6 +370,30 @@ func TestKafkaClient_decodeMetadataMember(t *testing.T) {
 	assert.Equalf(t, "testclienthost", result.ClientHost, "Expected ClientHost to be testclienthost, not %v", result.ClientHost)
 	assert.Equalf(t, int32(4), result.RebalanceTimeout, "Expected RebalanceTimeout to be 4, not %v", result.RebalanceTimeout)
 	assert.Equalf(t, int32(8), result.SessionTimeout, "Expected SessionTimeout to be 8, not %v", result.SessionTimeout)
+}
+
+func TestKafkaClient_decodeMetadataMemberV3(t *testing.T) {
+	metadata := "\x00\x06member\xFF"                                                                                     // memberID
+	metadata += "\xFF"                                                                                                   // groupInstanceID
+	metadata += "\x00\x06client\x00"                                                                                     // clientID
+	metadata += "\x0D/10.10.10.100"                                                                                      // clientHost
+	metadata += "\xFF\xFF\xFF\xFF"                                                                                       // rebalanceTimeout
+	metadata += "\x00\x00\x75\x30"                                                                                       // seesionTimeout
+	metadata += "\x00\x00\x00\x12\x00\x01\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x00"                                 // subscription
+	metadata += "\x00\x00\x00\x1A\x00\x01\x00\x00\x00\x01\x00\x06topic1\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00" // assignment
+	value := []byte(metadata)
+	valueBuffer := bytes.NewBuffer(value)
+
+	result, errorAt := decodeMetadataMember(valueBuffer, 3)
+
+	assert.Equalf(t, "", errorAt, "Expected decodeMetadataMember to return empty errorAt, not %v", errorAt)
+	assert.Equalf(t, "member", result.MemberID, "Expected MemberID to be member, not %v", result.MemberID)
+	assert.Equalf(t, "", result.GroupInstanceID, "Expected GroupInstanceID to be \"\" not %v", result.GroupInstanceID)
+	assert.Equalf(t, "client", result.ClientID, "Expected ClientID to be client, not %v", result.ClientID)
+	assert.Equalf(t, "/10.10.10.100", result.ClientHost, "Expected ClientHost to be /10.10.10.100, not %v", result.ClientHost)
+	assert.Equalf(t, int32(-1), result.RebalanceTimeout, "Expected RebalanceTimeout to be -1, not %v", result.RebalanceTimeout)
+	assert.Equalf(t, int32(30000), result.SessionTimeout, "Expected SessionTimeout to be 30000, not %v", result.SessionTimeout)
+	assert.Equalf(t, []int32{0}, result.Assignment["topic1"], "Expected topic1 assignment to be {0}, not %v", result.Assignment["topic1"])
 }
 
 var decodeMetadataMemberErrors = []errorTestSetBytesWithString{
