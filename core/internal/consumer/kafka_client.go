@@ -73,6 +73,7 @@ type metadataHeader struct {
 }
 type metadataMember struct {
 	MemberID         string
+	GroupInstanceID  string
 	ClientID         string
 	ClientHost       string
 	RebalanceTimeout int32
@@ -511,7 +512,7 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 	}
 
 	switch valueVersion {
-	case 0, 1, 2:
+	case 0, 1, 2, 3:
 		module.decodeAndSendGroupMetadata(valueVersion, group, valueBuffer, logger.With(
 			zap.String("message_type", "metadata"),
 			zap.String("group", group),
@@ -530,7 +531,7 @@ func (module *KafkaClient) decodeAndSendGroupMetadata(valueVersion int16, group 
 	var metadataHeader metadataHeader
 	var errorAt string
 	switch valueVersion {
-	case 2:
+	case 2, 3:
 		metadataHeader, errorAt = decodeMetadataValueHeaderV2(valueBuffer)
 	default:
 		metadataHeader, errorAt = decodeMetadataValueHeader(valueBuffer)
@@ -650,6 +651,13 @@ func decodeMetadataValueHeaderV2(buf *bytes.Buffer) (metadataHeader, string) {
 	return metadataHeader, ""
 }
 
+func decodeGroupInstanceID(buf *bytes.Buffer, memberVersion int16) (string, error) {
+	if memberVersion == 3 {
+		return readString(buf)
+	}
+	return "", nil
+}
+
 func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMember, string) {
 	var err error
 	memberMetadata := metadataMember{}
@@ -657,6 +665,10 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMembe
 	memberMetadata.MemberID, err = readString(buf)
 	if err != nil {
 		return memberMetadata, "member_id"
+	}
+	memberMetadata.GroupInstanceID, err = decodeGroupInstanceID(buf, memberVersion)
+	if err != nil {
+		return memberMetadata, "group_instance_id"
 	}
 	memberMetadata.ClientID, err = readString(buf)
 	if err != nil {
@@ -666,7 +678,7 @@ func decodeMetadataMember(buf *bytes.Buffer, memberVersion int16) (metadataMembe
 	if err != nil {
 		return memberMetadata, "client_host"
 	}
-	if memberVersion == 1 || memberVersion == 2 {
+	if memberVersion >= 1 {
 		err = binary.Read(buf, binary.BigEndian, &memberMetadata.RebalanceTimeout)
 		if err != nil {
 			return memberMetadata, "rebalance_timeout"
