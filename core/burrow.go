@@ -23,9 +23,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/Shopify/sarama"
 	"github.com/linkedin/Burrow/core/internal/cluster"
 	"github.com/linkedin/Burrow/core/internal/consumer"
 	"github.com/linkedin/Burrow/core/internal/evaluator"
+	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/internal/notifier"
 	"github.com/linkedin/Burrow/core/internal/storage"
@@ -131,6 +133,9 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 
 	// Set up a specific child logger for main
 	log := app.Logger.With(zap.String("type", "main"), zap.String("name", "burrow"))
+
+	// Set up the logger for sarama
+	sarama.Logger = helpers.NewSaramaLogger(app.Logger.With(zap.String("name", "sarama")))
 
 	// Set up an array of coordinators in the order they are to be loaded (and closed)
 	coordinators := newCoordinators(app)
