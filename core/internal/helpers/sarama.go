@@ -89,24 +89,27 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		keyFile := viper.GetString("tls." + tlsName + ".keyfile")
 		caFile := viper.GetString("tls." + tlsName + ".cafile")
 
-		if certFile == "" || keyFile == "" || caFile == "" {
+		if caFile == "" {
 			saramaConfig.Net.TLS.Config = &tls.Config{}
 		} else {
 			caCert, err := ioutil.ReadFile(caFile)
 			if err != nil {
 				panic("cannot read TLS CA file: " + err.Error())
 			}
-			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-			if err != nil {
-				panic("cannot read TLS certificate or key file: " + err.Error())
-			}
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
 			saramaConfig.Net.TLS.Config = &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				RootCAs:      caCertPool,
+				RootCAs: caCertPool,
 			}
-			saramaConfig.Net.TLS.Config.BuildNameToCertificate()
+
+			if certFile != "" && keyFile != "" {
+				cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+				if err != nil {
+					panic("cannot read TLS certificate or key file: " + err.Error())
+				}
+				saramaConfig.Net.TLS.Config.Certificates = []tls.Certificate{cert}
+				saramaConfig.Net.TLS.Config.BuildNameToCertificate()
+			}
 		}
 		saramaConfig.Net.TLS.Config.InsecureSkipVerify = viper.GetBool("tls." + tlsName + ".noverify")
 	}
