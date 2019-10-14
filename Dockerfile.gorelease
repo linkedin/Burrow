@@ -1,7 +1,7 @@
-FROM iron/go
+FROM alpine:3.10
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
 WORKDIR /app
-ADD burrow /app/
+COPY burrow /app/
 
 CMD ["/app/burrow", "--config-dir", "/etc/burrow"]
