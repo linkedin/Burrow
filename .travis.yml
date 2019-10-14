@@ -1,8 +1,8 @@
 dist: xenial
 language: go
 go:
-- 1.11.x
 - 1.12.x
+- 1.13.x
 - master
 env:
   - GO111MODULE=on
@@ -58,4 +58,4 @@ script:
 # goreleaser will run if the latest version tag matches the current commit
 after_success:
   - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
-  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == 1.12* ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi
+  - if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == 1.13* ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi
