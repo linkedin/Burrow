@@ -1,3 +1,10 @@
+## 1.3.0 (unreleased)
+
+**Release Highlights**
+
+* Add support for Go 1.13.
+* Use vanilla alpine image to run Burrow instead of `iron/go`.
+
 ## 1.2.2 (2019-02-28)
 
 **Release Highlights**
