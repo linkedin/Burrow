@@ -461,6 +461,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 			Group:       group,
 			Timestamp:   offsetStat.Mtime,
 			Offset:      offset,
+			Order:       offsetStat.Mzxid,
 		}
 		module.Log.Debug("consumer offset",
 			zap.String("group", group),
