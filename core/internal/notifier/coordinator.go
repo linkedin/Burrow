@@ -553,6 +553,11 @@ func (nc *Coordinator) notifyModule(module Module, status *protocol.ConsumerGrou
 		return
 	}
 
+	// Only send the open notification once if send-once is configured
+	if (!cgroup.LastNotify[moduleName].IsZero()) && viper.GetBool("notifier."+moduleName+".send-once") {
+		return
+	}
+
 	// Only send the notification if it's been at least our Interval since the last one for this group
 	currentTime := time.Now()
 	if currentTime.Sub(cgroup.LastNotify[module.GetName()]) > (time.Duration(viper.GetInt("notifier."+moduleName+".send-interval")) * time.Second) {

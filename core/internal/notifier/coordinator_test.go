@@ -18,9 +18,10 @@ import (
 	"text/template"
 	"time"
 
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -475,6 +476,7 @@ var notifyModuleTests = []struct {
 	ExpectSend  bool
 	ExpectClose bool
 	ExpectID    bool
+	SendOnce    bool
 }{
 	/*{1, 0, false, false, false, false, false},
 	{2, 0, false, false, false, false, false},
@@ -482,25 +484,27 @@ var notifyModuleTests = []struct {
 	{1, 0, false, true, false, false, false},
 	{1, 0, true, true, false, false, false}, */
 
-	{1, 1, false, false, true, false, false},
-	{1, 1, false, true, true, false, false},
-	{1, 1, true, false, true, false, false},
-	{1, 1, true, true, true, true, false},
+	{1, 1, false, false, true, false, false, false},
+	{1, 1, false, true, true, false, false, false},
+	{1, 1, true, false, true, false, false, false},
+	{1, 1, true, true, true, true, false, true},
 
-	{1, 2, false, false, true, false, true},
-	{1, 2, false, true, true, false, true},
-	{1, 2, true, false, true, false, true},
-	{1, 2, true, true, true, false, true},
+	{1, 2, false, false, true, false, true, false},
+	{1, 2, false, true, true, false, true, false},
+	{1, 2, true, false, true, false, true, false},
+	{1, 2, true, true, true, false, true, false},
+	{1, 2, true, true, false, false, true, true},
+	{1, 2, false, true, true, false, true, true},
 
-	{3, 2, false, false, false, false, true},
-	{3, 2, false, true, false, false, true},
-	{3, 2, true, false, false, false, true},
-	{3, 2, true, true, false, false, true},
+	{3, 2, false, false, false, false, true, false},
+	{3, 2, false, true, false, false, true, false},
+	{3, 2, true, false, false, false, true, false},
+	{3, 2, true, true, false, false, true, false},
 
-	{2, 1, false, false, false, false, false},
-	{2, 1, false, true, false, false, false},
-	{2, 1, true, false, false, false, false},
-	{2, 1, true, true, true, true, false},
+	{2, 1, false, false, false, false, false, false},
+	{2, 1, false, true, false, false, false, false},
+	{2, 1, true, false, false, false, false, false},
+	{2, 1, true, true, true, true, false, false},
 }
 
 func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
@@ -529,10 +533,16 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		viper.Reset()
 		viper.Set("notifier.test.threshold", testSet.Threshold)
 		viper.Set("notifier.test.send-close", testSet.SendClose)
+		viper.Set("notifier.test.send-once", testSet.SendOnce)
 
 		// Should there be an existing incident for this test?
 		group := coordinator.clusters["testcluster"].Groups["testgroup"]
-		delete(group.LastNotify, "test")
+		if testSet.SendOnce && !testSet.ExpectSend {
+			group.LastNotify["test"] = time.Now()
+		} else {
+			delete(group.LastNotify, "test")
+		}
+
 		if testSet.Existing {
 			group.ID = "testidstring"
 			group.Start = mockStartTime
@@ -568,7 +578,7 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		mockModule.AssertExpectations(t)
 		if testSet.ExpectSend && (!testSet.ExpectClose) {
 			assert.Falsef(t, group.LastNotify["test"].IsZero(), "Test %v: Expected group last time to be set", i)
-		} else {
+		} else if !testSet.SendOnce {
 			assert.Truef(t, group.LastNotify["test"].IsZero(), "Test %v: Expected group last time to remain unset", i)
 		}
 
