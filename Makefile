@@ -1,7 +1,7 @@
 APP_NAME=burrow
 
-QUAY_REPO=mettle
-QUAY_USERNAME?="mettle+burrow"
+QUAY_REPO?="unknown"
+QUAY_USERNAME?="unknown"
 QUAY_PASSWORD?="unknown"
 
 CIRCLE_BUILD_NUM?="unknown"
