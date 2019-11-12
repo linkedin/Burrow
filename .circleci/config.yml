@@ -1,0 +1,30 @@
+version: 2
+defaults: &defaults
+  working_directory: ~/project
+  docker:
+    - image: docker:17.05.0-ce-git
+
+jobs:
+  build:
+    <<: *defaults
+    branches:
+      only:
+        - master
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: install dependencies
+          command: apk add --update alpine-sdk
+      - run:
+          name: build docker image
+          command: make build
+      - run:
+          name: login to quay.io
+          command: make login
+      - run:
+          name: push image to quay.io
+          command: make push
+      - run:
+          name: log out of quay.io
+          command: make logout
