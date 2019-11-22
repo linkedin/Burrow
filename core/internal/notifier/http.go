@@ -95,8 +95,9 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 			Dial: (&net.Dialer{
 				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy:             http.ProxyFromEnvironment,
+			TLSClientConfig:   tlsConfig,
+			DisableKeepAlives: viper.GetBool(configRoot + ".disable-http-keepalive"),
 		},
 	}
 }
