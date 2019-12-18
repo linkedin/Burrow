@@ -44,7 +44,7 @@ func ZookeeperConnect(servers []string, sessionTimeout time.Duration, logger *za
 	return &BurrowZookeeperClient{client: zkconn}, connEventChan, err
 }
 
-// ZookeeperConnect establishes a new TLS connection to a pool of Zookeeper servers. The provided session timeout sets the
+// ZookeeperConnectTLS establishes a new TLS connection to a pool of Zookeeper servers. The provided session timeout sets the
 // amount of time for which a session is considered valid after losing connection to a server. Within the session
 // timeout it's possible to reestablish a connection to a different server and keep the same session. This is means any
 // ephemeral nodes and watches are maintained. The certificates are read from the configured zookeeper.tls profile.
