@@ -49,7 +49,10 @@ type Coordinator struct {
 func (zc *Coordinator) Configure() {
 	zc.Log.Info("configuring")
 
-	if zc.connectFunc == nil {
+	// if zookeeper.tls has been set, use the TLS connect function otherwise use default connect
+	if zc.connectFunc == nil && viper.IsSet("zookeeper.tls") {
+		zc.connectFunc = helpers.ZookeeperConnectTLS
+	} else if zc.connectFunc == nil {
 		zc.connectFunc = helpers.ZookeeperConnect
 	}
 
