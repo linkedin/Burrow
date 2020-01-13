@@ -1,38 +1,34 @@
-# .goreleaser.yml
-# Build customization
 builds:
-  - main: main.go
-    binary: burrow
-    goos:
-      - windows
-      - darwin
-      - linux
-    goarch:
-      - amd64
-# Archive customization
-archive:
-  format: tar.gz
+- main: main.go
+  binary: burrow
+  goos:
+  - windows
+  - darwin
+  - linux
+  goarch:
+  - amd64
+archives:
+- format: tar.gz
   files:
-    - LICENSE
-    - NOTICE
-    - README.md
-    - CHANGELOG.md
-    - config/burrow.toml
-    - config/default-email.tmpl
-    - config/default-http-delete.tmpl
-    - config/default-http-post.tmpl
-    - config/default-slack-delete.tmpl
-    - config/default-slack-post.tmpl
+  - LICENSE
+  - NOTICE
+  - README.md
+  - CHANGELOG.md
+  - config/burrow.toml
+  - config/default-email.tmpl
+  - config/default-http-delete.tmpl
+  - config/default-http-post.tmpl
+  - config/default-slack-delete.tmpl
+  - config/default-slack-post.tmpl
 dockers:
-  -
-    goos: linux
-    goarch: amd64
-    goarm: ''
-    binaries:
-      - burrow
-    dockerfile: Dockerfile.gorelease
-    image_templates:
-      - 'toddpalino/burrow:latest'
-      - 'toddpalino/burrow:{{ .Tag }}'
-    extra_files:
-    - docker-config/burrow.toml
+- goos: linux
+  goarch: amd64
+  goarm: ''
+  binaries:
+  - burrow
+  dockerfile: Dockerfile.gorelease
+  image_templates:
+  - 'toddpalino/burrow:latest'
+  - 'toddpalino/burrow:{{ .Tag }}'
+  extra_files:
+  - docker-config/burrow.toml
