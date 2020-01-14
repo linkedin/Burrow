@@ -12,6 +12,3 @@ before_script:
 script:
 - make lint
 - make test
-
-after_success:
-- if [[ "$TRAVIS_SECURE_ENV_VARS" == true && "$TRAVIS_GO_VERSION" == 1.13* ]]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"; curl -sL https://git.io/goreleaser | bash; fi

@@ -34,8 +34,6 @@ dockers:
   - burrow
   dockerfile: Dockerfile.gorelease
   image_templates:
-  - 'toddpalino/burrow:latest'
-  - 'toddpalino/burrow:{{ .Tag }}'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:latest'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}'
   extra_files:
