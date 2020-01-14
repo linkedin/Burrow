@@ -4,7 +4,7 @@ on: push
 
 jobs:
   test:
-    name: Go ${{ matrix.go-version }} on Ubuntu
+    name: Go ${{ matrix.go-version }} on ${{ runner.os }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -19,6 +19,13 @@ jobs:
       uses: actions/setup-go@v1
       with:
         go-version: ${{ matrix.go-version }}
+
+    - uses: actions/cache@v1
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
     # See https://github.com/actions/setup-go/issues/14
     - name: Setup env
