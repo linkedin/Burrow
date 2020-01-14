@@ -4,7 +4,7 @@ on: push
 
 jobs:
   test:
-    name: Go ${{ matrix.go-version }} on ${{ runner.os }}
+    name: Go ${{ matrix.go-version }} on ${{ matrix.os }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
