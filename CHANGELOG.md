@@ -1,9 +1,38 @@
-## 1.3.0 (unreleased)
+## 1.3.1
 
-**Release Highlights**
+- #596 - @bai - Fix deprecated goreleaser config opts
 
-* Add support for Go 1.13.
-* Use vanilla alpine image to run Burrow instead of `iron/go`.
+## 1.3.0
+
+- #595 - @bai - Update sarama to add support for kafka 2.4.0
+- #592 - @jantebeest - Feature/zookeeper tls auth
+- #585 - @chadjefferies - Make DisableKeepAlives configurable
+- #590 - @thenom - Added 2.2.1 supporting version
+- #574 - @mweigel - Set Order field on StorageRequests produced by KafkaZkClient
+- #571 - @bai - Add support for Go 1.13
+- #567 - @dellalu - Replace '-' with '_' for Env
+- #563 - @zerowidth - Update the sarama TLS config to allow anonymous SSL connections
+- #562 - @chrnola - Add support for group member metadata v3
+- #557 - @khorshuheng - Remove reference to dep in Readme
+- #556 - @khorshuheng - Migrate from dep to go module
+- #399 - @MadDataScience - allow space in consumer name
+- #555 - @khorshuheng - Upgrade sarama to support Kafka 2.3.0
+- #488 - @timbertson - start-latest + backfill-earliest mode
+- #390 - @vixns - parse http notifier open-url and close-url as templates.
+- #528 - @timbertson - Report burrow's own progress as a fake consumer
+- #524 - @bai - Run CI and build on Golang 1.12
+- #523 - @bai - Update sarama to 1.22.1
+- #521 - @asaf400 - Upgrade sarama to support Kafka 2.2.0
+- #512 - @vvuibert - sarama 1.21.0
+- #506 - @jbvmio - Groupmeta v2
+- #477 - @mlongob - Only process metadata for groups with ProtocolType = consumer
+- #415 - @lins05 - Fixed pid check in docker containers
+- #443 - @Lavaerius - Enabling HTTPS endpoints by using ServeTLS
+- #413 - @jorgelbg - Retrieve partition owners on the kafka zookeeper client
+- #420 - @maxtuzz - Notifier TLS options
+- #439 - @BewareMyPower - Replace topicMap with topicPartitions in cluster module
+- #493 - @timbertson - travis: test output of gofmt as a single argument
+- #502 - @him2994 - Fixed: *storage.brokerOffset has value nil when no leader election for partition
 
 ## 1.2.2 (2019-02-28)
 

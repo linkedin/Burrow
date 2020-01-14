@@ -112,8 +112,8 @@ func TestEmailNotifier_Notify_Open(t *testing.T) {
 		mimeHeader := m.GetHeader("MIME-version")
 		subHeader := m.GetHeader("Subject")
 
-		assert.Equalf(t, []string([]string{"[Burrow] Kafka Consumer Lag Alert"}), subHeader, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", subHeader)
-		assert.Equalf(t, []string([]string{"1.0"}), mimeHeader, "Expected MimeVersion of 1.0", mimeHeader)
+		assert.Equalf(t, []string{"[Burrow] Kafka Consumer Lag Alert"}, subHeader, "Expected subject to be [Burrow] Kafka Consumer Lag Alert, not %v", subHeader)
+		assert.Equalf(t, []string{"1.0"}, mimeHeader, "Expected MimeVersion of 1.0", mimeHeader)
 		assert.NotNil(t, m, "Expected auth to not be nil")
 		assert.True(t, d.TLSConfig.InsecureSkipVerify)
 
@@ -159,8 +159,8 @@ func TestEmailNotifier_Notify_Close(t *testing.T) {
 		mimeHeader := m.GetHeader("MIME-version")
 		subHeader := m.GetHeader("Subject")
 
-		assert.Equalf(t, []string([]string{"[Burrow] Kafka Consumer Healthy"}), subHeader, "Expected subject to be [Burrow] Kafka Consumer Healthy, not %v", subHeader)
-		assert.Equalf(t, []string([]string(nil)), mimeHeader, "Expected empty MimeVersion, not %v", mimeHeader)
+		assert.Equalf(t, []string{"[Burrow] Kafka Consumer Healthy"}, subHeader, "Expected subject to be [Burrow] Kafka Consumer Healthy, not %v", subHeader)
+		assert.Equalf(t, []string(nil), mimeHeader, "Expected empty MimeVersion, not %v", mimeHeader)
 		assert.NotNil(t, m, "Expected auth to not be nil")
 		assert.True(t, d.TLSConfig.InsecureSkipVerify)
 

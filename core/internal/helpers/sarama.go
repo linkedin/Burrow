@@ -55,7 +55,7 @@ var kafkaVersions = map[string]sarama.KafkaVersion{
 }
 
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
-	version, ok := kafkaVersions[string(kafkaVersion)]
+	version, ok := kafkaVersions[kafkaVersion]
 	if !ok {
 		panic("Unknown Kafka Version: " + kafkaVersion)
 	}

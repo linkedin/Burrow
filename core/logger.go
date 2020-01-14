@@ -57,7 +57,7 @@ func CheckAndCreatePidFile(filename string) bool {
 		}
 
 		// Try sending a signal to the process to see if it is still running
-		process, err := os.FindProcess(int(pid))
+		process, err := os.FindProcess(pid)
 		if err == nil {
 			err = process.Signal(syscall.Signal(0))
 			if (err == nil) || (err == syscall.EPERM) {
@@ -66,7 +66,6 @@ func CheckAndCreatePidFile(filename string) bool {
 				return false
 			}
 		}
-
 	}
 
 	// Create a PID file, replacing any existing one (as we already checked it)
