@@ -4,7 +4,7 @@ on: push
 
 jobs:
   test:
-    name: Go ${{ matrix.ruby }} on Ubuntu
+    name: Go ${{ matrix.go-version }} on Ubuntu
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,11 +20,10 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Install dependencies
-      run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
-
     - name: Run test suite
       run: make test
 
     - name: Run linter
-      run: make lint
+      run:
+      - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
+      - make lint
