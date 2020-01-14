@@ -14,17 +14,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"regexp"
 	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
-
-	"regexp"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/spf13/viper"
 )
 
 // KafkaClient is a consumer module which connects to a single Apache Kafka cluster and reads consumer group information
@@ -476,10 +475,10 @@ func (module *KafkaClient) decodeAndSendOffset(offsetOrder int64, offsetKey offs
 		RequestType: protocol.StorageSetConsumerOffset,
 		Cluster:     module.cluster,
 		Topic:       offsetKey.Topic,
-		Partition:   int32(offsetKey.Partition),
+		Partition:   offsetKey.Partition,
 		Group:       offsetKey.Group,
-		Timestamp:   int64(offsetValue.Timestamp),
-		Offset:      int64(offsetValue.Offset),
+		Timestamp:   offsetValue.Timestamp,
+		Offset:      offsetValue.Offset,
 		Order:       offsetOrder,
 	}
 	logger.Debug("consumer offset",
@@ -754,7 +753,7 @@ func decodeMemberAssignmentV0(buf *bytes.Buffer) (map[string][]int32, string) {
 			if err != nil {
 				return topics, "assignment_partition_id"
 			}
-			topics[topicName][j] = int32(partitionID)
+			topics[topicName][j] = partitionID
 		}
 	}
 

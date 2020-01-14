@@ -13,13 +13,13 @@
 package notifier
 
 import (
+	"sync"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"testing"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
-	"sync"
 )
 
 // This tests the full set of calls to send evaluator requests. It triggers the race detector because of setting

@@ -1,7 +1,6 @@
-dist: xenial
+dist: bionic
 language: go
 go:
-- 1.12.x
 - 1.13.x
 env:
   - GO111MODULE=on
@@ -14,14 +13,6 @@ services:
 
 install:
   - go mod tidy
-
-matrix:
-  # It's ok if our code fails on unstable development versions of Go.
-  allow_failures:
-    - go: master
-  # Don't wait for tip tests to finish. Mark the test run green if the
-  # tests pass on the stable versions of Go.
-  fast_finish: true
 
 # Don't email me the results of the test runs.
 notifications:
@@ -37,22 +28,15 @@ notifications:
 # flunk the build and immediately stop. It's sorta like having
 # set -e enabled in bash.
 before_script:
-  - GO_FILES=$(find . -iname '*.go' -type f | grep -v /vendor/) # All the .go files, excluding vendor/
-  - go get golang.org/x/lint/golint                             # Linter
-  - go get honnef.co/go/tools/cmd/staticcheck                   # Badass static analyzer/linter
-  - go get github.com/fzipp/gocyclo
+  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
   - go get github.com/mattn/goveralls
 
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
 script:
-  - test -z "$(gofmt -s -l $GO_FILES)"       # Fail if a .go file hasn't been formatted with gofmt
+  - make lint
   - go test --timeout 5s -v -race ./...      # Run all the tests with the race detector enabled
   - ./testAndCover.sh                        # Run the tests again to get coverage info
-  - go vet -composites=false ./...           # go vet is the official Go static analyzer
-  - staticcheck ./...                        # "go vet on steroids" + linter
-  - gocyclo -over 15 $GO_FILES               # forbid code with huge functions
-  - golint -set_exit_status $(go list ./...) # one last linter
 
 # If the build succeeds, send coverage to coveralls
 # goreleaser will run if the latest version tag matches the current commit

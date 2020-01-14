@@ -15,12 +15,12 @@ import (
 	"fmt"
 	"regexp"
 	"sync"
+	"testing"
 	"text/template"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

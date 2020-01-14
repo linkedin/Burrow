@@ -11,8 +11,9 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/mock"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 // Ticker is a generic interface for a channel that delivers `ticks' of a clock at intervals.
@@ -72,7 +73,6 @@ func (ticker *PausableTicker) Start() {
 			}
 		}
 	}(ticker.ticker.C, ticker.quitChannel)
-
 }
 
 // Stop stops ticks from being sent over the channel. If the ticker is not currently sending ticks, this func has no

@@ -104,7 +104,6 @@ func getModuleForClass(app *protocol.ApplicationContext,
 	extras map[string]string,
 	templateOpen *template.Template,
 	templateClose *template.Template) protocol.Module {
-
 	logger := app.Logger.With(
 		zap.String("type", "module"),
 		zap.String("coordinator", "notifier"),

@@ -13,16 +13,18 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net"
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // BurrowZookeeperClient is an implementation of protocol.ZookeeperClient

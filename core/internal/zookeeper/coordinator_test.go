@@ -14,11 +14,11 @@ package zookeeper
 
 import (
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/spf13/viper"
