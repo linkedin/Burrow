@@ -34,8 +34,7 @@ before_script:
 # in a modern Go project.
 script:
   - make lint
-  - go test --timeout 5s -v -race ./...      # Run all the tests with the race detector enabled
-  - ./testAndCover.sh                        # Run the tests again to get coverage info
+  - make test
 
 # If the build succeeds, send coverage to coveralls
 # goreleaser will run if the latest version tag matches the current commit
