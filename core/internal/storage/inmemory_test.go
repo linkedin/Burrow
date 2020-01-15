@@ -25,7 +25,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func fixtureModule(whitelist string, blacklist string) *InMemoryStorage {
+func fixtureModule(whitelist, blacklist string) *InMemoryStorage {
 	module := InMemoryStorage{
 		Log: zap.NewNop(),
 	}
@@ -229,8 +229,8 @@ func TestInMemoryStorage_addBrokerOffset_AddMany(t *testing.T) {
 		Timestamp:           9876,
 	}
 	for i := 0; i < 100; i++ {
-		request.Offset = request.Offset + 1
-		request.Timestamp = request.Timestamp + 1
+		request.Offset++
+		request.Timestamp++
 		module.addBrokerOffset(&request, module.Log)
 	}
 
@@ -341,7 +341,7 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
-		assert.Equalf(t, &protocol.Lag{lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
+		assert.Equalf(t, &protocol.Lag{Value: lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
 
 		r = r.Next()
 	}
@@ -404,18 +404,18 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 5000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 1, 100000, nil},
-			{2000, 2, 200000, nil},
-			{3000, 3, 300000, nil},
-			{4000, 4, 400000, nil},
-			{5000, 5, 500000, nil},
+			{Offset: 1000, Order: 1, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 2, Timestamp: 200000, Lag: nil},
+			{Offset: 3000, Order: 3, Timestamp: 300000, Lag: nil},
+			{Offset: 4000, Order: 4, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 5, Timestamp: 500000, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{1000, 1, 100000, &protocol.Lag{4000}},
-			{2000, 2, 200000, &protocol.Lag{3000}},
-			{3000, 3, 300000, &protocol.Lag{2000}},
-			{4000, 4, 400000, &protocol.Lag{1000}},
-			{5000, 5, 500000, &protocol.Lag{0}},
+			{Offset: 1000, Order: 1, Timestamp: 100000, Lag: &protocol.Lag{Value: 4000}},
+			{Offset: 2000, Order: 2, Timestamp: 200000, Lag: &protocol.Lag{Value: 3000}},
+			{Offset: 3000, Order: 3, Timestamp: 300000, Lag: &protocol.Lag{Value: 2000}},
+			{Offset: 4000, Order: 4, Timestamp: 400000, Lag: &protocol.Lag{Value: 1000}},
+			{Offset: 5000, Order: 5, Timestamp: 500000, Lag: &protocol.Lag{Value: 0}},
 		},
 	},
 
@@ -423,32 +423,32 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 5000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 20, 100000, nil},
-			{2000, 30, 200000, nil},
+			{Offset: 1000, Order: 20, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 30, Timestamp: 200000, Lag: nil},
 			// These will be prepended, based on their Order
-			{3000, 15, 300000, nil},
-			{900, 14, 300000, nil},
-			{800, 13, 300000, nil},
-			{700, 12, 300000, nil},
-			{600, 11, 300000, nil},
-			{500, 10, 300000, nil},
-			{400, 9, 300000, nil},
-			{300, 8, 300000, nil},
+			{Offset: 3000, Order: 15, Timestamp: 300000, Lag: nil},
+			{Offset: 900, Order: 14, Timestamp: 300000, Lag: nil},
+			{Offset: 800, Order: 13, Timestamp: 300000, Lag: nil},
+			{Offset: 700, Order: 12, Timestamp: 300000, Lag: nil},
+			{Offset: 600, Order: 11, Timestamp: 300000, Lag: nil},
+			{Offset: 500, Order: 10, Timestamp: 300000, Lag: nil},
+			{Offset: 400, Order: 9, Timestamp: 300000, Lag: nil},
+			{Offset: 300, Order: 8, Timestamp: 300000, Lag: nil},
 			// these will get dropped because their Order is oldest
-			{200, 7, 300000, nil},
-			{100, 6, 300000, nil},
+			{Offset: 200, Order: 7, Timestamp: 300000, Lag: nil},
+			{Offset: 100, Order: 6, Timestamp: 300000, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{300, 8, 300000, nil},
-			{400, 9, 300000, nil},
-			{500, 10, 300000, nil},
-			{600, 11, 300000, nil},
-			{700, 12, 300000, nil},
-			{800, 13, 300000, nil},
-			{900, 14, 300000, nil},
-			{3000, 15, 300000, nil},
-			{1000, 20, 100000, &protocol.Lag{4000}},
-			{2000, 30, 200000, &protocol.Lag{3000}},
+			{Offset: 300, Order: 8, Timestamp: 300000, Lag: nil},
+			{Offset: 400, Order: 9, Timestamp: 300000, Lag: nil},
+			{Offset: 500, Order: 10, Timestamp: 300000, Lag: nil},
+			{Offset: 600, Order: 11, Timestamp: 300000, Lag: nil},
+			{Offset: 700, Order: 12, Timestamp: 300000, Lag: nil},
+			{Offset: 800, Order: 13, Timestamp: 300000, Lag: nil},
+			{Offset: 900, Order: 14, Timestamp: 300000, Lag: nil},
+			{Offset: 3000, Order: 15, Timestamp: 300000, Lag: nil},
+			{Offset: 1000, Order: 20, Timestamp: 100000, Lag: &protocol.Lag{Value: 4000}},
+			{Offset: 2000, Order: 30, Timestamp: 200000, Lag: &protocol.Lag{Value: 3000}},
 		},
 	},
 
@@ -456,16 +456,16 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 5000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 20, 100000, nil},
-			{2000, 30, 300000, nil},
-			{3000, 40, 400000, nil},
-			{1500, 25, 200000, nil},
+			{Offset: 1000, Order: 20, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 30, Timestamp: 300000, Lag: nil},
+			{Offset: 3000, Order: 40, Timestamp: 400000, Lag: nil},
+			{Offset: 1500, Order: 25, Timestamp: 200000, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{1000, 20, 100000, &protocol.Lag{4000}},
-			{1500, 25, 200000, nil},
-			{2000, 30, 300000, &protocol.Lag{3000}},
-			{3000, 40, 400000, &protocol.Lag{2000}},
+			{Offset: 1000, Order: 20, Timestamp: 100000, Lag: &protocol.Lag{Value: 4000}},
+			{Offset: 1500, Order: 25, Timestamp: 200000, Lag: nil},
+			{Offset: 2000, Order: 30, Timestamp: 300000, Lag: &protocol.Lag{Value: 3000}},
+			{Offset: 3000, Order: 40, Timestamp: 400000, Lag: &protocol.Lag{Value: 2000}},
 		},
 	},
 
@@ -473,30 +473,30 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 10000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, nil},
-			{2000, 20, 200000, nil},
-			{3000, 30, 300000, nil},
-			{4000, 40, 400000, nil},
-			{5000, 50, 500000, nil},
-			{6000, 60, 600000, nil},
-			{7000, 70, 700000, nil},
-			{8000, 80, 800000, nil},
-			{9000, 90, 900000, nil},
-			{10000, 100, 1000000, nil},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: nil},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: nil},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: nil},
+			{Offset: 6000, Order: 60, Timestamp: 600000, Lag: nil},
+			{Offset: 7000, Order: 70, Timestamp: 700000, Lag: nil},
+			{Offset: 8000, Order: 80, Timestamp: 800000, Lag: nil},
+			{Offset: 9000, Order: 90, Timestamp: 900000, Lag: nil},
+			{Offset: 10000, Order: 100, Timestamp: 1000000, Lag: nil},
 			// inserted between 50 & 60
-			{5500, 55, 550000, nil},
+			{Offset: 5500, Order: 55, Timestamp: 550000, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{2000, 20, 200000, &protocol.Lag{8000}},
-			{3000, 30, 300000, &protocol.Lag{7000}},
-			{4000, 40, 400000, &protocol.Lag{6000}},
-			{5000, 50, 500000, &protocol.Lag{5000}},
-			{5500, 55, 550000, nil},
-			{6000, 60, 600000, &protocol.Lag{4000}},
-			{7000, 70, 700000, &protocol.Lag{3000}},
-			{8000, 80, 800000, &protocol.Lag{2000}},
-			{9000, 90, 900000, &protocol.Lag{1000}},
-			{10000, 100, 1000000, &protocol.Lag{0}},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: &protocol.Lag{Value: 8000}},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: &protocol.Lag{Value: 7000}},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: &protocol.Lag{Value: 6000}},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: &protocol.Lag{Value: 5000}},
+			{Offset: 5500, Order: 55, Timestamp: 550000, Lag: nil},
+			{Offset: 6000, Order: 60, Timestamp: 600000, Lag: &protocol.Lag{Value: 4000}},
+			{Offset: 7000, Order: 70, Timestamp: 700000, Lag: &protocol.Lag{Value: 3000}},
+			{Offset: 8000, Order: 80, Timestamp: 800000, Lag: &protocol.Lag{Value: 2000}},
+			{Offset: 9000, Order: 90, Timestamp: 900000, Lag: &protocol.Lag{Value: 1000}},
+			{Offset: 10000, Order: 100, Timestamp: 1000000, Lag: &protocol.Lag{Value: 0}},
 		},
 	},
 
@@ -504,29 +504,29 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 10000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, nil},
-			{2000, 20, 200000, nil},
-			{3000, 30, 300000, nil},
-			{4000, 40, 400000, nil},
-			{5000, 50, 500000, nil},
-			{6000, 60, 600000, nil},
-			{7000, 70, 700000, nil},
-			{8000, 80, 800000, nil},
-			{9000, 90, 900000, nil},
-			{10000, 100, 1000000, nil},
-			{1500, 15, 150000, nil},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: nil},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: nil},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: nil},
+			{Offset: 6000, Order: 60, Timestamp: 600000, Lag: nil},
+			{Offset: 7000, Order: 70, Timestamp: 700000, Lag: nil},
+			{Offset: 8000, Order: 80, Timestamp: 800000, Lag: nil},
+			{Offset: 9000, Order: 90, Timestamp: 900000, Lag: nil},
+			{Offset: 10000, Order: 100, Timestamp: 1000000, Lag: nil},
+			{Offset: 1500, Order: 15, Timestamp: 150000, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{1500, 15, 150000, nil},
-			{2000, 20, 200000, &protocol.Lag{8000}},
-			{3000, 30, 300000, &protocol.Lag{7000}},
-			{4000, 40, 400000, &protocol.Lag{6000}},
-			{5000, 50, 500000, &protocol.Lag{5000}},
-			{6000, 60, 600000, &protocol.Lag{4000}},
-			{7000, 70, 700000, &protocol.Lag{3000}},
-			{8000, 80, 800000, &protocol.Lag{2000}},
-			{9000, 90, 900000, &protocol.Lag{1000}},
-			{10000, 100, 1000000, &protocol.Lag{0}},
+			{Offset: 1500, Order: 15, Timestamp: 150000, Lag: nil},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: &protocol.Lag{Value: 8000}},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: &protocol.Lag{Value: 7000}},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: &protocol.Lag{Value: 6000}},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: &protocol.Lag{Value: 5000}},
+			{Offset: 6000, Order: 60, Timestamp: 600000, Lag: &protocol.Lag{Value: 4000}},
+			{Offset: 7000, Order: 70, Timestamp: 700000, Lag: &protocol.Lag{Value: 3000}},
+			{Offset: 8000, Order: 80, Timestamp: 800000, Lag: &protocol.Lag{Value: 2000}},
+			{Offset: 9000, Order: 90, Timestamp: 900000, Lag: &protocol.Lag{Value: 1000}},
+			{Offset: 10000, Order: 100, Timestamp: 1000000, Lag: &protocol.Lag{Value: 0}},
 		},
 	},
 
@@ -534,19 +534,19 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 10000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, nil},
-			{2000, 20, 200000, nil},
-			{3000, 30, 300000, nil},
-			{4000, 40, 400000, nil},
-			{5000, 50, 500000, nil},
-			{6000, 60, 500001, nil},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: nil},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: nil},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: nil},
+			{Offset: 6000, Order: 60, Timestamp: 500001, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, &protocol.Lag{9000}},
-			{2000, 20, 200000, &protocol.Lag{8000}},
-			{3000, 30, 300000, &protocol.Lag{7000}},
-			{4000, 40, 400000, &protocol.Lag{6000}},
-			{6000, 60, 500000, &protocol.Lag{4000}},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: &protocol.Lag{Value: 9000}},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: &protocol.Lag{Value: 8000}},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: &protocol.Lag{Value: 7000}},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: &protocol.Lag{Value: 6000}},
+			{Offset: 6000, Order: 60, Timestamp: 500000, Lag: &protocol.Lag{Value: 4000}},
 		},
 	},
 
@@ -554,19 +554,19 @@ var consumerOffsetTests = []consumerOffsetTest{
 	{
 		partitionOffset: 10000,
 		inputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, nil},
-			{2000, 20, 200000, nil},
-			{3000, 30, 300000, nil},
-			{4000, 40, 400000, nil},
-			{5000, 50, 500000, nil},
-			{4500, 45, 400001, nil},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: nil},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: nil},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: nil},
+			{Offset: 4000, Order: 40, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: nil},
+			{Offset: 4500, Order: 45, Timestamp: 400001, Lag: nil},
 		},
 		outputs: []*protocol.ConsumerOffset{
-			{1000, 10, 100000, &protocol.Lag{9000}},
-			{2000, 20, 200000, &protocol.Lag{8000}},
-			{3000, 30, 300000, &protocol.Lag{7000}},
-			{4500, 45, 400000, nil},
-			{5000, 50, 500000, &protocol.Lag{5000}},
+			{Offset: 1000, Order: 10, Timestamp: 100000, Lag: &protocol.Lag{Value: 9000}},
+			{Offset: 2000, Order: 20, Timestamp: 200000, Lag: &protocol.Lag{Value: 8000}},
+			{Offset: 3000, Order: 30, Timestamp: 300000, Lag: &protocol.Lag{Value: 7000}},
+			{Offset: 4500, Order: 45, Timestamp: 400000, Lag: nil},
+			{Offset: 5000, Order: 50, Timestamp: 500000, Lag: &protocol.Lag{Value: 5000}},
 		},
 	},
 }
@@ -701,7 +701,7 @@ func TestInMemoryStorage_addConsumerOffset_MinDistance(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
-		assert.Equalf(t, &protocol.Lag{lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
+		assert.Equalf(t, &protocol.Lag{Value: lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
 
 		r = r.Next()
 	}
@@ -1081,7 +1081,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
 		assert.Equalf(t, timestampValue, offsets[i].Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offsets[i].Timestamp)
-		assert.Equalf(t, &protocol.Lag{lagValue}, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
+		assert.Equalf(t, &protocol.Lag{Value: lagValue}, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
 
 	_, ok = <-request.Reply
@@ -1152,7 +1152,7 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 		consumerPartitionRing.Value = &protocol.ConsumerOffset{
 			Offset:    int64(offset),
 			Timestamp: ts,
-			Lag:       &protocol.Lag{4321 - offset},
+			Lag:       &protocol.Lag{Value: 4321 - offset},
 		}
 		consumerMap.lastCommit = ts
 		consumerMap.topics["testtopic"][0].offsets = consumerMap.topics["testtopic"][0].offsets.Next()

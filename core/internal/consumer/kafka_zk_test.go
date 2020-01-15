@@ -14,17 +14,20 @@ import (
 	"errors"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"sync"
+
+	"github.com/stretchr/testify/mock"
+
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
-	"github.com/stretchr/testify/mock"
-	"sync"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {

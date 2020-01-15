@@ -87,7 +87,7 @@ type backfillEndOffset struct {
 // consumers belong, as well as a list of servers provided for the Kafka cluster, of the form host:port. If not
 // explicitly configured, the offsets topic is set to the default for Kafka, which is __consumer_offsets. If the
 // cluster name is unknown, or if the server list is missing or invalid, this func will panic.
-func (module *KafkaClient) Configure(name string, configRoot string) {
+func (module *KafkaClient) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
@@ -383,7 +383,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	}
 }
 
-func readString(buf *bytes.Buffer) (string, error) {
+func readString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 	var strlen int16
 	err := binary.Read(buf, binary.BigEndian, &strlen)
 	if err != nil {

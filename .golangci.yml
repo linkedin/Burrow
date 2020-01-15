@@ -40,23 +40,23 @@ linters:
     - bodyclose
     - deadcode
     - depguard
-    # - dogsled
+    - dogsled
     # - dupl
     # - errcheck
     - funlen
-    # - gocritic
+    - gocritic
     - gocyclo
     - gofmt
-    # - goimports
+    - goimports
     - golint
     # - gosec
     - gosimple
-    # - govet
+    - govet
     - ineffassign
-    # - interfacer
+    - interfacer
     - misspell
     - nakedret
-    # - scopelint
+    - scopelint
     - staticcheck
     - structcheck
     - stylecheck
