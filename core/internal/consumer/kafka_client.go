@@ -300,6 +300,10 @@ func (module *KafkaClient) startKafkaConsumer(client helpers.SaramaClient) error
 		zap.Int("count", len(partitions)),
 	)
 	for _, partition := range partitions {
+		// Add work around for partition 3 which has the broker 5 (already dead) as a leader
+		if partition == 3 && module.offsetsTopic == "__consumer_offsets" {
+			continue
+		}
 		pconsumer, err := consumer.ConsumePartition(module.offsetsTopic, partition, startFrom)
 		if err != nil {
 			module.Log.Error("failed to consume partition",
