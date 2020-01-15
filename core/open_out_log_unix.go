@@ -17,6 +17,6 @@ import (
 	"syscall"
 )
 
-func internalDup2(oldfd uintptr, newfd uintptr) error {
+func internalDup2(oldfd, newfd uintptr) error {
 	return syscall.Dup2(int(oldfd), int(newfd))
 }

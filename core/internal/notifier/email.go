@@ -55,7 +55,7 @@ type EmailNotifier struct {
 // Configure validates the configuration of the email notifier. At minimum, there must be a valid server, port, from
 // address, and to address. If any of these are missing or incorrect, this func will panic with an explanatory message.
 // It is also possible to specify an auth-type of either "plain" or "crammd5", along with a username and password.
-func (module *EmailNotifier) Configure(name string, configRoot string) {
+func (module *EmailNotifier) Configure(name, configRoot string) {
 	module.name = name
 
 	// Abstract the SendMail call so we can test
@@ -251,6 +251,6 @@ func (module *EmailNotifier) createMessage(messageContent string) (*gomail.Messa
 	return m, nil
 }
 
-func getKeywordContent(header string, subjectDelimiter string) string {
+func getKeywordContent(header, subjectDelimiter string) string {
 	return strings.Split(header, subjectDelimiter)[1]
 }

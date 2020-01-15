@@ -53,7 +53,7 @@ func ValidateZookeeperPath(path string) bool {
 		return true
 	}
 
-	nodeRegexp, _ := regexp.Compile(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`)
+	nodeRegexp := regexp.MustCompile(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`)
 	for i, node := range parts {
 		if i == 0 {
 			continue

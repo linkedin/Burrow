@@ -88,7 +88,7 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	}
 }
 
-func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) {
+func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) { // nolint:gocritic
 	// Configure methods are allowed to panic, as their errors are non-recoverable
 	// Catch panics here and flag in the application context if we can't continue
 	defer func() {

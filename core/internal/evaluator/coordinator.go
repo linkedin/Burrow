@@ -57,7 +57,7 @@ type Coordinator struct {
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
 // is any error, it will panic with an appropriate message describing the problem.
-func getModuleForClass(app *protocol.ApplicationContext, moduleName string, className string) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string) protocol.Module {
 	switch className {
 	case "caching":
 		return &CachingEvaluator{
