@@ -13,6 +13,8 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"io/ioutil"
 
 	"github.com/Shopify/sarama"
@@ -527,4 +529,15 @@ func (m *MockSaramaPartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 func (m *MockSaramaPartitionConsumer) HighWaterMarkOffset() int64 {
 	args := m.Called()
 	return args.Get(0).(int64)
+}
+
+func newSaramaZapLogger(logger *zap.Logger) sarama.StdLogger {
+	sl, _ := zap.NewStdLogAt(logger.With(zap.String("name", "sarama")), zapcore.DebugLevel)
+	return sl
+}
+
+// InitSaramaLogging assigns a new logger to sarama.Logger, which
+// will send messages to given zap logger at debug level
+func InitSaramaLogging(logger *zap.Logger) {
+	sarama.Logger = newSaramaZapLogger(logger)
 }
