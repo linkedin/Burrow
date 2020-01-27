@@ -13,10 +13,10 @@
 package notifier
 
 import (
-	"sync"
-	"testing"
 	"errors"
+	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
