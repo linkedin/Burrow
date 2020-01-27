@@ -11,9 +11,10 @@
 package helpers
 
 import (
+	"testing"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"testing"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/assert"
