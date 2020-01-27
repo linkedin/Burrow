@@ -13,9 +13,10 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"io/ioutil"
 
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
