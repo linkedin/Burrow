@@ -15,6 +15,8 @@ package notifier
 import (
 	"sync"
 	"testing"
+	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -119,14 +121,32 @@ func TestCoordinator_manageEvalLoop_Expiration(t *testing.T) {
 	assert.False(t, coordinator.doEvaluations, "Expected doEvaluations to be false")
 }
 
+type statefulMockLock struct {
+	*helpers.MockZookeeperLock
+	lockHeld *int32
+}
+
+func (s *statefulMockLock) Lock() error {
+	if atomic.CompareAndSwapInt32(s.lockHeld, 0, 1) {
+		return nil
+	}
+	return errors.New("unable to lock twice: must unlock first")
+}
+
+func (s *statefulMockLock) Unlock() error {
+	if atomic.CompareAndSwapInt32(s.lockHeld, 1, 0) {
+		return nil
+	}
+	return errors.New("unable to unlock: lock not held")
+}
+
 // We know this will trigger the race detector, because of the way we manipulate the ZK state
 func TestCoordinator_manageEvalLoop_Reconnect(t *testing.T) {
 	coordinator := fixtureCoordinator()
 	coordinator.Configure()
 
 	// Add mock calls for the Zookeeper client - Lock immediately returns with no error
-	mockLock := &helpers.MockZookeeperLock{}
-	mockLock.On("Lock").Return(nil)
+	mockLock := &statefulMockLock{&helpers.MockZookeeperLock{}, new(int32)}
 	mockZk := coordinator.App.Zookeeper.(*helpers.MockZookeeperClient)
 	mockZk.On("NewLock", "/burrow/notifier").Return(mockLock)
 
