@@ -12,9 +12,8 @@ RUN go mod tidy && go build -o /tmp/burrow .
 # stage 2: runner
 FROM alpine:3.11
 
-LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
+#LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
 COPY --from=builder /tmp/burrow /app/
-COPY docker-config/burrow.toml /etc/burrow/
 
-CMD ["/app/burrow", "--config-dir", "/etc/burrow"]
+CMD ["/app/burrow", "--config-dir", "/srv/burrow"]
