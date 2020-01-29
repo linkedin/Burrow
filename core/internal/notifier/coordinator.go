@@ -193,8 +193,7 @@ func (nc *Coordinator) Configure() {
 			groupWhitelist = re
 		}
 
-		var cluster string
-		cluster = viper.GetString(configRoot + ".cluster")
+		cluster := viper.GetString(configRoot + ".cluster")
 
 		// Compile the blacklist for the consumer groups to not notify for
 		var groupBlacklist *regexp.Regexp
