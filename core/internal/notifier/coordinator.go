@@ -115,7 +115,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
-			cluster: cluster,
+			cluster:        cluster,
 		}
 	case "email":
 		return &EmailNotifier{
@@ -126,7 +126,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
-			cluster: cluster,
+			cluster:        cluster,
 		}
 	case "null":
 		return &NullNotifier{
@@ -137,7 +137,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
-			cluster: cluster,
+			cluster:        cluster,
 		}
 	default:
 		panic("Unknown notifier className provided: " + className)
@@ -228,7 +228,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose,cluster)
+		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose, cluster)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 		interval := viper.GetInt64(configRoot + ".interval")
@@ -437,8 +437,7 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 	for _, genericModule := range nc.modules {
 		module := genericModule.(Module)
 
-
-		if module.GetCluster() != "" && response.Cluster!=module.GetCluster() {
+		if module.GetCluster() != "" && response.Cluster != module.GetCluster() {
 			continue
 		}
 		// No whitelist means everything passes

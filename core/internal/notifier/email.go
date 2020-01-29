@@ -39,7 +39,7 @@ type EmailNotifier struct {
 	Log *zap.Logger
 
 	name           string
-	cluster 		string
+	cluster        string
 	groupWhitelist *regexp.Regexp
 	groupBlacklist *regexp.Regexp
 	extras         map[string]string

@@ -240,7 +240,7 @@ type httpResponseConfigModuleNotifierEmail struct {
 	To             string            `json:"to"`
 	ExtraCa        string            `json:"extra-ca"`
 	NoVerify       string            `json:"noverify"`
-	Cluster       string             `json:"cluster"`
+	Cluster        string            `json:"cluster"`
 }
 
 type httpResponseConfigModuleNotifierNull struct {
