@@ -475,6 +475,7 @@ var notifyModuleTests = []struct {
 	ExpectSend  bool
 	ExpectClose bool
 	ExpectID    bool
+	AssociatedCluster string
 }{
 	/*{1, 0, false, false, false, false, false},
 	{2, 0, false, false, false, false, false},
@@ -482,25 +483,31 @@ var notifyModuleTests = []struct {
 	{1, 0, false, true, false, false, false},
 	{1, 0, true, true, false, false, false}, */
 
-	{1, 1, false, false, true, false, false},
-	{1, 1, false, true, true, false, false},
-	{1, 1, true, false, true, false, false},
-	{1, 1, true, true, true, true, false},
+	{1, 1, false, false, true, false, false,""},
+	{1, 1, false, false, true, false, false,"testcluster"},
+	{1, 1, false, false, false, false, false,"unmatchedCluster"},
+	{1, 1, false, true, true, false, false,""},
+	{1, 1, true, false, true, false, false,""},
+	{1, 1, true, true, true, true, false,""},
 
-	{1, 2, false, false, true, false, true},
-	{1, 2, false, true, true, false, true},
-	{1, 2, true, false, true, false, true},
-	{1, 2, true, true, true, false, true},
+	{1, 2, false, false, true, false, true,""},
+	{1, 2, false, true, true, false, true,""},
+	{1, 2, true, false, true, false, true,""},
+	{1, 2, true, true, true, false, true,""},
 
-	{3, 2, false, false, false, false, true},
-	{3, 2, false, true, false, false, true},
-	{3, 2, true, false, false, false, true},
-	{3, 2, true, true, false, false, true},
+	{3, 2, false, false, false, false, true,""},
+	{3, 2, false, true, false, false, true,""},
+	{3, 2, true, false, false, false, true,""},
+	{3, 2, true, true, false, false, true,""},
 
-	{2, 1, false, false, false, false, false},
-	{2, 1, false, true, false, false, false},
-	{2, 1, true, false, false, false, false},
-	{2, 1, true, true, true, true, false},
+	{2, 1, false, false, false, false, false,""},
+	{2, 1, false, true, false, false, false,""},
+	{2, 1, true, false, false, false, false,""},
+	{2, 1, true, true, true, true, false,""},
+}
+
+func checkNotifierClusterMatch(cluster string) bool {
+	return cluster=="" || cluster=="testcluster"
 }
 
 func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
@@ -549,14 +556,19 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 			Status:          testSet.Status,
 			TotalPartitions: i,
 		}
-
 		// Set up the mock module and expected calls
 		mockModule := &helpers.MockModule{}
 		coordinator.modules["test"] = mockModule
+		mockModule.On("GetCluster").Return(testSet.AssociatedCluster)
+
+		if checkNotifierClusterMatch(testSet.AssociatedCluster) {
+
 		mockModule.On("GetName").Return("test")
 		mockModule.On("GetGroupWhitelist").Return((*regexp.Regexp)(nil))
 		mockModule.On("GetGroupBlacklist").Return((*regexp.Regexp)(nil))
 		mockModule.On("AcceptConsumerGroup", response).Return(true)
+	}
+
 		if testSet.ExpectSend {
 			mockModule.On("Notify", response, mock.MatchedBy(func(s string) bool { return true }), mock.MatchedBy(func(t time.Time) bool { return true }), testSet.ExpectClose).Return()
 		}
