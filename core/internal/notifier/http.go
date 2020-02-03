@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strings"
 	"text/template"
 	"time"
 
@@ -202,8 +203,16 @@ func (module *HTTPNotifier) Notify(status *protocol.ConsumerGroupStatus, eventID
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	for header, value := range viper.GetStringMapString("notifier." + module.name + ".headers") {
+	headersMap := viper.GetStringMapString("notifier." + module.name + ".headers")
+	for header, value := range headersMap {
 		req.Header.Set(header, value)
+
+		// For client requests, Host optionally overrides the Host
+		// header to send. If empty, the Request.Write method uses
+		// the value of URL.Host
+		if strings.ToLower(header) == "host" && value != "" {
+			req.Host = value
+		}
 	}
 
 	resp, err := module.httpClient.Do(req)
