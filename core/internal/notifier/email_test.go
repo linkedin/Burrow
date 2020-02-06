@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/rjh-yext/Burrow/core/protocol"
 	"gopkg.in/gomail.v2"
 	"net"
 	"strconv"

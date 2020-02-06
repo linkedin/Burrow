@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/rjh-yext/Burrow/core/protocol"
 )
 
 // BurrowZookeeperClient is an implementation of protocol.ZookeeperClient

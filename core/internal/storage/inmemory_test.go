@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/rjh-yext/Burrow/core/protocol"
 )
 
 func fixtureModule(whitelist string, blacklist string) *InMemoryStorage {
