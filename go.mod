@@ -1,4 +1,4 @@
-module github.com/linkedin/Burrow
+module github.com/rjh-yext/Burrow
 
 require (
 	github.com/OneOfOne/xxhash v1.2.7

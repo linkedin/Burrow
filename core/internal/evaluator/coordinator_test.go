@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/rjh-yext/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {
