@@ -526,20 +526,16 @@ func (module *InMemoryStorage) storeConsumerOffset(consumerPartition *consumerPa
 
 	// Write into the destination
 	destSlot := destination.destinationSlot()
-	if destSlot.Value == nil {
-		destSlot.Value = &protocol.ConsumerOffset{
-			Offset:    request.Offset,
-			Order:     request.Order,
-			Timestamp: request.Timestamp,
-			Lag:       partitionLag,
-		}
-	} else {
-		ringval, _ := destSlot.Value.(*protocol.ConsumerOffset)
-		ringval.Offset = request.Offset
-		ringval.Order = request.Order
-		ringval.Timestamp = request.Timestamp
-		ringval.Lag = partitionLag
+	ringval, _ := destSlot.Value.(*protocol.ConsumerOffset)
+	if ringval == nil {
+		ringval = &protocol.ConsumerOffset{}
+		destSlot.Value = ringval
 	}
+	ringval.Offset = request.Offset
+	ringval.Order = request.Order
+	ringval.Timestamp = request.Timestamp
+	ringval.ObservedTimestamp = time.Now().Unix() * 1000
+	ringval.Lag = partitionLag
 
 	if destination.extendDest != nil {
 		// We've extended the ring by either appending or shifting, update the ring pointer
@@ -775,10 +771,11 @@ func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 
 						// Make a copy so that we can release the lock and be safe
 						consumerPartition.Offsets[i] = &protocol.ConsumerOffset{
-							Offset:    ringval.Offset,
-							Order:     ringval.Order,
-							Lag:       ringval.Lag,
-							Timestamp: ringval.Timestamp,
+							Offset:            ringval.Offset,
+							Order:             ringval.Order,
+							Lag:               ringval.Lag,
+							Timestamp:         ringval.Timestamp,
+							ObservedTimestamp: ringval.ObservedTimestamp,
 						}
 					}
 					ringPtr = ringPtr.Next()
