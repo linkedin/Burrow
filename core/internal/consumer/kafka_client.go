@@ -236,13 +236,6 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 	for {
 		select {
 		case msg := <-consumer.Messages():
-			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
-				module.Log.Debug("backfill consumer reached target offset, terminating",
-					zap.Int32("partition", msg.Partition),
-					zap.Int64("offset", stopAtOffset.Value),
-				)
-				return
-			}
 			if module.reportedConsumerGroup != "" {
 				burrowOffset := &protocol.StorageRequest{
 					RequestType: protocol.StorageSetConsumerOffset,
@@ -252,8 +245,16 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 					Group:       module.reportedConsumerGroup,
 					Timestamp:   time.Now().Unix() * 1000,
 					Offset:      msg.Offset + 1, // emulating a consumer which should commit (lastSeenOffset+1)
+					Order:       msg.Offset,
 				}
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, burrowOffset, 1)
+			}
+			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
+				module.Log.Debug("backfill consumer reached target offset, terminating",
+					zap.Int32("partition", msg.Partition),
+					zap.Int64("offset", stopAtOffset.Value),
+				)
+				return
 			}
 			module.processConsumerOffsetsMessage(msg)
 		case err := <-consumer.Errors():
