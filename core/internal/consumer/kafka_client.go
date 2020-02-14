@@ -252,6 +252,7 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 					Group:       module.reportedConsumerGroup,
 					Timestamp:   time.Now().Unix() * 1000,
 					Offset:      msg.Offset + 1, // emulating a consumer which should commit (lastSeenOffset+1)
+					Order:       msg.Offset,
 				}
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, burrowOffset, 1)
 			}
