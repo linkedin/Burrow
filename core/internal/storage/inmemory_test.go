@@ -304,8 +304,9 @@ func TestInMemoryStorage_getBrokerOffset(t *testing.T) {
 }
 
 func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
-	startTime := (time.Now().Unix() * 1000) - 100000
-	module := startWithTestConsumerOffsets("", startTime)
+	startTime := (time.Now().Unix() * 1000)
+	timestampBase := startTime - 100000
+	module := startWithTestConsumerOffsets("", timestampBase)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageSetConsumerOffset,
@@ -315,9 +316,10 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 		Partition:   0,
 		Offset:      2000,
 		Order:       1000,
-		Timestamp:   startTime + 100000,
+		Timestamp:   timestampBase + 100000,
 	}
 	module.addConsumerOffset(&request, module.Log)
+	completeTime := time.Now().Unix() * 1000
 
 	consumerMap, ok := module.offsets["testcluster"].consumer["testgroup"]
 	assert.True(t, ok, "Group not created")
@@ -336,11 +338,13 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 
 		offset := r.Value.(*protocol.ConsumerOffset)
 		offsetValue := int64(1100 + (i * 100))
-		timestampValue := startTime + 10000 + int64(i*10000)
+		timestampValue := timestampBase + 10000 + int64(i*10000)
 		lagValue := uint64(int64(4321) - offsetValue)
 
 		assert.Equalf(t, offsetValue, offset.Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offset.Offset)
 		assert.Equalf(t, timestampValue, offset.Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offset.Timestamp)
+		assert.LessOrEqual(t, startTime, offset.ObservedTimestamp, "Expected observedTimestamp at position %v to be <= %v, got %v", i, completeTime, offset.ObservedTimestamp)
+		assert.GreaterOrEqual(t, completeTime, offset.ObservedTimestamp, "Expected observedTimestamp at position %v to be >= %v, got %v", i, startTime, offset.ObservedTimestamp)
 		assert.Equalf(t, &protocol.Lag{Value: lagValue}, offset.Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offset.Lag)
 
 		r = r.Next()
@@ -608,6 +612,8 @@ func TestInMemoryStorage_addConsumerOffset_testCases(t *testing.T) {
 		}
 		assert.Len(t, offsets, len(testSet.outputs), "TEST %v: number of stored offsets", i)
 		for offsetIndex, expected := range testSet.outputs {
+			// don't include clock time in comparisons
+			offsets[offsetIndex].ObservedTimestamp = 0
 			assert.Equal(t, expected, offsets[offsetIndex], "TEST %v offset %v", i, offsetIndex)
 		}
 	}
@@ -1034,8 +1040,9 @@ func TestInMemoryStorage_fetchTopic_BadTopic(t *testing.T) {
 }
 
 func TestInMemoryStorage_fetchConsumer(t *testing.T) {
-	startTime := (time.Now().Unix() * 1000) - 100000
-	module := startWithTestConsumerOffsets("", startTime)
+	startTime := (time.Now().Unix() * 1000)
+	timestampBase := startTime - 100000
+	module := startWithTestConsumerOffsets("", timestampBase)
 
 	// Set the owner for the test partition
 	request := protocol.StorageRequest{
@@ -1059,6 +1066,7 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 	// Can't read a reply without concurrency
 	go module.fetchConsumer(&request, module.Log)
 	response := <-request.Reply
+	completeTime := time.Now().Unix() * 1000
 
 	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type map[string][]*protocol.consumerPartition")
 	val := response.(protocol.ConsumerTopics)
@@ -1076,11 +1084,13 @@ func TestInMemoryStorage_fetchConsumer(t *testing.T) {
 		assert.NotNilf(t, offsets[0], "Expected offset to be NOT nil at position %v", i)
 
 		offsetValue := int64(1000 + (i * 100))
-		timestampValue := startTime + int64(i*10000)
+		timestampValue := timestampBase + int64(i*10000)
 		lagValue := uint64(int64(4321) - offsetValue)
 
 		assert.Equalf(t, offsetValue, offsets[i].Offset, "Expected offset at position %v to be %v, got %v", i, offsetValue, offsets[i].Offset)
 		assert.Equalf(t, timestampValue, offsets[i].Timestamp, "Expected timestamp at position %v to be %v, got %v", i, timestampValue, offsets[i].Timestamp)
+		assert.LessOrEqual(t, startTime, offsets[i].ObservedTimestamp, "Expected observed timestamp at position %v to be <= %v, got %v", i, completeTime, offsets[i].ObservedTimestamp)
+		assert.GreaterOrEqual(t, completeTime, offsets[i].ObservedTimestamp, "Expected observed timestamp at position %v to be <= %v, got %v", i, completeTime, offsets[i].ObservedTimestamp)
 		assert.Equalf(t, &protocol.Lag{Value: lagValue}, offsets[i].Lag, "Expected lag at position %v to be %v, got %v", i, lagValue, offsets[i].Lag)
 	}
 
