@@ -23,8 +23,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // Coordinator (zookeeper) manages a single Zookeeper connection for other coordinators and modules to make use of in
@@ -124,10 +124,16 @@ func (zc *Coordinator) createRecursive(path string) error {
 
 	parts := strings.Split(path, "/")
 	for i := 2; i <= len(parts); i++ {
-		_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, zk.WorldACL(zk.PermAll))
-		// Ignore when the node exists already
-		if (err != nil) && (err != zk.ErrNodeExists) {
-			return err
+		// If the rootpath exists, skip the Create process to avoid "zk: not authenticated" error
+		exist, _, errExists := zc.App.Zookeeper.Exists(strings.Join(parts[:i], "/"))
+		if !exist {
+			_, err := zc.App.Zookeeper.Create(strings.Join(parts[:i], "/"), []byte{}, 0, zk.WorldACL(zk.PermAll))
+			// Ignore when the node exists already
+			if (err != nil) && (err != zk.ErrNodeExists) {
+				return err
+			}
+		} else {
+			return errExists
 		}
 	}
 	return nil

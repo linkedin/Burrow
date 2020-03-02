@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/internal/helpers"
 )
 
 // This tests the full set of calls to send evaluator requests. It triggers the race detector because of setting

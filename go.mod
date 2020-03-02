@@ -1,4 +1,4 @@
-module github.com/linkedin/Burrow
+module github.com/yext/Burrow
 
 require (
 	github.com/OneOfOne/xxhash v1.2.7
@@ -28,6 +28,7 @@ require (
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
+	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0

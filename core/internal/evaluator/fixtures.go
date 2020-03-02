@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/storage"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/storage"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // StorageAndEvaluatorCoordinatorsWithOffsets sets up a Coordinator with a single caching module defined. In order to do

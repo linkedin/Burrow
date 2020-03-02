@@ -38,8 +38,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // Module defines a means of sending out notifications of consumer group status (such as email), as well as regular

@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // BurrowZookeeperClient is an implementation of protocol.ZookeeperClient
@@ -120,6 +120,11 @@ func (z *BurrowZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.E
 	return z.client.GetW(path)
 }
 
+// Exists returns a boolean stating whether or not the specified path exists.
+func (z *BurrowZookeeperClient) Exists(path string) (bool, *zk.Stat, error) {
+	return z.client.Exists(path)
+}
+
 // ExistsW returns a boolean stating whether or not the specified path exists. This method also sets a watch on the node
 // (exists if it does not currently exist, or a data watch otherwise), providing an event channel that will receive a
 // message when the watch fires
@@ -177,6 +182,12 @@ func (m *MockZookeeperClient) ChildrenW(path string) ([]string, *zk.Stat, <-chan
 func (m *MockZookeeperClient) GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error) {
 	args := m.Called(path)
 	return args.Get(0).([]byte), args.Get(1).(*zk.Stat), args.Get(2).(<-chan zk.Event), args.Error(3)
+}
+
+// Exists mocks protocol.ZookeeperClient.Exists
+func (m *MockZookeeperClient) Exists(path string) (bool, *zk.Stat, error) {
+	args := m.Called(path)
+	return args.Bool(0), args.Get(1).(*zk.Stat), args.Error(2)
 }
 
 // ExistsW mocks protocol.ZookeeperClient.ExistsW

@@ -25,7 +25,7 @@ import (
 
 	"crypto/tls"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // HTTPNotifier is a module which can be used to send notifications of consumer group status via outbound HTTP calls to

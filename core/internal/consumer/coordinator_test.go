@@ -18,8 +18,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {

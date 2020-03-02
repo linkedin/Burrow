@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // CoordinatorWithOffsets sets up a Coordinator with a single inmemory module defined. This module is loaded with

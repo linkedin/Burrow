@@ -13,21 +13,17 @@ package consumer
 import (
 	"errors"
 	"time"
-
+	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	"github.com/samuel/go-zookeeper/zk"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
-
-	"sync"
-
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 func fixtureKafkaZkModule() *KafkaZkClient {

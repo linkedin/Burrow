@@ -26,8 +26,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // Module is responsible for answering requests to evaluate the status of a consumer group. It fetches offset

@@ -11,16 +11,14 @@
 package storage
 
 import (
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"go.uber.org/zap"
+	
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {

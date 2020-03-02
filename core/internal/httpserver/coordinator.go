@@ -11,7 +11,7 @@
 // Package httpserver - HTTP API endpoint
 // The httpserver subsystem provides an HTTP interface to Burrow that can be used to fetch information about the
 // clusters and consumers it is monitoring. More documentation on the requests and responses is provided at
-// https://github.com/linkedin/Burrow/wiki/HTTP-Endpoint.
+// https://github.com/yext/Burrow/wiki/HTTP-Endpoint.
 package httpserver
 
 import (
@@ -31,8 +31,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/linkedin/Burrow/core/internal/helpers"
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/internal/helpers"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // Coordinator runs the HTTP interface for Burrow, managing all configured listeners.

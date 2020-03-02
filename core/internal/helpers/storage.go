@@ -13,7 +13,7 @@ package helpers
 import (
 	"time"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/yext/Burrow/core/protocol"
 )
 
 // TimeoutSendStorageRequest is a helper func for sending a protocol.StorageRequest to a channel with a timeout,

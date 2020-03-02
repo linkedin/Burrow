@@ -10,7 +10,7 @@
 
 package httpserver
 
-import "github.com/linkedin/Burrow/core/protocol"
+import "github.com/yext/Burrow/core/protocol"
 
 type logLevelRequest struct {
 	Level string `json:"level"`
