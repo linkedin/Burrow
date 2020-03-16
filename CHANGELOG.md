@@ -1,3 +1,10 @@
+## 1.3.3
+
+- #617 - @timbertson-zd - add and expose observedAt time for lag entries
+- #616 - @timbertson - Fix self-reporting of burrow's own progress
+- #615 - @bai - Run github actions when PR is created
+- #545 - @Lukkie - Allow underscore in hostname
+
 ## 1.3.2
 
 - #608 - @bai - Disable travis ci integration
