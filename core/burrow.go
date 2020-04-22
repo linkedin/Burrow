@@ -26,6 +26,7 @@ import (
 	"github.com/linkedin/Burrow/core/internal/cluster"
 	"github.com/linkedin/Burrow/core/internal/consumer"
 	"github.com/linkedin/Burrow/core/internal/evaluator"
+	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/internal/notifier"
 	"github.com/linkedin/Burrow/core/internal/storage"
@@ -88,7 +89,7 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	}
 }
 
-func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) {
+func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) { // nolint:gocritic
 	// Configure methods are allowed to panic, as their errors are non-recoverable
 	// Catch panics here and flag in the application context if we can't continue
 	defer func() {
@@ -131,6 +132,9 @@ func Start(app *protocol.ApplicationContext, exitChannel chan os.Signal) int {
 
 	// Set up a specific child logger for main
 	log := app.Logger.With(zap.String("type", "main"), zap.String("name", "burrow"))
+
+	// send sarama logs to zap
+	helpers.InitSaramaLogging(app.Logger)
 
 	// Set up an array of coordinators in the order they are to be loaded (and closed)
 	coordinators := newCoordinators(app)

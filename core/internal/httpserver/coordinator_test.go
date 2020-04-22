@@ -13,14 +13,13 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
-	"testing"
-
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"

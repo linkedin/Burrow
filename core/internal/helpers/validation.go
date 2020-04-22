@@ -31,12 +31,20 @@ func ValidateIP(ipaddr string) bool {
 // * Valid characters in a segment are letters, numbers, and dashes
 // * Segments may not start or end with a dash
 // * The exception is IPv6 addresses, which are also permitted.
+// * An underscore is allowed to support Docker Swarm service names.
 func ValidateHostname(hostname string) bool {
 	matches, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$`, hostname)
+
 	if !matches {
-		// Try as an IP address
-		return ValidateIP(hostname)
+		// Try Docker Swarm service name
+		matchesDocker, _ := regexp.MatchString(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\_([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])$`, hostname)
+		if !matchesDocker {
+			// Try as an IP address
+			return ValidateIP(hostname)
+		}
+		return true
 	}
+
 	return matches
 }
 
@@ -53,7 +61,7 @@ func ValidateZookeeperPath(path string) bool {
 		return true
 	}
 
-	nodeRegexp, _ := regexp.Compile(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`)
+	nodeRegexp := regexp.MustCompile(`^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$`)
 	for i, node := range parts {
 		if i == 0 {
 			continue

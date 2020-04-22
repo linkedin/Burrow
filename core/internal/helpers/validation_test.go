@@ -11,8 +11,9 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type TestSet struct {
@@ -53,6 +54,12 @@ var testHostnames = []TestSet{
 	{"800.hostnames.starting.with.numbers.are.valid.because.people.suck.org", true},
 	{"hostnames-.may.not.end.with.a.dash.com", false},
 	{"no spaces.com", false},
+	{"docker_service.name.should.not.contain.dots", false},
+	{"docker-swarmservice_name-with-one-underscore-is-valid", true},
+	{"invalid-docker-_service-name", false},
+	{"invalid-docker_-service-name", false},
+	{"docker-service-may-not-end-with-underscore_", false},
+	{"_docker-service-may-not-start-with-underscore", false},
 }
 
 func TestValidateHostname(t *testing.T) {

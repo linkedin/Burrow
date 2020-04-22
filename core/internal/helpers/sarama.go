@@ -15,6 +15,9 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
@@ -49,11 +52,13 @@ var kafkaVersions = map[string]sarama.KafkaVersion{
 	"2.0.1":    sarama.V2_0_0_0,
 	"2.1.0":    sarama.V2_1_0_0,
 	"2.2.0":    sarama.V2_2_0_0,
+	"2.2.1":    sarama.V2_2_0_0,
 	"2.3.0":    sarama.V2_3_0_0,
+	"2.4.0":    sarama.V2_4_0_0,
 }
 
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
-	version, ok := kafkaVersions[string(kafkaVersion)]
+	version, ok := kafkaVersions[kafkaVersion]
 	if !ok {
 		panic("Unknown Kafka Version: " + kafkaVersion)
 	}
@@ -525,4 +530,15 @@ func (m *MockSaramaPartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 func (m *MockSaramaPartitionConsumer) HighWaterMarkOffset() int64 {
 	args := m.Called()
 	return args.Get(0).(int64)
+}
+
+func newSaramaZapLogger(logger *zap.Logger) sarama.StdLogger {
+	sl, _ := zap.NewStdLogAt(logger.With(zap.String("name", "sarama")), zapcore.DebugLevel)
+	return sl
+}
+
+// InitSaramaLogging assigns a new logger to sarama.Logger, which
+// will send messages to given zap logger at debug level
+func InitSaramaLogging(logger *zap.Logger) {
+	sarama.Logger = newSaramaZapLogger(logger)
 }

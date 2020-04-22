@@ -11,9 +11,10 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/linkedin/Burrow/core/protocol"
 )

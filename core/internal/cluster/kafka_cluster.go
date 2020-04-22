@@ -52,7 +52,7 @@ type KafkaCluster struct {
 // Configure validates the configuration for the cluster. At minimum, there must be a list of servers provided for the
 // Kafka cluster, of the form host:port. Default values will be set for the intervals to use for refreshing offsets
 // (10 seconds) and topics (60 seconds). A missing, or bad, list of servers will cause this func to panic.
-func (module *KafkaCluster) Configure(name string, configRoot string) {
+func (module *KafkaCluster) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name

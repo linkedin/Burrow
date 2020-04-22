@@ -64,7 +64,7 @@ type KafkaZkClient struct {
 // consumers belong, as well as a list of servers provided for the Zookeeper ensemble, of the form host:port. If not
 // explicitly configured, it is assumed that the Kafka cluster metadata is present in the ensemble root path. If the
 // cluster name is unknown, or if the server list is missing or invalid, this func will panic.
-func (module *KafkaZkClient) Configure(name string, configRoot string) {
+func (module *KafkaZkClient) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
@@ -186,11 +186,11 @@ func drainEventChannel(eventChan <-chan zk.Event) {
 	<-eventChan
 }
 
-func (module *KafkaZkClient) waitForNodeToExist(zkPath string, Logger *zap.Logger) bool {
+func (module *KafkaZkClient) waitForNodeToExist(zkPath string, logger *zap.Logger) bool {
 	nodeExists, _, existsWatchChan, err := module.zk.ExistsW(zkPath)
 	if err != nil {
 		// This is a real error (since NoNode will not return an error)
-		Logger.Debug("failed to check existence of znode",
+		logger.Debug("failed to check existence of znode",
 			zap.String("path", zkPath),
 			zap.String("error", err.Error()),
 		)
@@ -203,11 +203,11 @@ func (module *KafkaZkClient) waitForNodeToExist(zkPath string, Logger *zap.Logge
 	}
 
 	// Wait for the node to exist
-	Logger.Debug("waiting for node to exist", zap.String("path", zkPath))
+	logger.Debug("waiting for node to exist", zap.String("path", zkPath))
 	event := <-existsWatchChan
 	if event.Type == zk.EventNotWatching {
 		// Watch is gone, so we're gone too
-		Logger.Debug("exists watch invalidated",
+		logger.Debug("exists watch invalidated",
 			zap.String("path", zkPath),
 		)
 		return false
@@ -294,8 +294,8 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	// fires on /consumers/(group) existing, but here we try to read /consumers/(group)/offsets (which might not exist
 	// yet)
 	zkPath := module.zookeeperPath + "/" + group + "/offsets"
-	Logger := module.Log.With(zap.String("group", group))
-	if !module.waitForNodeToExist(zkPath, Logger) {
+	logger := module.Log.With(zap.String("group", group))
+	if !module.waitForNodeToExist(zkPath, logger) {
 		// There was an error checking node existence, so we can't continue
 		return
 	}
@@ -303,7 +303,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	// Get the current group topic list and reset our watch
 	groupTopics, _, topicListEventChan, err := module.zk.ChildrenW(zkPath)
 	if err != nil {
-		Logger.Debug("failed to read topic list", zap.String("error", err.Error()))
+		logger.Debug("failed to read topic list", zap.String("error", err.Error()))
 		return
 	}
 	module.running.Add(1)
@@ -322,7 +322,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 					count: 0,
 					lock:  &sync.Mutex{},
 				}
-				Logger.Debug("add topic", zap.String("topic", topic))
+				logger.Debug("add topic", zap.String("topic", topic))
 				module.running.Add(1)
 				go module.resetPartitionListWatchAndAdd(group, topic, false)
 			}
@@ -330,7 +330,7 @@ func (module *KafkaZkClient) resetTopicListWatchAndAdd(group string, resetOnly b
 	}
 }
 
-func (module *KafkaZkClient) watchPartitionList(group string, topic string, eventChan <-chan zk.Event) {
+func (module *KafkaZkClient) watchPartitionList(group, topic string, eventChan <-chan zk.Event) {
 	defer module.running.Done()
 
 	event := <-eventChan
@@ -351,7 +351,7 @@ func (module *KafkaZkClient) watchPartitionList(group string, topic string, even
 	go module.resetPartitionListWatchAndAdd(group, topic, event.Type != zk.EventNodeChildrenChanged)
 }
 
-func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic string, resetOnly bool) {
+func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group, topic string, resetOnly bool) {
 	defer module.running.Done()
 
 	// Get the current topic partition list and reset our watch
@@ -393,7 +393,7 @@ func (module *KafkaZkClient) resetPartitionListWatchAndAdd(group string, topic s
 	}
 }
 
-func (module *KafkaZkClient) watchOffset(group string, topic string, partition int32, eventChan <-chan zk.Event) {
+func (module *KafkaZkClient) watchOffset(group, topic string, partition int32, eventChan <-chan zk.Event) {
 	defer module.running.Done()
 
 	event := <-eventChan
@@ -416,14 +416,14 @@ func (module *KafkaZkClient) watchOffset(group string, topic string, partition i
 	go module.resetOffsetWatchAndSend(group, topic, partition, event.Type != zk.EventNodeDataChanged)
 }
 
-func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string, partition int32, resetOnly bool) {
+func (module *KafkaZkClient) resetOffsetWatchAndSend(group, topic string, partition int32, resetOnly bool) {
 	defer module.running.Done()
 
 	// Get the current offset and reset our watch
 	offsetString, offsetStat, offsetEventChan, err := module.zk.GetW(module.zookeeperPath + "/" + group + "/offsets/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
 
 	// Get the current owner of the partition
-	consumerID, _, _, _ := module.zk.GetW(module.zookeeperPath + "/" + group + "/owners/" + topic + "/" + strconv.FormatInt(int64(partition), 10))
+	consumerID, _, _, _ := module.zk.GetW(module.zookeeperPath + "/" + group + "/owners/" + topic + "/" + strconv.FormatInt(int64(partition), 10)) // nolint:dogsled
 
 	if err != nil {
 		// Can't read the partition offset path. Bail for now
@@ -457,7 +457,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 			RequestType: protocol.StorageSetConsumerOffset,
 			Cluster:     module.cluster,
 			Topic:       topic,
-			Partition:   int32(partition),
+			Partition:   partition,
 			Group:       group,
 			Timestamp:   offsetStat.Mtime,
 			Offset:      offset,
@@ -477,7 +477,7 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group string, topic string,
 			RequestType: protocol.StorageSetConsumerOwner,
 			Cluster:     module.cluster,
 			Topic:       topic,
-			Partition:   int32(partition),
+			Partition:   partition,
 			Group:       group,
 			Owner:       string(consumerID),
 		}, 1)

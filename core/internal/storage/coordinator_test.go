@@ -14,11 +14,13 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/stretchr/testify/assert"
+
 	"time"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {

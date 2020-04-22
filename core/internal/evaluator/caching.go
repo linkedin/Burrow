@@ -54,7 +54,7 @@ func (e *cacheError) Error() string {
 // Configure validates the configuration for the module, creates a channel to receive requests on, and sets up the
 // cache. If no expiration time for cache entries is set, a default value of 10 seconds is used. If there is any problem
 // starting the goswarm cache, this func panics.
-func (module *CachingEvaluator) Configure(name string, configRoot string) {
+func (module *CachingEvaluator) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name

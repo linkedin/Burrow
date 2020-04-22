@@ -197,7 +197,6 @@ func (hc *Coordinator) Start() error {
 		} else {
 			go server.Serve(listeners[name])
 		}
-
 	}
 	return nil
 }

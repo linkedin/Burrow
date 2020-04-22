@@ -13,12 +13,12 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
+
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupConfiguration() {

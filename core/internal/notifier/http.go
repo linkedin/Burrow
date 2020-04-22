@@ -59,7 +59,7 @@ type HTTPNotifier struct {
 // send-close is set to true there must also be a url-close. If these are missing or incorrect, this func will panic
 // with an explanatory message. It is also possible to configure a specific method (such as POST or DELETE) to be used
 // with these URLs, as well as a timeout and keepalive for the HTTP smtpClient.
-func (module *HTTPNotifier) Configure(name string, configRoot string) {
+func (module *HTTPNotifier) Configure(name, configRoot string) {
 	module.name = name
 
 	// Validate and set defaults for profile configs
@@ -95,8 +95,9 @@ func (module *HTTPNotifier) Configure(name string, configRoot string) {
 			Dial: (&net.Dialer{
 				KeepAlive: viper.GetDuration(configRoot+".keepalive") * time.Second,
 			}).Dial,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy:             http.ProxyFromEnvironment,
+			TLSClientConfig:   tlsConfig,
+			DisableKeepAlives: viper.GetBool(configRoot + ".disable-http-keepalive"),
 		},
 	}
 }

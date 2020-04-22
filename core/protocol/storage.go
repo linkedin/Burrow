@@ -192,6 +192,9 @@ type ConsumerOffset struct {
 	// The timestamp at which the offset was committed
 	Timestamp int64 `json:"timestamp"`
 
+	// The timestamp at which the commit was seen by burrow
+	ObservedTimestamp int64 `json:"observedAt"`
+
 	// The number of messages that the consumer was behind at the time that the offset was committed. This number is
 	// not updated after the offset was committed, so it does not represent the current lag of the consumer.
 	Lag *Lag `json:"lag"`

@@ -53,7 +53,7 @@ type MockModule struct {
 }
 
 // Configure mocks the protocol.Module Configure func
-func (m *MockModule) Configure(name string, configRoot string) {
+func (m *MockModule) Configure(name, configRoot string) {
 	m.Called(name, configRoot)
 }
 

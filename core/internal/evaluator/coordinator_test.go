@@ -11,10 +11,10 @@
 package evaluator
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/protocol"

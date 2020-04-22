@@ -54,7 +54,7 @@ type NullNotifier struct {
 }
 
 // Configure sets the module name, but performs no other functions for the null notifier
-func (module *NullNotifier) Configure(name string, configRoot string) {
+func (module *NullNotifier) Configure(name, configRoot string) {
 	module.name = name
 	module.CalledConfigure = true
 }

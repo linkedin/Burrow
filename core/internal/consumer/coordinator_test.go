@@ -11,11 +11,12 @@
 package consumer
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
