@@ -130,6 +130,8 @@ func (hc *Coordinator) Configure() {
 	// This is a healthcheck URL. Please don't change it
 	hc.router.GET("/burrow/admin", hc.handleAdmin)
 
+	hc.router.Handler(http.MethodGet, "/metrics", hc.handlePrometheusMetrics())
+
 	// All valid paths go here
 	hc.router.GET("/v3/kafka", hc.handleClusterList)
 	hc.router.GET("/v3/kafka/:cluster", hc.handleClusterDetail)
