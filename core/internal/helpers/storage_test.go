@@ -16,7 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func TestTimeoutSendStorageRequest(t *testing.T) {

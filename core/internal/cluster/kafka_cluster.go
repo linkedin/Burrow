@@ -18,8 +18,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/rjh-yext/Burrow/core/internal/helpers"
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // KafkaCluster is a cluster module which connects to a single Apache Kafka cluster and manages the broker topic and

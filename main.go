@@ -44,7 +44,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/rjh-yext/Burrow/core"
+	"github.com/linkedin/Burrow/core"
 )
 
 // exitCode wraps a return value for the application

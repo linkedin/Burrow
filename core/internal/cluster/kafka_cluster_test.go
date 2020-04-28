@@ -24,8 +24,8 @@ import (
 
 	"sync"
 
-	"github.com/rjh-yext/Burrow/core/internal/helpers"
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureModule() *KafkaCluster {

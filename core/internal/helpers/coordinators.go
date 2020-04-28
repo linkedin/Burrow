@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // StartCoordinatorModules is a helper func for coordinators to start a list of modules. Given a map of protocol.Module,

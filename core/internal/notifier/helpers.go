@@ -20,7 +20,7 @@ import (
 
 	"bytes"
 
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // executeTemplate provides a common interface for notifier modules to call to process a text/template in the context

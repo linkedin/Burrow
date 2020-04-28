@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/rjh-yext/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 // InMemoryStorage is a storage module that maintains the entire data set in memory in a series of maps. It has a
