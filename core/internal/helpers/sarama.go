@@ -114,7 +114,6 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 					panic("cannot read TLS certificate or key file: " + err.Error())
 				}
 				saramaConfig.Net.TLS.Config.Certificates = []tls.Certificate{cert}
-				saramaConfig.Net.TLS.Config.BuildNameToCertificate()
 			}
 		}
 		saramaConfig.Net.TLS.Config.InsecureSkipVerify = viper.GetBool("tls." + tlsName + ".noverify")
