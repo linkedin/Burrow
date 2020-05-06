@@ -55,6 +55,7 @@ var kafkaVersions = map[string]sarama.KafkaVersion{
 	"2.2.1":    sarama.V2_2_0_0,
 	"2.3.0":    sarama.V2_3_0_0,
 	"2.4.0":    sarama.V2_4_0_0,
+	"2.5.0":    sarama.V2_5_0_0,
 }
 
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
@@ -113,7 +114,6 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 					panic("cannot read TLS certificate or key file: " + err.Error())
 				}
 				saramaConfig.Net.TLS.Config.Certificates = []tls.Certificate{cert}
-				saramaConfig.Net.TLS.Config.BuildNameToCertificate()
 			}
 		}
 		saramaConfig.Net.TLS.Config.InsecureSkipVerify = viper.GetBool("tls." + tlsName + ".noverify")
