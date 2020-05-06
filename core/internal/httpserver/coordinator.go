@@ -115,7 +115,6 @@ func (hc *Coordinator) Configure() {
 				panic("cannot read TLS certificate or key file: " + err.Error())
 			}
 			server.TLSConfig.Certificates = []tls.Certificate{cert}
-			server.TLSConfig.BuildNameToCertificate()
 		}
 		hc.servers[name] = server
 		hc.theCert[name] = certFile
