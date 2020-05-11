@@ -13,6 +13,9 @@ package helpers
 import (
 	"testing"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,4 +42,23 @@ func TestMockSaramaConsumer_ImplementsSaramaConsumer(t *testing.T) {
 
 func TestMockSaramaPartitionConsumer_ImplementsSaramaPartitionConsumer(t *testing.T) {
 	assert.Implements(t, (*sarama.PartitionConsumer)(nil), new(MockSaramaPartitionConsumer))
+}
+
+func TestInitSaramaLogging(t *testing.T) {
+	// given
+	var entries = make([]zapcore.Entry, 0)
+	d, _ := zap.NewDevelopment()
+	logger := zap.New(zapcore.RegisterHooks(d.Core(), func(entry zapcore.Entry) error {
+		entries = append(entries, entry)
+		return nil
+	}))
+	InitSaramaLogging(logger)
+
+	// when
+	sarama.Logger.Printf("hello")
+
+	// then
+	assert.Len(t, entries, 1)
+	assert.Equal(t, entries[0].Message, "hello")
+	assert.Equal(t, entries[0].Level, zap.DebugLevel)
 }

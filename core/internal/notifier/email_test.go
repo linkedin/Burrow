@@ -14,16 +14,19 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/linkedin/Burrow/core/protocol"
-	"gopkg.in/gomail.v2"
 	"net"
 	"strconv"
+
+	"gopkg.in/gomail.v2"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureEmailNotifier() *EmailNotifier {

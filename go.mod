@@ -2,29 +2,29 @@ module github.com/linkedin/Burrow
 
 require (
 	github.com/OneOfOne/xxhash v1.2.7
-	github.com/Shopify/sarama v1.25.0
-	github.com/eapache/go-resiliency v1.2.0 // indirect
-	github.com/frankban/quicktest v1.7.2 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
+	github.com/Shopify/sarama v1.26.2
+	github.com/frankban/quicktest v1.10.0 // indirect
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/google/uuid v1.1.1 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
-	github.com/hashicorp/go-uuid v1.0.2 // indirect
-	github.com/jcmturner/gofork v1.0.0 // indirect
+	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/karrick/goswarm v1.10.0
-	github.com/kr/pretty v0.2.0 // indirect
+	github.com/klauspost/compress v1.10.5 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/mitchellh/mapstructure v1.3.0 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pborman/uuid v1.2.0
-	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pierrec/lz4 v2.4.0+incompatible // indirect
-	github.com/pkg/errors v0.9.0
-	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
+	github.com/pelletier/go-toml v1.7.0 // indirect
+	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
+	github.com/pkg/errors v0.9.1
+	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da
-	github.com/smartystreets/assertions v1.0.1 // indirect
+	github.com/smartystreets/assertions v1.1.0 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.6.1
+	github.com/spf13/viper v1.6.3
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
@@ -38,12 +38,11 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20200114052453-d31a08c2edf2 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
-	gopkg.in/ini.v1 v1.51.1 // indirect
-	gopkg.in/jcmturner/gokrb5.v7 v7.3.0 // indirect
+	gopkg.in/ini.v1 v1.55.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.2.7 // indirect
+	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 )
 
 go 1.13

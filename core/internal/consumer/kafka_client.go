@@ -87,7 +87,7 @@ type backfillEndOffset struct {
 // consumers belong, as well as a list of servers provided for the Kafka cluster, of the form host:port. If not
 // explicitly configured, the offsets topic is set to the default for Kafka, which is __consumer_offsets. If the
 // cluster name is unknown, or if the server list is missing or invalid, this func will panic.
-func (module *KafkaClient) Configure(name string, configRoot string) {
+func (module *KafkaClient) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
@@ -236,13 +236,6 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 	for {
 		select {
 		case msg := <-consumer.Messages():
-			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
-				module.Log.Debug("backfill consumer reached target offset, terminating",
-					zap.Int32("partition", msg.Partition),
-					zap.Int64("offset", stopAtOffset.Value),
-				)
-				return
-			}
 			if module.reportedConsumerGroup != "" {
 				burrowOffset := &protocol.StorageRequest{
 					RequestType: protocol.StorageSetConsumerOffset,
@@ -252,8 +245,16 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 					Group:       module.reportedConsumerGroup,
 					Timestamp:   time.Now().Unix() * 1000,
 					Offset:      msg.Offset + 1, // emulating a consumer which should commit (lastSeenOffset+1)
+					Order:       msg.Offset,
 				}
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, burrowOffset, 1)
+			}
+			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
+				module.Log.Debug("backfill consumer reached target offset, terminating",
+					zap.Int32("partition", msg.Partition),
+					zap.Int64("offset", stopAtOffset.Value),
+				)
+				return
 			}
 			module.processConsumerOffsetsMessage(msg)
 		case err := <-consumer.Errors():
@@ -383,7 +384,7 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 	}
 }
 
-func readString(buf *bytes.Buffer) (string, error) {
+func readString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 	var strlen int16
 	err := binary.Read(buf, binary.BigEndian, &strlen)
 	if err != nil {

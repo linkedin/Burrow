@@ -1,3 +1,21 @@
+## 1.3.3
+
+- #617 - @timbertson-zd - add and expose observedAt time for lag entries
+- #616 - @timbertson - Fix self-reporting of burrow's own progress
+- #615 - @bai - Run github actions when PR is created
+- #545 - @Lukkie - Allow underscore in hostname
+
+## 1.3.2
+
+- #608 - @bai - Disable travis ci integration
+- #607 - @bai - Build docker image with Go 1.13.7
+- #605 - @alvarolmedo - Improve zk lock method to avoid trying lock errors
+- #541 - @danudey - Use system SSL store for notifiers by default
+- #606 - @bai - Update sarama with fixes for zstd and deadlock
+- #548 - @hoesler - feature: configure sarama logger
+- #601 - @bai - Add more linters and address select issues
+- #597 - @bai - Use golangci-lint instead of assorted linters, build with github actions
+
 ## 1.3.1
 
 - #596 - @bai - Fix deprecated goreleaser config opts

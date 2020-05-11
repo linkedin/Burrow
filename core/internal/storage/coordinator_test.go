@@ -18,8 +18,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/linkedin/Burrow/core/protocol"
 	"time"
+
+	"github.com/linkedin/Burrow/core/protocol"
 )
 
 func fixtureCoordinator() *Coordinator {

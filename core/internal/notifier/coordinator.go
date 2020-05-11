@@ -96,14 +96,7 @@ type Coordinator struct {
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
 // is any error, it will panic with an appropriate message describing the problem.
-func getModuleForClass(app *protocol.ApplicationContext,
-	moduleName string,
-	className string,
-	groupWhitelist *regexp.Regexp,
-	groupBlacklist *regexp.Regexp,
-	extras map[string]string,
-	templateOpen *template.Template,
-	templateClose *template.Template) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string, groupWhitelist, groupBlacklist *regexp.Regexp, extras map[string]string, templateOpen, templateClose *template.Template) protocol.Module {
 	logger := app.Logger.With(
 		zap.String("type", "module"),
 		zap.String("coordinator", "notifier"),
@@ -324,6 +317,10 @@ func (nc *Coordinator) manageEvalLoop() {
 		// Wait for the ZK connection to come back before trying again
 		for !nc.App.ZookeeperConnected {
 			time.Sleep(100 * time.Millisecond)
+		}
+		err = lock.Unlock()
+		if err != nil {
+			panic("Unable to release zookeeper lock after session expiration")
 		}
 	}
 }

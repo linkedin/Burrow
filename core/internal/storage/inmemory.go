@@ -114,7 +114,7 @@ func (destination *offsetRingDestination) isShift() bool {
 // Configure validates the configuration for the module, creates a channel to receive requests on, and sets up the
 // storage map. If no expiration time for groups is set, a default value of 7 days is used. If no interval count is
 // set, a default of 10 intervals is used. If no worker count is set, a default of 20 workers is used.
-func (module *InMemoryStorage) Configure(name string, configRoot string) {
+func (module *InMemoryStorage) Configure(name, configRoot string) {
 	module.Log.Info("configuring")
 
 	module.name = name
@@ -336,7 +336,7 @@ func (module *InMemoryStorage) getBrokerOffset(clusterMap *clusterOffsets, topic
 	return topicPartitionList[partition].Value.(*brokerOffset).Offset, int32(len(topicPartitionList))
 }
 
-func (module *InMemoryStorage) getConsumerPartition(consumerMap *consumerGroup, topic string, partition int32, partitionCount int32, requestLogger *zap.Logger) *consumerPartition {
+func (module *InMemoryStorage) getConsumerPartition(consumerMap *consumerGroup, topic string, partition, partitionCount int32, requestLogger *zap.Logger) *consumerPartition {
 	// Get or create the topic for the consumer
 	consumerTopicMap, ok := consumerMap.topics[topic]
 	if !ok {
@@ -424,7 +424,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	var partitionLag *protocol.Lag
 	if destination.isAppend() {
 		// Calculate the lag against the brokerOffset
-		partitionLag = &protocol.Lag{0}
+		partitionLag = &protocol.Lag{Value: 0}
 		if brokerOffset > request.Offset {
 			// Little bit of a hack - because we only get broker offsets periodically, it's possible the consumer offset could be ahead of where we think the broker
 			// is. If the broker appears behind, just treat it as zero lag.
@@ -526,20 +526,16 @@ func (module *InMemoryStorage) storeConsumerOffset(consumerPartition *consumerPa
 
 	// Write into the destination
 	destSlot := destination.destinationSlot()
-	if destSlot.Value == nil {
-		destSlot.Value = &protocol.ConsumerOffset{
-			Offset:    request.Offset,
-			Order:     request.Order,
-			Timestamp: request.Timestamp,
-			Lag:       partitionLag,
-		}
-	} else {
-		ringval, _ := destSlot.Value.(*protocol.ConsumerOffset)
-		ringval.Offset = request.Offset
-		ringval.Order = request.Order
-		ringval.Timestamp = request.Timestamp
-		ringval.Lag = partitionLag
+	ringval, _ := destSlot.Value.(*protocol.ConsumerOffset)
+	if ringval == nil {
+		ringval = &protocol.ConsumerOffset{}
+		destSlot.Value = ringval
 	}
+	ringval.Offset = request.Offset
+	ringval.Order = request.Order
+	ringval.Timestamp = request.Timestamp
+	ringval.ObservedTimestamp = time.Now().Unix() * 1000
+	ringval.Lag = partitionLag
 
 	if destination.extendDest != nil {
 		// We've extended the ring by either appending or shifting, update the ring pointer
@@ -775,10 +771,11 @@ func getConsumerTopicList(consumerMap *consumerGroup) protocol.ConsumerTopics {
 
 						// Make a copy so that we can release the lock and be safe
 						consumerPartition.Offsets[i] = &protocol.ConsumerOffset{
-							Offset:    ringval.Offset,
-							Order:     ringval.Order,
-							Lag:       ringval.Lag,
-							Timestamp: ringval.Timestamp,
+							Offset:            ringval.Offset,
+							Order:             ringval.Order,
+							Lag:               ringval.Lag,
+							Timestamp:         ringval.Timestamp,
+							ObservedTimestamp: ringval.ObservedTimestamp,
 						}
 					}
 					ringPtr = ringPtr.Next()
@@ -840,7 +837,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 			brokerOffsetPtr := topicMap[p].Next()
 			brokerOffsetPtr.Do(func(item interface{}) {
 				if item != nil {
-					partition.BrokerOffsets = append(partition.BrokerOffsets, item.(*brokerOffset).Offset)
+					partition.BrokerOffsets = append(partition.BrokerOffsets, item.(*brokerOffset).Offset) // nolint:scopelint
 				}
 			})
 
