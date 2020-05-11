@@ -92,6 +92,11 @@ type Coordinator struct {
 
 	clusters    map[string]*clusterGroups
 	clusterLock *sync.RWMutex
+
+	// The value of the 'ShowAll' parameter when submitting a request to
+	// the evaluator. This flag is determined based on the notifier
+	// 'threshold' configuration.
+	ShowAll bool
 }
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
@@ -154,6 +159,7 @@ func (nc *Coordinator) Configure() {
 	nc.quitChannel = make(chan struct{})
 	nc.running = sync.WaitGroup{}
 	nc.evaluatorResponse = make(chan *protocol.ConsumerGroupStatus)
+	nc.ShowAll = false
 
 	// Set the function for parsing templates and calling module Notify (configurable to enable testing)
 	if nc.templateParseFunc == nil {
@@ -176,6 +182,13 @@ func (nc *Coordinator) Configure() {
 		viper.SetDefault(configRoot+".interval", 60)
 		viper.SetDefault(configRoot+".send-interval", viper.GetInt64(configRoot+".interval"))
 		viper.SetDefault(configRoot+".threshold", 2)
+
+		// if any of the notifier thresholds are 1, we need to fetch
+		// status of all consumer groups from the evaluator
+		threshold := viper.GetInt(configRoot + ".threshold")
+		if threshold == 1 {
+			nc.ShowAll = true
+		}
 
 		// Compile the whitelist for the consumer groups to notify for
 		var groupWhitelist *regexp.Regexp
@@ -371,6 +384,7 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 							Reply:   nc.evaluatorResponse,
 							Cluster: sendCluster,
 							Group:   sendConsumer,
+							ShowAll: nc.ShowAll,
 						}
 					}(cluster, consumer)
 					groupInfo.LastEval = timeNow
