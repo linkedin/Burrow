@@ -115,7 +115,6 @@ func (hc *Coordinator) Configure() {
 				panic("cannot read TLS certificate or key file: " + err.Error())
 			}
 			server.TLSConfig.Certificates = []tls.Certificate{cert}
-			server.TLSConfig.BuildNameToCertificate()
 		}
 		hc.servers[name] = server
 		hc.theCert[name] = certFile
@@ -129,6 +128,8 @@ func (hc *Coordinator) Configure() {
 
 	// This is a healthcheck URL. Please don't change it
 	hc.router.GET("/burrow/admin", hc.handleAdmin)
+
+	hc.router.Handler(http.MethodGet, "/metrics", hc.handlePrometheusMetrics())
 
 	// All valid paths go here
 	hc.router.GET("/v3/kafka", hc.handleClusterList)
