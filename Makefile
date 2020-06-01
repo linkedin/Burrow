@@ -11,7 +11,7 @@ GIT_REPO          		:= github.com/$(VENDOR)/$(PROJNAME)
 GIT_SHA           		:= $(shell git rev-parse --verify HEAD)
 BUILD_DATE        		:= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-QUAY_REPO         		:= quay.io/burrow
+QUAY_REPO         		:= quay.io/mettle
 QUAY_USERNAME			?="unknown"
 QUAY_PASSWORD			?="unknown"
 
