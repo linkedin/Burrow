@@ -1,30 +1,45 @@
 version: 2
-defaults: &defaults
-  working_directory: ~/project
-  docker:
-    - image: docker:17.05.0-ce-git
 
 jobs:
+
   build:
-    <<: *defaults
-    branches:
-      only:
-        - master
+    docker:
+      - image: google/cloud-sdk
     steps:
       - checkout
       - setup_remote_docker
       - run:
-          name: install dependencies
-          command: apk add --update alpine-sdk
+          name: build docker image
+          command: make build
+
+  publish:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - setup_remote_docker
       - run:
           name: build docker image
           command: make build
       - run:
-          name: login to quay.io
-          command: make login
+          name: push image to gcr.io
+          command: make push-to-gcr
       - run:
           name: push image to quay.io
-          command: make push
-      - run:
-          name: log out of quay.io
-          command: make logout
+          command: make push-to-quay
+
+workflows:
+  version: 2
+  flow:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore:
+                - master
+      - publish:
+          context: google-cloud-platform
+          filters:
+            branches:
+              only:
+                - master
