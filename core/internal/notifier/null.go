@@ -31,6 +31,7 @@ type NullNotifier struct {
 	Log *zap.Logger
 
 	name           string
+	cluster        string
 	groupWhitelist *regexp.Regexp
 	groupBlacklist *regexp.Regexp
 	extras         map[string]string
@@ -74,6 +75,11 @@ func (module *NullNotifier) Stop() error {
 // GetName returns the configured name of this module
 func (module *NullNotifier) GetName() string {
 	return module.name
+}
+
+// GetCluster returns the configured name of this module
+func (module *NullNotifier) GetCluster() string {
+	return module.cluster
 }
 
 // GetGroupWhitelist returns the compiled group whitelist (or nil, if there is not one)
