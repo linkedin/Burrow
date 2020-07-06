@@ -9,5 +9,4 @@ WORKDIR $BURROW_SRC
 
 RUN go mod tidy && go build -o /tmp/burrow .
 
-COPY --from=builder /tmp/burrow /app/
 COPY docker-config/burrow.toml /etc/burrow/
