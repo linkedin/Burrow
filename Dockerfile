@@ -7,6 +7,6 @@ RUN apk add --no-cache git curl
 COPY . $BURROW_SRC
 WORKDIR $BURROW_SRC
 
-RUN go mod tidy && go build -o /tmp/burrow .
+RUN go mod tidy && go build .
 
-COPY docker-config/burrow.toml /etc/burrow/
+COPY docker-config $BURROW_SRC
