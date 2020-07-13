@@ -20,8 +20,5 @@ update:
 fmt:
 	gofmt -s -l -w $(FILES) $(TESTS)
 
-lint:
-	golangci-lint run
-
 test:
 	$(GOTEST) ./...
