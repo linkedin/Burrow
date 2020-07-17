@@ -141,7 +141,7 @@ func (hc *Coordinator) configStorageDetail(w http.ResponseWriter, r *http.Reques
 				ClassName:      viper.GetString(configRoot + ".class-name"),
 				Intervals:      viper.GetInt(configRoot + ".intervals"),
 				MinDistance:    viper.GetInt64(configRoot + ".min-distance"),
-				GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
+				GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
 				ExpireGroup:    viper.GetInt64(configRoot + ".expire-group"),
 			},
 			Request: requestInfo,
@@ -162,7 +162,7 @@ func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Reque
 				ClassName:        viper.GetString(configRoot + ".class-name"),
 				Cluster:          viper.GetString(configRoot + ".cluster"),
 				Servers:          viper.GetStringSlice(configRoot + ".servers"),
-				GroupWhitelist:   viper.GetString(configRoot + ".group-whitelist"),
+				GroupAllowlist:   viper.GetString(configRoot + ".group-allowlist"),
 				ZookeeperPath:    viper.GetString(configRoot + ".zookeeper-path"),
 				ZookeeperTimeout: int32(viper.GetInt64(configRoot + ".zookeeper-timeout")),
 				ClientProfile:    getClientProfile(viper.GetString(configRoot + ".client-profile")),
@@ -199,7 +199,7 @@ func (hc *Coordinator) configNotifierHTTP(w http.ResponseWriter, r *http.Request
 		Message: "notifier module detail returned",
 		Module: httpResponseConfigModuleNotifierHTTP{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
-			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
+			GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
 			Threshold:      viper.GetInt(configRoot + ".threshold"),
 			Timeout:        viper.GetInt(configRoot + ".timeout"),
@@ -226,7 +226,7 @@ func (hc *Coordinator) configNotifierSlack(w http.ResponseWriter, r *http.Reques
 		Message: "notifier module detail returned",
 		Module: httpResponseConfigModuleNotifierSlack{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
-			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
+			GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
 			Threshold:      viper.GetInt(configRoot + ".threshold"),
 			Timeout:        viper.GetInt(configRoot + ".timeout"),
@@ -251,7 +251,7 @@ func (hc *Coordinator) configNotifierEmail(w http.ResponseWriter, r *http.Reques
 		Message: "notifier module detail returned",
 		Module: httpResponseConfigModuleNotifierEmail{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
-			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
+			GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
 			Threshold:      viper.GetInt(configRoot + ".threshold"),
 			TemplateOpen:   viper.GetString(configRoot + ".template-open"),
@@ -278,7 +278,7 @@ func (hc *Coordinator) configNotifierNull(w http.ResponseWriter, r *http.Request
 		Message: "notifier module detail returned",
 		Module: httpResponseConfigModuleNotifierNull{
 			ClassName:      viper.GetString(configRoot + ".class-name"),
-			GroupWhitelist: viper.GetString(configRoot + ".group-whitelist"),
+			GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
 			Interval:       viper.GetInt64(configRoot + ".interval"),
 			Threshold:      viper.GetInt(configRoot + ".threshold"),
 			TemplateOpen:   viper.GetString(configRoot + ".template-open"),

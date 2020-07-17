@@ -55,8 +55,8 @@ type KafkaZkClient struct {
 	running        *sync.WaitGroup
 	groupLock      *sync.RWMutex
 	groupList      map[string]*topicList
-	groupWhitelist *regexp.Regexp
-	groupBlacklist *regexp.Regexp
+	groupAllowlist *regexp.Regexp
+	groupDenylist  *regexp.Regexp
 	connectFunc    func([]string, time.Duration, *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error)
 }
 
@@ -90,24 +90,30 @@ func (module *KafkaZkClient) Configure(name, configRoot string) {
 		panic("Consumer '" + name + "' has a bad zookeeper path configuration")
 	}
 
-	whitelist := viper.GetString(configRoot + ".group-whitelist")
-	if whitelist != "" {
-		re, err := regexp.Compile(whitelist)
-		if err != nil {
-			module.Log.Panic("Failed to compile group whitelist")
-			panic(err)
-		}
-		module.groupWhitelist = re
+	// Check for disallowed config values
+	if viper.IsSet(configRoot+".group-whitelist") || viper.IsSet(configRoot+".group-blacklist") {
+		module.Log.Panic("Please change configurations to allowlist and denylist")
+		panic("Please change configurations to allowlist and denylist")
 	}
 
-	blacklist := viper.GetString(configRoot + ".group-blacklist")
-	if blacklist != "" {
-		re, err := regexp.Compile(blacklist)
+	allowlist := viper.GetString(configRoot + ".group-allowlist")
+	if allowlist != "" {
+		re, err := regexp.Compile(allowlist)
 		if err != nil {
-			module.Log.Panic("Failed to compile group blacklist")
+			module.Log.Panic("Failed to compile group allowlist")
 			panic(err)
 		}
-		module.groupBlacklist = re
+		module.groupAllowlist = re
+	}
+
+	denylist := viper.GetString(configRoot + ".group-denylist")
+	if denylist != "" {
+		re, err := regexp.Compile(denylist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group denylist")
+			panic(err)
+		}
+		module.groupDenylist = re
 	}
 }
 
@@ -171,10 +177,10 @@ func (module *KafkaZkClient) connectionStateWatcher(eventChan <-chan zk.Event) {
 }
 
 func (module *KafkaZkClient) acceptConsumerGroup(group string) bool {
-	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
+	if (module.groupAllowlist != nil) && (!module.groupAllowlist.MatchString(group)) {
 		return false
 	}
-	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+	if (module.groupDenylist != nil) && module.groupDenylist.MatchString(group) {
 		return false
 	}
 	return true
@@ -250,7 +256,7 @@ func (module *KafkaZkClient) resetGroupListWatchAndAdd(resetOnly bool) {
 			if !module.acceptConsumerGroup(group) {
 				module.Log.Debug("skip group",
 					zap.String("group", group),
-					zap.String("reason", "whitelist"),
+					zap.String("reason", "allowlist"),
 				)
 				continue
 			}

@@ -13,8 +13,8 @@ offset-refresh=30
 class-name="kafka"
 cluster="local"
 servers=[ "kafka:9092" ]
-group-blacklist="^(console-consumer-|python-kafka-consumer-).*$"
-group-whitelist=""
+group-denylist="^(console-consumer-|python-kafka-consumer-).*$"
+group-allowlist=""
 
 [consumer.local_zk]
 class-name="kafka_zk"
@@ -22,8 +22,8 @@ cluster="local"
 servers=[ "zookeeper:2181" ]
 zookeeper-path="/local"
 zookeeper-timeout=30
-group-blacklist="^(console-consumer-|python-kafka-consumer-).*$"
-group-whitelist=""
+group-denylist="^(console-consumer-|python-kafka-consumer-).*$"
+group-allowlist=""
 
 [httpserver.default]
 address=":8000"

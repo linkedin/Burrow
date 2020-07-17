@@ -29,7 +29,7 @@ import (
 )
 
 // EmailNotifier is a module which can be used to send notifications of consumer group status via email messages. One
-// email is sent for each consumer group that matches the whitelist/blacklist and the status threshold.
+// email is sent for each consumer group that matches the allowlist/denylist and the status threshold.
 type EmailNotifier struct {
 	// App is a pointer to the application context. This stores the channel to the storage subsystem
 	App *protocol.ApplicationContext
@@ -39,8 +39,8 @@ type EmailNotifier struct {
 	Log *zap.Logger
 
 	name           string
-	groupWhitelist *regexp.Regexp
-	groupBlacklist *regexp.Regexp
+	groupAllowlist *regexp.Regexp
+	groupDenylist  *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
@@ -140,14 +140,14 @@ func (module *EmailNotifier) GetName() string {
 	return module.name
 }
 
-// GetGroupWhitelist returns the compiled group whitelist (or nil, if there is not one)
-func (module *EmailNotifier) GetGroupWhitelist() *regexp.Regexp {
-	return module.groupWhitelist
+// GetGroupAllowlist returns the compiled group allowlist (or nil, if there is not one)
+func (module *EmailNotifier) GetGroupAllowlist() *regexp.Regexp {
+	return module.groupAllowlist
 }
 
-// GetGroupBlacklist returns the compiled group blacklist (or nil, if there is not one)
-func (module *EmailNotifier) GetGroupBlacklist() *regexp.Regexp {
-	return module.groupBlacklist
+// GetGroupDenylist returns the compiled group denylist (or nil, if there is not one)
+func (module *EmailNotifier) GetGroupDenylist() *regexp.Regexp {
+	return module.groupDenylist
 }
 
 // GetLogger returns the configured zap.Logger for this notifier

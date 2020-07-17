@@ -49,8 +49,8 @@ import (
 type Module interface {
 	protocol.Module
 	GetName() string
-	GetGroupWhitelist() *regexp.Regexp
-	GetGroupBlacklist() *regexp.Regexp
+	GetGroupAllowlist() *regexp.Regexp
+	GetGroupDenylist() *regexp.Regexp
 	GetLogger() *zap.Logger
 	AcceptConsumerGroup(*protocol.ConsumerGroupStatus) bool
 	Notify(*protocol.ConsumerGroupStatus, string, time.Time, bool)
@@ -96,7 +96,7 @@ type Coordinator struct {
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
 // is any error, it will panic with an appropriate message describing the problem.
-func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string, groupWhitelist, groupBlacklist *regexp.Regexp, extras map[string]string, templateOpen, templateClose *template.Template) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string, groupAllowlist, groupDenylist *regexp.Regexp, extras map[string]string, templateOpen, templateClose *template.Template) protocol.Module {
 	logger := app.Logger.With(
 		zap.String("type", "module"),
 		zap.String("coordinator", "notifier"),
@@ -109,8 +109,8 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 		return &HTTPNotifier{
 			App:            app,
 			Log:            logger,
-			groupWhitelist: groupWhitelist,
-			groupBlacklist: groupBlacklist,
+			groupAllowlist: groupAllowlist,
+			groupDenylist:  groupDenylist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -119,8 +119,8 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 		return &EmailNotifier{
 			App:            app,
 			Log:            logger,
-			groupWhitelist: groupWhitelist,
-			groupBlacklist: groupBlacklist,
+			groupAllowlist: groupAllowlist,
+			groupDenylist:  groupDenylist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -129,8 +129,8 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 		return &NullNotifier{
 			App:            app,
 			Log:            logger,
-			groupWhitelist: groupWhitelist,
-			groupBlacklist: groupBlacklist,
+			groupAllowlist: groupAllowlist,
+			groupDenylist:  groupDenylist,
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
@@ -167,7 +167,7 @@ func (nc *Coordinator) Configure() {
 
 	// Create all configured notifier modules, add to list of notifier
 	// Note - we do a lot more work here than for other coordinators. This is because the notifier modules really just
-	//        contain the logic to send the notification. Many of the parts, such as the whitelist and templates, are
+	//        contain the logic to send the notification. Many of the parts, such as the allowlist and templates, are
 	//        common to all notifier modules
 	for name := range viper.GetStringMap("notifier") {
 		configRoot := "notifier." + name
@@ -177,28 +177,34 @@ func (nc *Coordinator) Configure() {
 		viper.SetDefault(configRoot+".send-interval", viper.GetInt64(configRoot+".interval"))
 		viper.SetDefault(configRoot+".threshold", 2)
 
-		// Compile the whitelist for the consumer groups to notify for
-		var groupWhitelist *regexp.Regexp
-		whitelist := viper.GetString(configRoot + ".group-whitelist")
-		if whitelist != "" {
-			re, err := regexp.Compile(whitelist)
-			if err != nil {
-				nc.Log.Panic("Failed to compile group whitelist", zap.String("module", name))
-				panic(err)
-			}
-			groupWhitelist = re
+		// Check for disallowed config values
+		if viper.IsSet(configRoot+".group-whitelist") || viper.IsSet(configRoot+".group-blacklist") {
+			nc.Log.Panic("Please change configurations to allowlist and denylist", zap.String("module", name))
+			panic("Please change configurations to allowlist and denylist")
 		}
 
-		// Compile the blacklist for the consumer groups to not notify for
-		var groupBlacklist *regexp.Regexp
-		blacklist := viper.GetString(configRoot + ".group-blacklist")
-		if blacklist != "" {
-			re, err := regexp.Compile(blacklist)
+		// Compile the allowlist for the consumer groups to notify for
+		var groupAllowlist *regexp.Regexp
+		allowlist := viper.GetString(configRoot + ".group-allowlist")
+		if allowlist != "" {
+			re, err := regexp.Compile(allowlist)
 			if err != nil {
-				nc.Log.Panic("Failed to compile group blacklist", zap.String("module", name))
+				nc.Log.Panic("Failed to compile group allowlist", zap.String("module", name))
 				panic(err)
 			}
-			groupBlacklist = re
+			groupAllowlist = re
+		}
+
+		// Compile the denylist for the consumer groups to not notify for
+		var groupDenylist *regexp.Regexp
+		denylist := viper.GetString(configRoot + ".group-denylist")
+		if denylist != "" {
+			re, err := regexp.Compile(denylist)
+			if err != nil {
+				nc.Log.Panic("Failed to compile group denylist", zap.String("module", name))
+				panic(err)
+			}
+			groupDenylist = re
 		}
 
 		// Set up extra fields for the templates
@@ -222,7 +228,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupWhitelist, groupBlacklist, extras, templateOpen, templateClose)
+		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupAllowlist, groupDenylist, extras, templateOpen, templateClose)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 		interval := viper.GetInt64(configRoot + ".interval")
@@ -431,13 +437,13 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 	for _, genericModule := range nc.modules {
 		module := genericModule.(Module)
 
-		// No whitelist means everything passes
-		groupWhitelist := module.GetGroupWhitelist()
-		groupBlacklist := module.GetGroupBlacklist()
-		if (groupWhitelist != nil) && (!groupWhitelist.MatchString(response.Group)) {
+		// No allowlist means everything passes
+		groupAllowlist := module.GetGroupAllowlist()
+		groupDenylist := module.GetGroupDenylist()
+		if (groupAllowlist != nil) && (!groupAllowlist.MatchString(response.Group)) {
 			continue
 		}
-		if (groupBlacklist != nil) && groupBlacklist.MatchString(response.Group) {
+		if (groupDenylist != nil) && groupDenylist.MatchString(response.Group) {
 			continue
 		}
 		if module.AcceptConsumerGroup(response) {

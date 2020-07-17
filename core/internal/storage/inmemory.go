@@ -47,8 +47,8 @@ type InMemoryStorage struct {
 	workersRunning sync.WaitGroup
 	mainRunning    sync.WaitGroup
 	offsets        map[string]clusterOffsets
-	groupWhitelist *regexp.Regexp
-	groupBlacklist *regexp.Regexp
+	groupAllowlist *regexp.Regexp
+	groupDenylist  *regexp.Regexp
 	workers        []chan *protocol.StorageRequest
 }
 
@@ -135,24 +135,30 @@ func (module *InMemoryStorage) Configure(name, configRoot string) {
 	module.mainRunning = sync.WaitGroup{}
 	module.offsets = make(map[string]clusterOffsets)
 
-	whitelist := viper.GetString(configRoot + ".group-whitelist")
-	if whitelist != "" {
-		re, err := regexp.Compile(whitelist)
-		if err != nil {
-			module.Log.Panic("Failed to compile group whitelist")
-			panic(err)
-		}
-		module.groupWhitelist = re
+	// Check for disallowed config values
+	if viper.IsSet(configRoot+".group-whitelist") || viper.IsSet(configRoot+".group-blacklist") {
+		module.Log.Panic("Please change configurations to allowlist and denylist")
+		panic("Please change configurations to allowlist and denylist")
 	}
 
-	blacklist := viper.GetString(configRoot + ".group-blacklist")
-	if blacklist != "" {
-		re, err := regexp.Compile(blacklist)
+	allowlist := viper.GetString(configRoot + ".group-allowlist")
+	if allowlist != "" {
+		re, err := regexp.Compile(allowlist)
 		if err != nil {
-			module.Log.Panic("Failed to compile group blacklist")
+			module.Log.Panic("Failed to compile group allowlist")
 			panic(err)
 		}
-		module.groupBlacklist = re
+		module.groupAllowlist = re
+	}
+
+	denylist := viper.GetString(configRoot + ".group-denylist")
+	if denylist != "" {
+		re, err := regexp.Compile(denylist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group denylist")
+			panic(err)
+		}
+		module.groupDenylist = re
 	}
 }
 
@@ -362,10 +368,10 @@ func (module *InMemoryStorage) getConsumerPartition(consumerMap *consumerGroup, 
 }
 
 func (module *InMemoryStorage) acceptConsumerGroup(group string) bool {
-	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
+	if (module.groupAllowlist != nil) && (!module.groupAllowlist.MatchString(group)) {
 		return false
 	}
-	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+	if (module.groupDenylist != nil) && module.groupDenylist.MatchString(group) {
 		return false
 	}
 	return true
@@ -385,7 +391,7 @@ func (module *InMemoryStorage) addConsumerOffset(request *protocol.StorageReques
 	}
 
 	if !module.acceptConsumerGroup(request.Group) {
-		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
+		requestLogger.Debug("dropped", zap.String("reason", "group not allowlisted"))
 		return
 	}
 
@@ -552,7 +558,7 @@ func (module *InMemoryStorage) addConsumerOwner(request *protocol.StorageRequest
 	}
 
 	if !module.acceptConsumerGroup(request.Group) {
-		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
+		requestLogger.Debug("dropped", zap.String("reason", "group not allowlisted"))
 		return
 	}
 
@@ -602,7 +608,7 @@ func (module *InMemoryStorage) clearConsumerOwners(request *protocol.StorageRequ
 	}
 
 	if !module.acceptConsumerGroup(request.Group) {
-		requestLogger.Debug("dropped", zap.String("reason", "group not whitelisted"))
+		requestLogger.Debug("dropped", zap.String("reason", "group not allowlisted"))
 		return
 	}
 

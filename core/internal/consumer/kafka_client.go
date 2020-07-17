@@ -45,8 +45,8 @@ type KafkaClient struct {
 	backfillEarliest      bool
 	reportedConsumerGroup string
 	saramaConfig          *sarama.Config
-	groupWhitelist        *regexp.Regexp
-	groupBlacklist        *regexp.Regexp
+	groupAllowlist        *regexp.Regexp
+	groupDenylist         *regexp.Regexp
 
 	quitChannel chan struct{}
 	running     sync.WaitGroup
@@ -116,24 +116,30 @@ func (module *KafkaClient) Configure(name, configRoot string) {
 	module.backfillEarliest = module.startLatest && viper.GetBool(configRoot+".backfill-earliest")
 	module.reportedConsumerGroup = "burrow-" + module.name
 
-	whitelist := viper.GetString(configRoot + ".group-whitelist")
-	if whitelist != "" {
-		re, err := regexp.Compile(whitelist)
-		if err != nil {
-			module.Log.Panic("Failed to compile group whitelist")
-			panic(err)
-		}
-		module.groupWhitelist = re
+	// Check for disallowed config values
+	if viper.IsSet(configRoot+".group-whitelist") || viper.IsSet(configRoot+".group-blacklist") {
+		module.Log.Panic("Please change configurations to allowlist and denylist")
+		panic("Please change configurations to allowlist and denylist")
 	}
 
-	blacklist := viper.GetString(configRoot + ".group-blacklist")
-	if blacklist != "" {
-		re, err := regexp.Compile(blacklist)
+	allowlist := viper.GetString(configRoot + ".group-allowlist")
+	if allowlist != "" {
+		re, err := regexp.Compile(allowlist)
 		if err != nil {
-			module.Log.Panic("Failed to compile group blacklist")
+			module.Log.Panic("Failed to compile group allowlist")
 			panic(err)
 		}
-		module.groupBlacklist = re
+		module.groupAllowlist = re
+	}
+
+	denylist := viper.GetString(configRoot + ".group-denylist")
+	if denylist != "" {
+		re, err := regexp.Compile(denylist)
+		if err != nil {
+			module.Log.Panic("Failed to compile group denylist")
+			panic(err)
+		}
+		module.groupDenylist = re
 	}
 }
 
@@ -403,10 +409,10 @@ func readString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 }
 
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
-	if (module.groupWhitelist != nil) && (!module.groupWhitelist.MatchString(group)) {
+	if (module.groupAllowlist != nil) && (!module.groupAllowlist.MatchString(group)) {
 		return false
 	}
-	if (module.groupBlacklist != nil) && module.groupBlacklist.MatchString(group) {
+	if (module.groupDenylist != nil) && module.groupDenylist.MatchString(group) {
 		return false
 	}
 	return true
@@ -434,7 +440,7 @@ func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *byte
 	)
 
 	if !module.acceptConsumerGroup(offsetKey.Group) {
-		offsetLogger.Debug("dropped", zap.String("reason", "whitelist"))
+		offsetLogger.Debug("dropped", zap.String("reason", "allowlist"))
 		return
 	}
 

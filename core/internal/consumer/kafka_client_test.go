@@ -81,7 +81,7 @@ func TestKafkaClient_Configure_BadCluster(t *testing.T) {
 
 func TestKafkaClient_Configure_BadRegexp(t *testing.T) {
 	module := fixtureModule()
-	viper.Set("consumer.test.group-whitelist", "[")
+	viper.Set("consumer.test.group-allowlist", "[")
 	assert.Panics(t, func() { module.Configure("test", "consumer.test") }, "The code did not panic")
 }
 
@@ -511,7 +511,7 @@ func TestKafkaClient_decodeOffsetValueV3_Errors(t *testing.T) {
 
 func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	module := fixtureModule()
-	viper.Set("consumer.test.group-whitelist", "test.*")
+	viper.Set("consumer.test.group-allowlist", "test.*")
 	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"))
@@ -546,15 +546,15 @@ func TestKafkaClient_decodeKeyAndOffset_BadValueVersion(t *testing.T) {
 	}
 }
 
-func TestKafkaClient_decodeKeyAndOffset_Whitelist(t *testing.T) {
+func TestKafkaClient_decodeKeyAndOffset_Allowlist(t *testing.T) {
 	module := fixtureModule()
-	viper.Set("consumer.test.group-whitelist", "test.*")
+	viper.Set("consumer.test.group-allowlist", "test.*")
 	module.Configure("test", "consumer.test")
 
 	keyBuf := bytes.NewBuffer([]byte("\x00\x0ddropthisgroup\x00\x09testtopic\x00\x00\x00\x0b"))
 	valueBytes := []byte("\x00\x00\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00\x00\x00\x06\x65")
 
-	// Should not timeout as the group should be dropped by the whitelist
+	// Should not timeout as the group should be dropped by the allowlist
 	module.decodeKeyAndOffset(0, keyBuf, valueBytes, zap.NewNop())
 }
 

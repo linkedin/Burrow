@@ -35,7 +35,7 @@ func CoordinatorWithOffsets() *Coordinator {
 	viper.Set("storage.test.class-name", "inmemory")
 	viper.Set("storage.test.intervals", 10)
 	viper.Set("storage.test.min-distance", 0)
-	viper.Set("storage.test.group-whitelist", "")
+	viper.Set("storage.test.group-allowlist", "")
 	viper.Set("cluster.testcluster.class-name", "kafka")
 
 	coordinator.Configure()

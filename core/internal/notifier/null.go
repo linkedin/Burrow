@@ -31,8 +31,8 @@ type NullNotifier struct {
 	Log *zap.Logger
 
 	name           string
-	groupWhitelist *regexp.Regexp
-	groupBlacklist *regexp.Regexp
+	groupAllowlist *regexp.Regexp
+	groupDenylist  *regexp.Regexp
 	extras         map[string]string
 	templateOpen   *template.Template
 	templateClose  *template.Template
@@ -76,14 +76,14 @@ func (module *NullNotifier) GetName() string {
 	return module.name
 }
 
-// GetGroupWhitelist returns the compiled group whitelist (or nil, if there is not one)
-func (module *NullNotifier) GetGroupWhitelist() *regexp.Regexp {
-	return module.groupWhitelist
+// GetGroupAllowlist returns the compiled group allowlist (or nil, if there is not one)
+func (module *NullNotifier) GetGroupAllowlist() *regexp.Regexp {
+	return module.groupAllowlist
 }
 
-// GetGroupBlacklist returns the compiled group blacklist (or nil, if there is not one)
-func (module *NullNotifier) GetGroupBlacklist() *regexp.Regexp {
-	return module.groupBlacklist
+// GetGroupDenylist returns the compiled group denylist (or nil, if there is not one)
+func (module *NullNotifier) GetGroupDenylist() *regexp.Regexp {
+	return module.groupDenylist
 }
 
 // GetLogger returns the configured zap.Logger for this notifier
