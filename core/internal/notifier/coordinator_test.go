@@ -19,8 +19,6 @@ import (
 	"text/template"
 	"time"
 
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -52,7 +50,7 @@ func fixtureCoordinator() *Coordinator {
 
 	viper.Reset()
 	viper.Set("notifier.test.class-name", "null")
-	viper.Set("notifier.test.group-whitelist", ".*")
+	viper.Set("notifier.test.group-allowlist", ".*")
 	viper.Set("notifier.test.threshold", 1)
 	viper.Set("notifier.test.interval", 5)
 	viper.Set("notifier.test.timeout", 2)
@@ -107,7 +105,7 @@ func TestCoordinator_Configure_TwoModules(t *testing.T) {
 
 func TestCoordinator_Configure_BadRegexp(t *testing.T) {
 	coordinator := fixtureCoordinator()
-	viper.Set("notifier.test.group-whitelist", "[")
+	viper.Set("notifier.test.group-allowlist", "[")
 
 	assert.Panics(t, func() { coordinator.Configure() }, "The code did not panic")
 }
@@ -565,8 +563,8 @@ func TestCoordinator_checkAndSendResponseToModules(t *testing.T) {
 		mockModule := &helpers.MockModule{}
 		coordinator.modules["test"] = mockModule
 		mockModule.On("GetName").Return("test")
-		mockModule.On("GetGroupWhitelist").Return((*regexp.Regexp)(nil))
-		mockModule.On("GetGroupBlacklist").Return((*regexp.Regexp)(nil))
+		mockModule.On("GetGroupAllowlist").Return((*regexp.Regexp)(nil))
+		mockModule.On("GetGroupDenylist").Return((*regexp.Regexp)(nil))
 		mockModule.On("AcceptConsumerGroup", response).Return(true)
 		if testSet.ExpectSend {
 			mockModule.On("Notify", response, mock.MatchedBy(func(s string) bool { return true }), mock.MatchedBy(func(t time.Time) bool { return true }), testSet.ExpectClose).Return()

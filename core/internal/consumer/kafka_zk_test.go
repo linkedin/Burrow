@@ -61,7 +61,7 @@ func TestKafkaZkClient_Configure(t *testing.T) {
 
 func TestKafkaZkClient_Configure_BadRegexp(t *testing.T) {
 	module := fixtureModule()
-	viper.Set("consumer.test.group-whitelist", "[")
+	viper.Set("consumer.test.group-allowlist", "[")
 	assert.Panics(t, func() { module.Configure("test", "consumer.test") }, "The code did not panic")
 }
 
@@ -100,7 +100,7 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
-	viper.Set("consumer.test.group-whitelist", "test.*")
+	viper.Set("consumer.test.group-allowlist", "test.*")
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
@@ -263,11 +263,11 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper.AssertExpectations(t)
 }
 
-func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
+func TestKafkaZkClient_resetGroupListWatchAndAdd_AllowList(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
 
 	module := fixtureKafkaZkModule()
-	viper.Set("consumer.test.group-whitelist", "test.*")
+	viper.Set("consumer.test.group-allowlist", "test.*")
 	module.Configure("test", "consumer.test")
 	module.zk = &mockZookeeper
 
@@ -286,5 +286,5 @@ func TestKafkaZkClient_resetGroupListWatchAndAdd_WhiteList(t *testing.T) {
 
 	mockZookeeper.AssertExpectations(t)
 	_, ok := module.groupList["dropthisgroup"]
-	assert.False(t, ok, "Expected group to be dropped due to whitelist")
+	assert.False(t, ok, "Expected group to be dropped due to allowlist")
 }

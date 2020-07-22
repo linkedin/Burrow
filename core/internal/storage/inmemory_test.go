@@ -25,7 +25,7 @@ import (
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func fixtureModule(whitelist, blacklist string) *InMemoryStorage {
+func fixtureModule(allowlist, denylist string) *InMemoryStorage {
 	module := InMemoryStorage{
 		Log: zap.NewNop(),
 	}
@@ -35,19 +35,19 @@ func fixtureModule(whitelist, blacklist string) *InMemoryStorage {
 
 	viper.Reset()
 	viper.Set("storage.test.class-name", "inmemory")
-	if whitelist != "" {
-		viper.Set("storage.test.group-whitelist", whitelist)
+	if allowlist != "" {
+		viper.Set("storage.test.group-allowlist", allowlist)
 	}
-	if blacklist != "" {
-		viper.Set("storage.test.group-blacklist", blacklist)
+	if denylist != "" {
+		viper.Set("storage.test.group-denylist", denylist)
 	}
 	viper.Set("storage.test.min-distance", 1)
 
 	return &module
 }
 
-func startWithTestCluster(whitelist string) *InMemoryStorage {
-	module := fixtureModule(whitelist, "")
+func startWithTestCluster(allowlist string) *InMemoryStorage {
+	module := fixtureModule(allowlist, "")
 
 	// Start needs at least one cluster defined, but it only needs to have a name here
 	viper.Set("cluster.testcluster.class-name", "kafka")
@@ -57,8 +57,8 @@ func startWithTestCluster(whitelist string) *InMemoryStorage {
 	return module
 }
 
-func startWithTestBrokerOffsets(whitelist string) *InMemoryStorage {
-	module := startWithTestCluster(whitelist)
+func startWithTestBrokerOffsets(allowlist string) *InMemoryStorage {
+	module := startWithTestCluster(allowlist)
 
 	request := protocol.StorageRequest{
 		RequestType:         protocol.StorageSetBrokerOffset,
@@ -73,8 +73,8 @@ func startWithTestBrokerOffsets(whitelist string) *InMemoryStorage {
 	return module
 }
 
-func startWithTestConsumerOffsets(whitelist string, startTime int64) *InMemoryStorage {
-	module := startWithTestBrokerOffsets(whitelist)
+func startWithTestConsumerOffsets(allowlist string, startTime int64) *InMemoryStorage {
+	module := startWithTestBrokerOffsets(allowlist)
 
 	request := protocol.StorageRequest{
 		RequestType: protocol.StorageSetConsumerOffset,
@@ -111,16 +111,16 @@ func TestInMemoryStorage_Configure_DefaultIntervals(t *testing.T) {
 	assert.Equal(t, 10, module.intervals, "Default Intervals value of 10 did not get set")
 }
 
-func TestInMemoryStorage_Configure_BadWhitelistRegexp(t *testing.T) {
+func TestInMemoryStorage_Configure_BadAllowlistRegexp(t *testing.T) {
 	module := fixtureModule("", "")
-	viper.Set("storage.test.group-whitelist", "[")
+	viper.Set("storage.test.group-allowlist", "[")
 
 	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
 }
 
-func TestInMemoryStorage_Configure_BadBlacklistRegexp(t *testing.T) {
+func TestInMemoryStorage_Configure_BadDenylistRegexp(t *testing.T) {
 	module := fixtureModule("", "")
-	viper.Set("storage.test.group-blacklist", "[")
+	viper.Set("storage.test.group-denylist", "[")
 
 	assert.Panics(t, func() { module.Configure("test", "storage.test") }, "The code did not panic")
 }
@@ -351,13 +351,13 @@ func TestInMemoryStorage_addConsumerOffset(t *testing.T) {
 	}
 }
 
-func TestInMemoryStorage_addConsumerOffset_Whitelist(t *testing.T) {
+func TestInMemoryStorage_addConsumerOffset_Allowlist(t *testing.T) {
 	startTime := (time.Now().Unix() * 1000) - 100000
-	module := startWithTestConsumerOffsets("whitelistedgroup", startTime)
+	module := startWithTestConsumerOffsets("allowlistedgroup", startTime)
 
 	// All offsets for the test group should have been dropped
 	_, ok := module.offsets["testcluster"].consumer["testgroup"]
-	assert.False(t, ok, "Group testgroup created when not whitelisted")
+	assert.False(t, ok, "Group testgroup created when not allowlisted")
 }
 
 func TestInMemoryStorage_addConsumerOffset_TooOld(t *testing.T) {
@@ -632,7 +632,7 @@ var regexFilterTests = []testset{
 	{"onlygroup", []string{"onlygroup"}, []string{"testgroup", "ok_group", "dash-group", "num02group"}},
 }
 
-func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
+func TestInMemoryStorage_acceptConsumerGroup_NoAllowlist(t *testing.T) {
 	for i, testSet := range regexFilterTests {
 		module := fixtureModule(testSet.regexFilter, "")
 		module.Configure("test", "storage.test")
@@ -648,8 +648,8 @@ func TestInMemoryStorage_acceptConsumerGroup_NoWhitelist(t *testing.T) {
 	}
 }
 
-func TestInMemoryStorage_acceptConsumerGroup_Blacklist(t *testing.T) {
-	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoWhitelist
+func TestInMemoryStorage_acceptConsumerGroup_Denylist(t *testing.T) {
+	// just taking the inverse of TestInMemoryStorage_acceptConsumerGroup_NoAllowlist
 	// so noMatchGroups will return true and matchGroup entries will be false.
 	for i, testSet := range regexFilterTests {
 		module := fixtureModule("", testSet.regexFilter)

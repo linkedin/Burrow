@@ -157,7 +157,7 @@ type httpResponseConfigModuleStorage struct {
 	ClassName      string `json:"class-name"`
 	Intervals      int    `json:"intervals"`
 	MinDistance    int64  `json:"min-distance"`
-	GroupWhitelist string `json:"group-whitelist"`
+	GroupAllowlist string `json:"group-allowlist"`
 	ExpireGroup    int64  `json:"expire-group"`
 }
 
@@ -173,7 +173,7 @@ type httpResponseConfigModuleConsumer struct {
 	ClassName        string                    `json:"class-name"`
 	Cluster          string                    `json:"cluster"`
 	Servers          []string                  `json:"servers"`
-	GroupWhitelist   string                    `json:"group-whitelist"`
+	GroupAllowlist   string                    `json:"group-allowlist"`
 	ZookeeperPath    string                    `json:"zookeeper-path"`
 	ZookeeperTimeout int32                     `json:"zookeeper-timeout"`
 	ClientProfile    httpResponseClientProfile `json:"client-profile"`
@@ -188,7 +188,7 @@ type httpResponseConfigModuleEvaluator struct {
 
 type httpResponseConfigModuleNotifierHTTP struct {
 	ClassName      string            `json:"class-name"`
-	GroupWhitelist string            `json:"group-whitelist"`
+	GroupAllowlist string            `json:"group-allowlist"`
 	Interval       int64             `json:"interval"`
 	Threshold      int               `json:"threshold"`
 	Timeout        int               `json:"timeout"`
@@ -207,7 +207,7 @@ type httpResponseConfigModuleNotifierHTTP struct {
 
 type httpResponseConfigModuleNotifierSlack struct {
 	ClassName      string            `json:"class-name"`
-	GroupWhitelist string            `json:"group-whitelist"`
+	GroupAllowlist string            `json:"group-allowlist"`
 	Interval       int64             `json:"interval"`
 	Threshold      int               `json:"threshold"`
 	Timeout        int               `json:"timeout"`
@@ -224,7 +224,7 @@ type httpResponseConfigModuleNotifierSlack struct {
 
 type httpResponseConfigModuleNotifierEmail struct {
 	ClassName      string            `json:"class-name"`
-	GroupWhitelist string            `json:"group-whitelist"`
+	GroupAllowlist string            `json:"group-allowlist"`
 	Interval       int64             `json:"interval"`
 	Threshold      int               `json:"threshold"`
 	TemplateOpen   string            `json:"template-open"`
@@ -243,7 +243,7 @@ type httpResponseConfigModuleNotifierEmail struct {
 
 type httpResponseConfigModuleNotifierNull struct {
 	ClassName      string            `json:"class-name"`
-	GroupWhitelist string            `json:"group-whitelist"`
+	GroupAllowlist string            `json:"group-allowlist"`
 	Interval       int64             `json:"interval"`
 	Threshold      int               `json:"threshold"`
 	TemplateOpen   string            `json:"template-open"`
