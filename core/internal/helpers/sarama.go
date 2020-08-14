@@ -56,6 +56,7 @@ var kafkaVersions = map[string]sarama.KafkaVersion{
 	"2.3.0":    sarama.V2_3_0_0,
 	"2.4.0":    sarama.V2_4_0_0,
 	"2.5.0":    sarama.V2_5_0_0,
+	"2.6.0":    sarama.V2_6_0_0,
 }
 
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
