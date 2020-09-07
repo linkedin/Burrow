@@ -72,6 +72,7 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 					End: &protocol.ConsumerOffset{
 						Offset: 22663,
 					},
+					Owner: "/1.1.1.1",
 				},
 				{
 					Topic:      "testtopic",
@@ -82,6 +83,7 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 					End: &protocol.ConsumerOffset{
 						Offset: 2488,
 					},
+					Owner: "/1.1.1.1",
 				},
 				{
 					Topic:      "testtopic1",
@@ -92,6 +94,7 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 					End: &protocol.ConsumerOffset{
 						Offset: 99888,
 					},
+					Owner: "/1.1.1.1",
 				},
 				{
 					Topic:      "incomplete",
@@ -102,6 +105,7 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 					End: &protocol.ConsumerOffset{
 						Offset: 5335,
 					},
+					Owner: "/1.1.1.1",
 				},
 			},
 			TotalPartitions: 2134,
@@ -139,13 +143,13 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 	assert.Contains(t, promExp, `burrow_kafka_consumer_status{cluster="testcluster",consumer_group="testgroup"} 1`)
 	assert.Contains(t, promExp, `burrow_kafka_consumer_lag_total{cluster="testcluster",consumer_group="testgroup"} 2345`)
 
-	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic"} 100`)
-	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="1",topic="testtopic"} 10`)
-	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic1"} 50`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="0",topic="testtopic"} 100`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="1",topic="testtopic"} 10`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="0",topic="testtopic1"} 50`)
 
-	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic"} 22663`)
-	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="1",topic="testtopic"} 2488`)
-	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic1"} 99888`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="0",topic="testtopic"} 22663`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="1",topic="testtopic"} 2488`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",owner="1.1.1.1",partition="0",topic="testtopic1"} 99888`)
 
 	assert.Contains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",partition="0",topic="testtopic"} 6556`)
 	assert.Contains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",partition="1",topic="testtopic"} 5566`)
