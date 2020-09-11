@@ -166,9 +166,6 @@ func TestCoordinator_sendClusterRequest(t *testing.T) {
 	coordinator := fixtureCoordinator()
 	coordinator.Configure()
 
-	// This cluster will get deleted
-	coordinator.clusters["deleteme"] = &clusterGroups{}
-
 	// This goroutine will receive the storage request for a cluster list, and respond with an appropriate list
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
