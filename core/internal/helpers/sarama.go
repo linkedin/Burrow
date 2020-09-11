@@ -205,6 +205,9 @@ type SaramaClient interface {
 	// NewConsumerFromClient creates a new consumer using the given client. It is still necessary to call Close() on the
 	// underlying client when shutting down this consumer.
 	NewConsumerFromClient() (sarama.Consumer, error)
+
+	// List the consumer groups available in the cluster.
+	ListConsumerGroups() (map[string]string, error)
 }
 
 // BurrowSaramaClient is an implementation of the SaramaClient interface for use in Burrow modules
@@ -349,6 +352,19 @@ func (b *BurrowSaramaBroker) GetAvailableOffsets(request *sarama.OffsetRequest) 
 	return b.broker.GetAvailableOffsets(request)
 }
 
+// ListConsumerGroups List the consumer groups available in the cluster.
+func (c *BurrowSaramaClient) ListConsumerGroups() (map[string]string, error) {
+	admin, err := sarama.NewClusterAdminFromClient(c.Client)
+	if err != nil {
+		return nil, err
+	}
+	groups, err := admin.ListConsumerGroups()
+	if err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
 // MockSaramaClient is a mock of SaramaClient. It is used in tests by multiple packages. It should never be used in the
 // normal code.
 type MockSaramaClient struct {
@@ -448,6 +464,11 @@ func (m *MockSaramaClient) Closed() bool {
 func (m *MockSaramaClient) NewConsumerFromClient() (sarama.Consumer, error) {
 	args := m.Called()
 	return args.Get(0).(sarama.Consumer), args.Error(1)
+}
+
+func (m *MockSaramaClient) ListConsumerGroups() (map[string]string, error) {
+	args := m.Called()
+	return args.Get(0).(map[string]string), args.Error(1)
 }
 
 // MockSaramaBroker is a mock of SaramaBroker. It is used in tests by multiple packages. It should never be used in the
