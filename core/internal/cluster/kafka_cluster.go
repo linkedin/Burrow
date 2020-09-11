@@ -11,6 +11,7 @@
 package cluster
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -34,16 +35,18 @@ type KafkaCluster struct {
 	// fields that are appropriate to identify this coordinator
 	Log *zap.Logger
 
-	name          string
-	saramaConfig  *sarama.Config
-	servers       []string
-	offsetRefresh int
-	topicRefresh  int
+	name                string
+	saramaConfig        *sarama.Config
+	servers             []string
+	offsetRefresh       int
+	topicRefresh        int
+	groupsReaperRefresh int
 
-	offsetTicker   *time.Ticker
-	metadataTicker *time.Ticker
-	quitChannel    chan struct{}
-	running        sync.WaitGroup
+	offsetTicker       *time.Ticker
+	metadataTicker     *time.Ticker
+	groupsReaperTicker *time.Ticker
+	quitChannel        chan struct{}
+	running            sync.WaitGroup
 
 	fetchMetadata   bool
 	topicPartitions map[string][]int32
@@ -72,8 +75,10 @@ func (module *KafkaCluster) Configure(name, configRoot string) {
 	// Set defaults for configs if needed
 	viper.SetDefault(configRoot+".offset-refresh", 10)
 	viper.SetDefault(configRoot+".topic-refresh", 60)
+	viper.SetDefault(configRoot+".groups-reaper-refresh", 0)
 	module.offsetRefresh = viper.GetInt(configRoot + ".offset-refresh")
 	module.topicRefresh = viper.GetInt(configRoot + ".topic-refresh")
+	module.groupsReaperRefresh = viper.GetInt(configRoot + ".groups-reaper-refresh")
 }
 
 // Start connects to the Kafka cluster using the Shopify/sarama client. Any error connecting to the cluster is returned
@@ -98,6 +103,15 @@ func (module *KafkaCluster) Start() error {
 	// Start main loop that has a timer for offset and topic fetches
 	module.offsetTicker = time.NewTicker(time.Duration(module.offsetRefresh) * time.Second)
 	module.metadataTicker = time.NewTicker(time.Duration(module.topicRefresh) * time.Second)
+
+	if module.groupsReaperRefresh != 0 {
+		if module.saramaConfig.Version.IsAtLeast(sarama.V0_11_0_0) {
+			module.groupsReaperTicker = time.NewTicker(time.Duration(module.groupsReaperRefresh) * time.Second)
+		} else {
+			module.Log.Warn("groups reaper disabled, it needs at least kafka v0.11.0.0 to get the list of consumer groups")
+			module.groupsReaperRefresh = 0
+		}
+	}
 	go module.mainLoop(helperClient)
 
 	return nil
@@ -109,6 +123,10 @@ func (module *KafkaCluster) Stop() error {
 
 	module.metadataTicker.Stop()
 	module.offsetTicker.Stop()
+
+	if module.groupsReaperRefresh != 0 {
+		module.groupsReaperTicker.Stop()
+	}
 	close(module.quitChannel)
 	module.running.Wait()
 
@@ -120,14 +138,29 @@ func (module *KafkaCluster) mainLoop(client helpers.SaramaClient) {
 	defer module.running.Done()
 
 	for {
-		select {
-		case <-module.offsetTicker.C:
-			module.getOffsets(client)
-		case <-module.metadataTicker.C:
-			// Update metadata on next offset fetch
-			module.fetchMetadata = true
-		case <-module.quitChannel:
-			return
+		// NOTE: or I could simple create a very long tick ¯\_(ツ)_/¯
+		if module.groupsReaperRefresh != 0 {
+			select {
+			case <-module.offsetTicker.C:
+				module.getOffsets(client)
+			case <-module.metadataTicker.C:
+				// Update metadata on next offset fetch
+				module.fetchMetadata = true
+			case <-module.groupsReaperTicker.C:
+				module.reapNonExistingGroups(client)
+			case <-module.quitChannel:
+				return
+			}
+		} else {
+			select {
+			case <-module.offsetTicker.C:
+				module.getOffsets(client)
+			case <-module.metadataTicker.C:
+				// Update metadata on next offset fetch
+				module.fetchMetadata = true
+			case <-module.quitChannel:
+				return
+			}
 		}
 	}
 }
@@ -277,4 +310,39 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 		module.fetchMetadata = true
 		return false
 	})
+}
+
+func (module *KafkaCluster) reapNonExistingGroups(client helpers.SaramaClient) {
+	kafkaGroups, err := client.ListConsumerGroups()
+	if err != nil {
+		module.Log.Warn("failed to get the list of available consumer groups", zap.Error(err))
+	}
+
+	req := &protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumers,
+		Reply:       make(chan interface{}),
+		Cluster:     module.name,
+	}
+	helpers.TimeoutSendStorageRequest(module.App.StorageChannel, req, 20)
+
+	res := <-req.Reply
+	if res == nil {
+		module.Log.Warn("groups reaper: couldn't get list of consumer groups from storage")
+		return
+	}
+
+	// TODO: find how to get reportedConsumerGroup from KafkaClient
+	burrowIgnoreGroupName := "burrow-" + module.name
+	burrowGroups, _ := res.([]string)
+	for _, g := range burrowGroups {
+		if _, ok := kafkaGroups[g]; !ok && g != burrowIgnoreGroupName {
+			module.Log.Info(fmt.Sprintf("groups reaper: removing non existing kafka consumer group (%s) from burrow", g))
+			request := &protocol.StorageRequest{
+				RequestType: protocol.StorageSetDeleteGroup,
+				Cluster:     module.name,
+				Group:       g,
+			}
+			helpers.TimeoutSendStorageRequest(module.App.StorageChannel, request, 1)
+		}
+	}
 }

@@ -27,6 +27,7 @@ servers=[ "kafka01.example.com:10251", "kafka02.example.com:10251", "kafka03.exa
 client-profile="test"
 topic-refresh=120
 offset-refresh=30
+groups-reaper-refresh=0
 
 [consumer.local]
 class-name="kafka"
