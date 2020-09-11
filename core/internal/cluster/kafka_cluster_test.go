@@ -37,9 +37,10 @@ func fixtureModule() *KafkaCluster {
 	}
 
 	viper.Reset()
-	viper.Set("client-profile..client-id", "testid")
+	viper.Set("client-profile.p1.client-id", "testid")
 	viper.Set("cluster.test.class-name", "kafka")
 	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("cluster.test.client-profile", "p1")
 
 	return &module
 }
