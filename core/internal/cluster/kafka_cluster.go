@@ -105,12 +105,16 @@ func (module *KafkaCluster) Start() error {
 	module.metadataTicker = time.NewTicker(time.Duration(module.topicRefresh) * time.Second)
 
 	if module.groupsReaperRefresh != 0 {
-		if module.saramaConfig.Version.IsAtLeast(sarama.V0_11_0_0) {
-			module.groupsReaperTicker = time.NewTicker(time.Duration(module.groupsReaperRefresh) * time.Second)
-		} else {
+		module.groupsReaperTicker = time.NewTicker(time.Duration(module.groupsReaperRefresh) * time.Second)
+		if !module.saramaConfig.Version.IsAtLeast(sarama.V0_11_0_0) {
+			module.groupsReaperTicker.Stop()
 			module.Log.Warn("groups reaper disabled, it needs at least kafka v0.11.0.0 to get the list of consumer groups")
-			module.groupsReaperRefresh = 0
 		}
+	} else {
+		// just start and stop a new ticker, the channel will still be active but will not emit ticks
+		// it'll simplify tick management in the mainLoop func
+		module.groupsReaperTicker = time.NewTicker(1 * time.Minute)
+		module.groupsReaperTicker.Stop()
 	}
 	go module.mainLoop(helperClient)
 
@@ -123,10 +127,7 @@ func (module *KafkaCluster) Stop() error {
 
 	module.metadataTicker.Stop()
 	module.offsetTicker.Stop()
-
-	if module.groupsReaperRefresh != 0 {
-		module.groupsReaperTicker.Stop()
-	}
+	module.groupsReaperTicker.Stop()
 	close(module.quitChannel)
 	module.running.Wait()
 
@@ -138,29 +139,16 @@ func (module *KafkaCluster) mainLoop(client helpers.SaramaClient) {
 	defer module.running.Done()
 
 	for {
-		// NOTE: or I could simple create a very long tick ¯\_(ツ)_/¯
-		if module.groupsReaperRefresh != 0 {
-			select {
-			case <-module.offsetTicker.C:
-				module.getOffsets(client)
-			case <-module.metadataTicker.C:
-				// Update metadata on next offset fetch
-				module.fetchMetadata = true
-			case <-module.groupsReaperTicker.C:
-				module.reapNonExistingGroups(client)
-			case <-module.quitChannel:
-				return
-			}
-		} else {
-			select {
-			case <-module.offsetTicker.C:
-				module.getOffsets(client)
-			case <-module.metadataTicker.C:
-				// Update metadata on next offset fetch
-				module.fetchMetadata = true
-			case <-module.quitChannel:
-				return
-			}
+		select {
+		case <-module.offsetTicker.C:
+			module.getOffsets(client)
+		case <-module.metadataTicker.C:
+			// Update metadata on next offset fetch
+			module.fetchMetadata = true
+		case <-module.groupsReaperTicker.C:
+			module.reapNonExistingGroups(client)
+		case <-module.quitChannel:
+			return
 		}
 	}
 }
