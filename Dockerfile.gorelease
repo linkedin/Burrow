@@ -1,4 +1,4 @@
-FROM alpine:3.11
+FROM alpine:3.12
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
 WORKDIR /app
