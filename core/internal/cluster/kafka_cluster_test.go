@@ -286,6 +286,7 @@ func TestKafkaCluster_reapNonExistingGroups(t *testing.T) {
 	module := fixtureModule()
 	module.Configure("test", "cluster.test")
 
+	// only group1 exists in kafka
 	client := &helpers.MockSaramaClient{}
 	client.On("ListConsumerGroups").Return(map[string]string{"group1": ""}, nil)
 
@@ -296,8 +297,10 @@ func TestKafkaCluster_reapNonExistingGroups(t *testing.T) {
 	assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request sent with type StorageFetchConsumers, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
 
+	// burrow have group1, and group2, kafka only knows about group1, so group2 will be deleted by the reaper
 	request.Reply <- []string{"group1", "group2"}
 	request = <-module.App.StorageChannel
+
 	assert.Equalf(t, protocol.StorageSetDeleteGroup, request.RequestType, "Expected request sent with type StorageFetchConsumers, not %v", request.RequestType)
 	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
 	assert.Equalf(t, "group2", request.Group, "Expected request sent with group group2, not %v", request.Group)
