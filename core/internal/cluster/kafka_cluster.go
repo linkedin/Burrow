@@ -324,7 +324,10 @@ func (module *KafkaCluster) reapNonExistingGroups(client helpers.SaramaClient) {
 	burrowIgnoreGroupName := "burrow-" + module.name
 	burrowGroups, _ := res.([]string)
 	for _, g := range burrowGroups {
-		if _, ok := kafkaGroups[g]; !ok && g != burrowIgnoreGroupName {
+		if g == burrowIgnoreGroupName {
+			continue
+		}
+		if _, ok := kafkaGroups[g]; !ok {
 			module.Log.Info(fmt.Sprintf("groups reaper: removing non existing kafka consumer group (%s) from burrow", g))
 			request := &protocol.StorageRequest{
 				RequestType: protocol.StorageSetDeleteGroup,
