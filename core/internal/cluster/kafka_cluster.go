@@ -303,7 +303,8 @@ func (module *KafkaCluster) getOffsets(client helpers.SaramaClient) {
 func (module *KafkaCluster) reapNonExistingGroups(client helpers.SaramaClient) {
 	kafkaGroups, err := client.ListConsumerGroups()
 	if err != nil {
-		module.Log.Warn("failed to get the list of available consumer groups", zap.Error(err))
+		module.Log.Error("failed to get the list of available consumer groups", zap.Error(err))
+		return
 	}
 
 	req := &protocol.StorageRequest{
