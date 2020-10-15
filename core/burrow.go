@@ -28,22 +28,13 @@ import (
 	"github.com/linkedin/Burrow/core/internal/evaluator"
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/internal/httpserver"
-	"github.com/linkedin/Burrow/core/internal/notifier"
 	"github.com/linkedin/Burrow/core/internal/storage"
-	"github.com/linkedin/Burrow/core/internal/zookeeper"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
-func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
+func newCoordinators(app *protocol.ApplicationContext) [5]protocol.Coordinator {
 	// This order is important - it makes sure that the things taking requests start up before things sending requests
-	return [7]protocol.Coordinator{
-		&zookeeper.Coordinator{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "coordinator"),
-				zap.String("name", "zookeeper"),
-			),
-		},
+	return [5]protocol.Coordinator{
 		&storage.Coordinator{
 			App: app,
 			Log: app.Logger.With(
@@ -65,13 +56,6 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 				zap.String("name", "httpserver"),
 			),
 		},
-		&notifier.Coordinator{
-			App: app,
-			Log: app.Logger.With(
-				zap.String("type", "coordinator"),
-				zap.String("name", "notifier"),
-			),
-		},
 		&cluster.Coordinator{
 			App: app,
 			Log: app.Logger.With(
@@ -89,7 +73,7 @@ func newCoordinators(app *protocol.ApplicationContext) [7]protocol.Coordinator {
 	}
 }
 
-func configureCoordinators(app *protocol.ApplicationContext, coordinators [7]protocol.Coordinator) { // nolint:gocritic
+func configureCoordinators(app *protocol.ApplicationContext, coordinators [5]protocol.Coordinator) { // nolint:gocritic
 	// Configure methods are allowed to panic, as their errors are non-recoverable
 	// Catch panics here and flag in the application context if we can't continue
 	defer func() {

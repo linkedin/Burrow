@@ -7,14 +7,13 @@ RUN apk add --no-cache git curl
 COPY . $BURROW_SRC
 WORKDIR $BURROW_SRC
 
-RUN go mod tidy && go build -o /tmp/burrow .
+RUN go mod tidy && go build -o /tmp/ ./...
 
 # stage 2: runner
 FROM alpine:3.13
 
-LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
-
 COPY --from=builder /tmp/burrow /app/
-COPY docker-config/burrow.toml /etc/burrow/
+COPY --from=builder /tmp/configure /etc/burrow/
+ADD ./entrypoint.sh /etc/burrow/entrypoint.sh
 
-CMD ["/app/burrow", "--config-dir", "/etc/burrow"]
+CMD ["/etc/burrow/entrypoint.sh"]

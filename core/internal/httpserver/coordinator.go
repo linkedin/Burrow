@@ -33,6 +33,7 @@ import (
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
 	"github.com/linkedin/Burrow/core/protocol"
+	"github.com/linkedin/Burrow/shims"
 )
 
 // Coordinator runs the HTTP interface for Burrow, managing all configured listeners.
@@ -74,7 +75,7 @@ func (hc *Coordinator) Configure() {
 	for name := range servers {
 		configRoot := "httpserver." + name
 		server := &http.Server{
-			Handler: hc.router,
+			Handler: shims.ApplyBasicAuthMiddleware(configRoot, hc.router),
 		}
 
 		server.Addr = viper.GetString(configRoot + ".address")

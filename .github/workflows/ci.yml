@@ -1,6 +1,10 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   test:
@@ -35,3 +39,20 @@ jobs:
 
     - name: Run linter
       run: make lint
+
+  deploy:
+    if: false
+    needs: test
+    runs-on: ubuntu-latest
+    name: Deploy to Heroku
+    steps:
+    - uses: actions/checkout@v2
+    - if: github.ref == 'refs/heads/master'
+      uses: akhileshns/heroku-deploy@v3.5.7
+      with:
+        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+        heroku_app_name: bissy-burrow
+        heroku_email: christian@bissy.io
+        usedocker: true
+        docker_heroku_process_type: web
+

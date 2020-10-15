@@ -21,6 +21,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/linkedin/Burrow/shims"
 )
 
 var kafkaVersions = map[string]sarama.KafkaVersion{
@@ -117,6 +119,8 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 				}
 				saramaConfig.Net.TLS.Config.Certificates = []tls.Certificate{cert}
 			}
+
+			shims.ApplyPeerVerification(saramaConfig, caCertPool)
 		}
 		saramaConfig.Net.TLS.Config.InsecureSkipVerify = viper.GetBool("tls." + tlsName + ".noverify")
 	}

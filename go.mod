@@ -4,8 +4,10 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Shopify/sarama v1.28.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/google/uuid v1.2.0 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20210202160940-bed99a852dfe // indirect
+	github.com/google/go-cmp v0.5.4
+	github.com/google/uuid v1.1.1 // indirect
+	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
+	github.com/joeshaw/envdecode v0.0.0-20200121155833-099f1fc765bd
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/karrick/goswarm v1.10.0
 	github.com/magiconair/properties v1.8.4 // indirect
