@@ -1,3 +1,12 @@
+## 1.3.4
+
+- #636 - @bai - Update sarama to the latest bugfix release, Go 1.14.3
+- #632 - @bai - Update sarama with a fix for Shopify/sarama#1692
+- #628 - @mwain - Add Prometheus Metrics Exporter
+- #598 - @rjh-yext - Add SASL-SCRAM ability to Kafka connection
+- #627 - @klDen - Fixes Travis CI build of PR 598
+- #631 - @bai - Add support for Kafka 2.5.0 and Go 1.14
+
 ## 1.3.3
 
 - #617 - @timbertson-zd - add and expose observedAt time for lag entries
