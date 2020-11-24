@@ -22,8 +22,8 @@ GOOGLE_PROJECT_ID		:= mettle-bank
 GOOGLE_COMPUTE_ZONE		:= europe-west2-a
 
 CIRCLE_BUILD_NUM  		?="unknown"
-VERSION					:= 1.3.3-$(CIRCLE_BUILD_NUM)
-IMAGE             		:= $(PROJNAME):$(VERSION)
+VERSION					:= 1.3.4-forked
+IMAGE             		:= $(PROJNAME):v$(VERSION)
 
 #------------------------------------------------------------------
 # CI targets

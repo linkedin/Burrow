@@ -63,8 +63,7 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 				consumerStatus := getFullConsumerStatus(hc.App, cluster, consumer)
 
 				if consumerStatus == nil ||
-					consumerStatus.Status == protocol.StatusNotFound ||
-					consumerStatus.Complete < 1.0 {
+					consumerStatus.Status == protocol.StatusNotFound {
 					continue
 				}
 
@@ -77,10 +76,6 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 				consumerStatusGauge.With(labels).Set(float64(consumerStatus.Status))
 
 				for _, partition := range consumerStatus.Partitions {
-					if partition.Complete < 1.0 {
-						continue
-					}
-
 					labels := map[string]string{
 						"cluster":        cluster,
 						"consumer_group": consumer,
@@ -88,8 +83,11 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 						"partition":      strconv.FormatInt(int64(partition.Partition), 10),
 					}
 
-					consumerPartitionCurrentOffset.With(labels).Set(float64(partition.End.Offset))
 					consumerPartitionLagGauge.With(labels).Set(float64(partition.CurrentLag))
+
+					if partition.Complete >= 1.0 {
+						consumerPartitionCurrentOffset.With(labels).Set(float64(partition.End.Offset))
+					}
 				}
 			}
 
