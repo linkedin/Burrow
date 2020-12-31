@@ -119,11 +119,6 @@ type httpResponseConfigLogging struct {
 	UseCompression bool   `json:"use-compression"`
 	Level          string `json:"level"`
 }
-type httpResponseConfigZookeeper struct {
-	Servers  []string `json:"servers"`
-	Timeout  int      `json:"timeout"`
-	RootPath string   `json:"root-path"`
-}
 type httpResponseConfigHTTPServer struct {
 	Address string `json:"address"`
 	TLS     string `json:"tls"`
@@ -135,7 +130,6 @@ type httpResponseConfigMain struct {
 	Request    httpResponseRequestInfo                 `json:"request"`
 	General    httpResponseConfigGeneral               `json:"general"`
 	Logging    httpResponseConfigLogging               `json:"logging"`
-	Zookeeper  httpResponseConfigZookeeper             `json:"zookeeper"`
 	HTTPServer map[string]httpResponseConfigHTTPServer `json:"httpserver"`
 }
 
@@ -170,15 +164,13 @@ type httpResponseConfigModuleCluster struct {
 }
 
 type httpResponseConfigModuleConsumer struct {
-	ClassName        string                    `json:"class-name"`
-	Cluster          string                    `json:"cluster"`
-	Servers          []string                  `json:"servers"`
-	GroupAllowlist   string                    `json:"group-allowlist"`
-	ZookeeperPath    string                    `json:"zookeeper-path"`
-	ZookeeperTimeout int32                     `json:"zookeeper-timeout"`
-	ClientProfile    httpResponseClientProfile `json:"client-profile"`
-	OffsetsTopic     string                    `json:"offsets-topic"`
-	StartLatest      bool                      `json:"start-latest"`
+	ClassName      string                    `json:"class-name"`
+	Cluster        string                    `json:"cluster"`
+	Servers        []string                  `json:"servers"`
+	GroupAllowlist string                    `json:"group-allowlist"`
+	ClientProfile  httpResponseClientProfile `json:"client-profile"`
+	OffsetsTopic   string                    `json:"offsets-topic"`
+	StartLatest    bool                      `json:"start-latest"`
 }
 
 type httpResponseConfigModuleEvaluator struct {

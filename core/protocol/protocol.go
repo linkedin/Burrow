@@ -15,9 +15,6 @@
 package protocol
 
 import (
-	"sync"
-
-	"github.com/samuel/go-zookeeper/zk"
 	"go.uber.org/zap"
 )
 
@@ -40,18 +37,6 @@ type ApplicationContext struct {
 	// This is used by the main Burrow routines to signal that the configuration is valid. The rest of the code should
 	// not care about this, as the application will exit if the configuration is not valid.
 	ConfigurationValid bool
-
-	// This is a ZookeeperClient that can be used by any coordinator or module in order to store metadata about their
-	// operation, or to create locks. Any module that uses this client must honor the ZookeeperRoot, which is the root
-	// path under which all ZNodes should be created.
-	Zookeeper     ZookeeperClient
-	ZookeeperRoot string
-
-	// This is a boolean flag which is set or unset by the Zookeeper coordinator to signal when the connection is
-	// established. It should be used in coordination with the ZookeeperExpired condition to monitor when the session
-	// has expired. This indicates locks have been released or watches must be reset.
-	ZookeeperConnected bool
-	ZookeeperExpired   *sync.Cond
 
 	// This is the channel over which any module should send a consumer group evaluation request. It is serviced by the
 	// evaluator Coordinator, and passed to an appropriate evaluator module.
@@ -122,56 +107,4 @@ type Coordinator interface {
 	// any of its modules, and stop any goroutines that it has started. While it can return an error if there is a
 	// problem, the errors are mostly ignored.
 	Stop() error
-}
-
-// ZookeeperClient is a minimal interface for working with a Zookeeper connection. We provide this interface, rather
-// than using the underlying library directly, as it makes it easier to test code that uses Zookeeper. This interface
-// should be expanded with additional methods as needed.
-//
-// Note that the interface is specified in the protocol package, rather than in the helper package or the zookeeper
-// coordinator package, as it has to be referenced by ApplicationContext. Moving it elsewhere generates a dependency
-// loop.
-type ZookeeperClient interface {
-	// Close the connection to Zookeeper
-	Close()
-
-	// For the given path in Zookeeper, return a slice of strings which list the immediate child nodes. This method also
-	// sets a watch on the children of the specified path, providing an event channel that will receive a message when
-	// the watch fires
-	ChildrenW(path string) ([]string, *zk.Stat, <-chan zk.Event, error)
-
-	// For the given path in Zookeeper, return the data in the node as a byte slice. This method also sets a watch on
-	// the children of the specified path, providing an event channel that will receive a message when the watch fires
-	GetW(path string) ([]byte, *zk.Stat, <-chan zk.Event, error)
-
-	// For the given path in Zookeeper, return a boolean stating whether or not the node exists.
-	// The method does not set watch on the node, but verifies existence of a node to avoid authentication error.
-	Exists(path string) (bool, *zk.Stat, error)
-
-	// For the given path in Zookeeper, return a boolean stating whether or not the node exists. This method also sets
-	// a watch on the node (exists if it does not currently exist, or a data watch otherwise), providing an event
-	// channel that will receive a message when the watch fires
-	ExistsW(path string) (bool, *zk.Stat, <-chan zk.Event, error)
-
-	// Create makes a new ZNode at the specified path with the contents set to the data byte-slice. Flags can be
-	// provided to specify that this is an ephemeral or sequence node, and an ACL must be provided. If no ACL is
-	// desired, specify
-	//  zk.WorldACL(zk.PermAll)
-	Create(string, []byte, int32, []zk.ACL) (string, error)
-
-	// NewLock creates a lock using the provided path. Multiple Zookeeper clients, using the same lock path, can
-	// synchronize with each other to assure that only one client has the lock at any point.
-	NewLock(path string) ZookeeperLock
-}
-
-// ZookeeperLock is an interface for the operation of a lock in Zookeeper. Multiple Zookeeper clients, using the same
-// lock path, can synchronize with each other to assure that only one client has the lock at any point.
-type ZookeeperLock interface {
-	// Lock acquires the lock, blocking until it is able to do so, and returns nil. If the lock cannot be acquired, such
-	// as if the session has been lost, a non-nil error will be returned instead.
-	Lock() error
-
-	// Unlock releases the lock, returning nil. If there is an error releasing the lock, such as if it is not held, an
-	// error is returned instead.
-	Unlock() error
 }

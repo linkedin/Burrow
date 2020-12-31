@@ -33,11 +33,6 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 		UseCompression: viper.GetBool("logging.use-compression"),
 		Level:          viper.GetString("logging.level"),
 	}
-	configZookeeper := httpResponseConfigZookeeper{
-		Servers:  viper.GetStringSlice("zookeeper.servers"),
-		Timeout:  viper.GetInt("zookeeper.timeout"),
-		RootPath: viper.GetString("zookeeper.root-path"),
-	}
 
 	servers := viper.GetStringMap("httpserver")
 	configHTTPServer := make(map[string]httpResponseConfigHTTPServer)
@@ -56,7 +51,6 @@ func (hc *Coordinator) configMain(w http.ResponseWriter, r *http.Request, _ http
 		Message:    "main config returned",
 		General:    configGeneral,
 		Logging:    configLogging,
-		Zookeeper:  configZookeeper,
 		HTTPServer: configHTTPServer,
 		Request:    requestInfo,
 	})
@@ -159,15 +153,13 @@ func (hc *Coordinator) configConsumerDetail(w http.ResponseWriter, r *http.Reque
 			Error:   false,
 			Message: "consumer module detail returned",
 			Module: httpResponseConfigModuleConsumer{
-				ClassName:        viper.GetString(configRoot + ".class-name"),
-				Cluster:          viper.GetString(configRoot + ".cluster"),
-				Servers:          viper.GetStringSlice(configRoot + ".servers"),
-				GroupAllowlist:   viper.GetString(configRoot + ".group-allowlist"),
-				ZookeeperPath:    viper.GetString(configRoot + ".zookeeper-path"),
-				ZookeeperTimeout: int32(viper.GetInt64(configRoot + ".zookeeper-timeout")),
-				ClientProfile:    getClientProfile(viper.GetString(configRoot + ".client-profile")),
-				OffsetsTopic:     viper.GetString(configRoot + ".offsets-topic"),
-				StartLatest:      viper.GetBool(configRoot + ".start-latest"),
+				ClassName:      viper.GetString(configRoot + ".class-name"),
+				Cluster:        viper.GetString(configRoot + ".cluster"),
+				Servers:        viper.GetStringSlice(configRoot + ".servers"),
+				GroupAllowlist: viper.GetString(configRoot + ".group-allowlist"),
+				ClientProfile:  getClientProfile(viper.GetString(configRoot + ".client-profile")),
+				OffsetsTopic:   viper.GetString(configRoot + ".offsets-topic"),
+				StartLatest:    viper.GetBool(configRoot + ".start-latest"),
 			},
 			Request: requestInfo,
 		})

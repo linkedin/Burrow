@@ -1,12 +1,3 @@
-[zookeeper]
-servers=[ "zookeeper:2181" ]
-timeout=6
-root-path="/burrow"
-
-[client-profile.profile]
-kafka-version="0.11.0"
-client-id="docker-client"
-
 [cluster.local]
 client-profile="profile"
 class-name="kafka"
@@ -19,15 +10,6 @@ groups-reaper-refresh=30
 class-name="kafka"
 cluster="local"
 servers=[ "kafka:9092" ]
-group-denylist="^(console-consumer-|python-kafka-consumer-).*$"
-group-allowlist=""
-
-[consumer.local_zk]
-class-name="kafka_zk"
-cluster="local"
-servers=[ "zookeeper:2181" ]
-zookeeper-path="/local"
-zookeeper-timeout=30
 group-denylist="^(console-consumer-|python-kafka-consumer-).*$"
 group-allowlist=""
 
