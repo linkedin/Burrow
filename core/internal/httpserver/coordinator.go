@@ -15,15 +15,11 @@
 package httpserver
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -47,8 +43,6 @@ type Coordinator struct {
 
 	router  *httprouter.Router
 	servers map[string]*http.Server
-	theCert map[string]string
-	theKey  map[string]string
 }
 
 // Configure is called to configure the HTTP server. This includes validating all configurations for each configured
@@ -70,8 +64,6 @@ func (hc *Coordinator) Configure() {
 
 	// Validate provided HTTP server configs
 	hc.servers = make(map[string]*http.Server)
-	hc.theCert = make(map[string]string)
-	hc.theKey = make(map[string]string)
 	for name := range servers {
 		configRoot := "httpserver." + name
 		server := &http.Server{
@@ -89,37 +81,7 @@ func (hc *Coordinator) Configure() {
 		server.ReadHeaderTimeout = time.Duration(timeout) * time.Second
 		server.WriteTimeout = time.Duration(timeout) * time.Second
 		server.IdleTimeout = time.Duration(timeout) * time.Second
-		keyFile := ""
-		certFile := ""
-		if viper.IsSet(configRoot + ".tls") {
-			tlsName := viper.GetString(configRoot + ".tls")
-			certFile = viper.GetString("tls." + tlsName + ".certfile")
-			keyFile = viper.GetString("tls." + tlsName + ".keyfile")
-			caFile := viper.GetString("tls." + tlsName + ".cafile")
-
-			server.TLSConfig = &tls.Config{}
-
-			if caFile != "" {
-				caCert, err := ioutil.ReadFile(caFile)
-				if err != nil {
-					panic("cannot read TLS CA file: " + err.Error())
-				}
-				server.TLSConfig.RootCAs = x509.NewCertPool()
-				server.TLSConfig.RootCAs.AppendCertsFromPEM(caCert)
-			}
-
-			if certFile == "" || keyFile == "" {
-				panic("TLS HTTP server specified with missing certificate or key")
-			}
-			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-			if err != nil {
-				panic("cannot read TLS certificate or key file: " + err.Error())
-			}
-			server.TLSConfig.Certificates = []tls.Certificate{cert}
-		}
 		hc.servers[name] = server
-		hc.theCert[name] = certFile
-		hc.theKey[name] = keyFile
 	}
 
 	// Configure URL routes here
@@ -193,11 +155,7 @@ func (hc *Coordinator) Start() error {
 
 	// Start the HTTP server on the listeners
 	for name, server := range hc.servers {
-		if hc.theCert[name] != "" || hc.theKey[name] != "" {
-			go server.ServeTLS(listeners[name], hc.theCert[name], hc.theKey[name])
-		} else {
-			go server.Serve(listeners[name])
-		}
+		go server.Serve(listeners[name])
 	}
 	return nil
 }
