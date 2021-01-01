@@ -12,17 +12,6 @@ package httpserver
 
 import "github.com/linkedin/Burrow/core/protocol"
 
-type logLevelRequest struct {
-	Level string `json:"level"`
-}
-
-type httpResponseLogLevel struct {
-	Error   bool                    `json:"error"`
-	Message string                  `json:"message"`
-	Level   string                  `json:"level"`
-	Request httpResponseRequestInfo `json:"request"`
-}
-
 type httpResponseRequestInfo struct {
 	URI  string `json:"url"`
 	Host string `json:"host"`
