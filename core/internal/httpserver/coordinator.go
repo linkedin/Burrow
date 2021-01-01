@@ -89,10 +89,6 @@ func (hc *Coordinator) Configure() {
 	// This is a catchall for undefined URLs
 	hc.router.NotFound = &defaultHandler{}
 
-	// This is a healthcheck and readiness URLs. Please don't change it
-	hc.router.GET("/burrow/admin", hc.handleAdmin)
-	hc.router.GET("/burrow/admin/ready", hc.handleReady)
-
 	// All valid paths go here
 	hc.router.GET("/v3/kafka", hc.handleClusterList)
 	hc.router.GET("/v3/kafka/:cluster", hc.handleClusterDetail)
@@ -104,22 +100,8 @@ func (hc *Coordinator) Configure() {
 	hc.router.GET("/v3/kafka/:cluster/consumer/:consumer/status", hc.handleConsumerStatus)
 	hc.router.GET("/v3/kafka/:cluster/consumer/:consumer/lag", hc.handleConsumerStatusComplete)
 
-	hc.router.GET("/v3/config", hc.configMain)
-	hc.router.GET("/v3/config/storage", hc.configStorageList)
-	hc.router.GET("/v3/config/storage/:name", hc.configStorageDetail)
-	hc.router.GET("/v3/config/evaluator", hc.configEvaluatorList)
-	hc.router.GET("/v3/config/evaluator/:name", hc.configEvaluatorDetail)
-	hc.router.GET("/v3/config/cluster", hc.configClusterList)
-	hc.router.GET("/v3/config/cluster/:cluster", hc.handleClusterDetail)
-	hc.router.GET("/v3/config/consumer", hc.configConsumerList)
-	hc.router.GET("/v3/config/consumer/:name", hc.configConsumerDetail)
-	hc.router.GET("/v3/config/notifier", hc.configNotifierList)
-	hc.router.GET("/v3/config/notifier/:name", hc.configNotifierDetail)
-
 	// TODO: This should really have authentication protecting it
 	hc.router.DELETE("/v3/kafka/:cluster/consumer/:consumer", hc.handleConsumerDelete)
-	hc.router.GET("/v3/admin/loglevel", hc.getLogLevel)
-	hc.router.POST("/v3/admin/loglevel", hc.setLogLevel)
 }
 
 // Start is responsible for starting the listener on each configured address. If any listener fails to start, the error
@@ -241,79 +223,4 @@ type defaultHandler struct{}
 
 func (handler *defaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "{\"error\":true,\"message\":\"invalid request type\",\"result\":{}}", http.StatusNotFound)
-}
-
-func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// Add CORS header, if configured
-	corsHeader := viper.GetString("general.access-control-allow-origin")
-	if corsHeader != "" {
-		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("GOOD"))
-}
-
-// handleReady will use the AppReady bool from  the ApplicationContext to determine
-// whether Burrow is ready to serve requests
-func (hc *Coordinator) handleReady(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// Add CORS header, if configured
-	corsHeader := viper.GetString("general.access-control-allow-origin")
-	if corsHeader != "" {
-		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
-	}
-
-	if hc.App.AppReady {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("READY"))
-	} else {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("STARTING"))
-	}
-}
-
-func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, httpResponseLogLevel{
-		Error:   false,
-		Message: "log level returned",
-		Level:   hc.App.LogLevel.Level().String(),
-		Request: requestInfo,
-	})
-}
-
-func (hc *Coordinator) setLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// Decode the JSON body
-	decoder := json.NewDecoder(r.Body)
-	var req logLevelRequest
-	err := decoder.Decode(&req)
-	if err != nil {
-		hc.writeErrorResponse(w, r, http.StatusBadRequest, "could not decode message body")
-		return
-	}
-	r.Body.Close()
-
-	// Explicitly validate the log level provided
-	switch strings.ToLower(req.Level) {
-	case "debug", "trace":
-		hc.App.LogLevel.SetLevel(zap.DebugLevel)
-	case "info":
-		hc.App.LogLevel.SetLevel(zap.InfoLevel)
-	case "warning", "warn":
-		hc.App.LogLevel.SetLevel(zap.WarnLevel)
-	case "error":
-		hc.App.LogLevel.SetLevel(zap.ErrorLevel)
-	case "fatal":
-		hc.App.LogLevel.SetLevel(zap.FatalLevel)
-	default:
-		hc.writeErrorResponse(w, r, http.StatusNotFound, "unknown log level")
-		return
-	}
-
-	requestInfo := makeRequestInfo(r)
-	hc.writeResponse(w, r, http.StatusOK, httpResponseError{
-		Error:   false,
-		Message: "set log level",
-		Request: requestInfo,
-	})
 }

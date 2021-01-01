@@ -14,9 +14,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -42,97 +40,6 @@ func fixtureConfiguredCoordinator() *Coordinator {
 	viper.Reset()
 	coordinator.Configure()
 	return &coordinator
-}
-
-func TestHttpServer_handleAdmin(t *testing.T) {
-	coordinator := fixtureConfiguredCoordinator()
-
-	// Set up a request
-	req, err := http.NewRequest("GET", "/burrow/admin", nil)
-	assert.NoError(t, err, "Expected request setup to return no error")
-
-	// Call the handler via httprouter
-	rr := httptest.NewRecorder()
-	coordinator.router.ServeHTTP(rr, req)
-
-	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
-	assert.Equalf(t, "GOOD", rr.Body.String(), "Expected response body to be 'GOOD', not '%v'", rr.Body.String())
-}
-
-func TestHttpServer_handleReady(t *testing.T) {
-	coordinator := fixtureConfiguredCoordinator()
-
-	// Set up a request
-	req, err := http.NewRequest("GET", "/burrow/admin/ready", nil)
-	assert.NoError(t, err, "Expected request setup to return no error")
-
-	// Call the handler via httprouter, the app is not ready so we expect "STARTING" and HTTP 503
-	rr := httptest.NewRecorder()
-	coordinator.router.ServeHTTP(rr, req)
-	assert.Equalf(t, http.StatusServiceUnavailable, rr.Code, "Expected response code to be 503, not %v", rr.Code)
-	assert.Equalf(t, "STARTING", rr.Body.String(), "Expected response body to be 'STARTING', not '%v'", rr.Body.String())
-
-	// Change the AppReady, and try again
-	coordinator.App.AppReady = true
-	rr = httptest.NewRecorder()
-	coordinator.router.ServeHTTP(rr, req)
-	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
-	assert.Equalf(t, "READY", rr.Body.String(), "Expected response body to be 'READY', not '%v'", rr.Body.String())
-}
-
-func TestHttpServer_getClusterList(t *testing.T) {
-	coordinator := fixtureConfiguredCoordinator()
-
-	// Respond to the expected storage request
-	go func() {
-		request := <-coordinator.App.StorageChannel
-		assert.Equalf(t, protocol.StorageFetchClusters, request.RequestType, "Expected request of type StorageFetchClusters, not %v", request.RequestType)
-		request.Reply <- []string{"testcluster"}
-		close(request.Reply)
-	}()
-
-	// Set up a request
-	req, err := http.NewRequest("GET", "/v3/admin/loglevel", nil)
-	assert.NoError(t, err, "Expected request setup to return no error")
-
-	// Call the handler via httprouter
-	rr := httptest.NewRecorder()
-	coordinator.router.ServeHTTP(rr, req)
-
-	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
-
-	// Parse response body
-	decoder := json.NewDecoder(rr.Body)
-	var resp httpResponseLogLevel
-	err = decoder.Decode(&resp)
-	assert.NoError(t, err, "Expected body decode to return no error")
-	assert.False(t, resp.Error, "Expected response Error to be false")
-	assert.Equalf(t, "info", resp.Level, "Expected Level to be info, not %v", resp.Level)
-}
-
-func TestHttpServer_setLogLevel(t *testing.T) {
-	coordinator := fixtureConfiguredCoordinator()
-
-	// Set up a request
-	req, err := http.NewRequest("POST", "/v3/admin/loglevel", strings.NewReader("{\"level\": \"debug\"}"))
-	assert.NoError(t, err, "Expected request setup to return no error")
-
-	// Call the handler via httprouter
-	rr := httptest.NewRecorder()
-	coordinator.router.ServeHTTP(rr, req)
-	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
-
-	// Parse response body
-	decoder := json.NewDecoder(rr.Body)
-	var resp httpResponseError
-	err = decoder.Decode(&resp)
-	assert.NoError(t, err, "Expected body decode to return no error")
-
-	assert.False(t, resp.Error, "Expected response Error to be false")
-
-	// The log level is changed async to the HTTP call, so sleep to make sure it got processed
-	time.Sleep(100 * time.Millisecond)
-	assert.Equalf(t, zap.DebugLevel, coordinator.App.LogLevel.Level(), "Expected log level to be set to Debug, not %v", coordinator.App.LogLevel.Level().String())
 }
 
 func TestHttpServer_DefaultHandler(t *testing.T) {
