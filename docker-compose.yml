@@ -1,17 +1,5 @@
 version: "2"
 services:
-  burrow:
-    build: .
-    volumes:
-      - ${PWD}/docker-config:/etc/burrow/
-      - ${PWD}/tmp:/var/tmp/burrow
-    ports:
-      - 8000:8000
-    depends_on:
-      - zookeeper
-      - kafka
-    restart: always
-
   zookeeper:
     image: wurstmeister/zookeeper
     ports:
