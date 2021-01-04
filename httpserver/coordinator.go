@@ -45,12 +45,15 @@ type Coordinator struct {
 	servers map[string]*http.Server
 }
 
-// Configure is called to configure the HTTP server. This includes validating all configurations for each configured
-// listener (which are not treated as separate modules, as opposed to other coordinators), as well as setting up the
-// request router. Any configuration failure will cause the func to panic with an appropriate error message.
+// Configure is called to configure the HTTP server. This includes validating
+// all configurations for each configured listener (which are not treated as
+// separate modules, as opposed to other coordinators), as well as setting up
+// the request router. Any configuration failure will cause the func to panic
+// with an appropriate error message.
 //
-// If no listener has been configured, the coordinator will set up a default listener on a random port greater than
-// 1024, as selected by the net.Listener call. This listener will be logged so that the port chosen will be known.
+// If no listener has been configured, the coordinator will set up a default
+// listener on a random port greater than 1024, as selected by the net.Listener
+// call. This listener will be logged so that the port chosen will be known.
 func (hc *Coordinator) Configure() {
 	hc.Log.Info("configuring")
 	hc.router = httprouter.New()
