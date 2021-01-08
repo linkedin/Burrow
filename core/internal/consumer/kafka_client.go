@@ -255,6 +255,9 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 				}
 				helpers.TimeoutSendStorageRequest(module.App.StorageChannel, burrowOffset, 1)
 			}
+
+			module.processConsumerOffsetsMessage(msg)
+
 			if stopAtOffset != nil && msg.Offset >= stopAtOffset.Value {
 				module.Log.Debug("backfill consumer reached target offset, terminating",
 					zap.Int32("partition", msg.Partition),
@@ -262,7 +265,6 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 				)
 				return
 			}
-			module.processConsumerOffsetsMessage(msg)
 		case err := <-consumer.Errors():
 			module.Log.Error("consume error",
 				zap.String("topic", err.Topic),
