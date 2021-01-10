@@ -47,7 +47,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - if: github.ref == 'refs/heads/master'
-      uses: akhileshns/heroku-deploy@v3.5.7
+      uses: akhileshns/heroku-deploy@v3.8.8
       with:
         heroku_api_key: ${{secrets.HEROKU_API_KEY}}
         heroku_app_name: bissy-burrow
