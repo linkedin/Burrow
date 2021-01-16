@@ -60,6 +60,9 @@ type ApplicationContext struct {
 	// This is the channel over which any module should send storage requests for storage of offsets and group
 	// information, or to fetch the same information. It is serviced by the storage Coordinator.
 	StorageChannel chan *StorageRequest
+
+	// This is a boolean flag which is set by the last subsystem, the consumer, in order to signal when Burrow is ready
+	AppReady bool
 }
 
 // Module is a common interface for all modules so that they can be manipulated by the coordinators in the same way.

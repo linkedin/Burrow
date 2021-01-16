@@ -35,6 +35,7 @@ func fixtureConfiguredCoordinator() *Coordinator {
 			LogLevel:         &logLevel,
 			StorageChannel:   make(chan *protocol.StorageRequest),
 			EvaluatorChannel: make(chan *protocol.EvaluatorRequest),
+			AppReady:         false,
 		},
 	}
 
@@ -56,6 +57,27 @@ func TestHttpServer_handleAdmin(t *testing.T) {
 
 	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
 	assert.Equalf(t, "GOOD", rr.Body.String(), "Expected response body to be 'GOOD', not '%v'", rr.Body.String())
+}
+
+func TestHttpServer_handleReady(t *testing.T) {
+	coordinator := fixtureConfiguredCoordinator()
+
+	// Set up a request
+	req, err := http.NewRequest("GET", "/burrow/admin/ready", nil)
+	assert.NoError(t, err, "Expected request setup to return no error")
+
+	// Call the handler via httprouter, the app is not ready so we expect "STARTING" and HTTP 503
+	rr := httptest.NewRecorder()
+	coordinator.router.ServeHTTP(rr, req)
+	assert.Equalf(t, http.StatusServiceUnavailable, rr.Code, "Expected response code to be 503, not %v", rr.Code)
+	assert.Equalf(t, "STARTING", rr.Body.String(), "Expected response body to be 'STARTING', not '%v'", rr.Body.String())
+
+	// Change the AppReady, and try again
+	coordinator.App.AppReady = true
+	rr = httptest.NewRecorder()
+	coordinator.router.ServeHTTP(rr, req)
+	assert.Equalf(t, http.StatusOK, rr.Code, "Expected response code to be 200, not %v", rr.Code)
+	assert.Equalf(t, "READY", rr.Body.String(), "Expected response body to be 'READY', not '%v'", rr.Body.String())
 }
 
 func TestHttpServer_getClusterList(t *testing.T) {
