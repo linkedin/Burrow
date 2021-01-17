@@ -126,8 +126,9 @@ func (hc *Coordinator) Configure() {
 	// This is a catchall for undefined URLs
 	hc.router.NotFound = &defaultHandler{}
 
-	// This is a healthcheck URL. Please don't change it
+	// This is a healthcheck and readiness URLs. Please don't change it
 	hc.router.GET("/burrow/admin", hc.handleAdmin)
+	hc.router.GET("/burrow/admin/ready", hc.handleReady)
 
 	hc.router.Handler(http.MethodGet, "/metrics", hc.handlePrometheusMetrics())
 
@@ -294,6 +295,24 @@ func (hc *Coordinator) handleAdmin(w http.ResponseWriter, r *http.Request, _ htt
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("GOOD"))
+}
+
+// handleReady will use the AppReady bool from  the ApplicationContext to determine
+// whether Burrow is ready to serve requests
+func (hc *Coordinator) handleReady(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// Add CORS header, if configured
+	corsHeader := viper.GetString("general.access-control-allow-origin")
+	if corsHeader != "" {
+		w.Header().Set("Access-Control-Allow-Origin", corsHeader)
+	}
+
+	if hc.App.AppReady {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("READY"))
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("STARTING"))
+	}
 }
 
 func (hc *Coordinator) getLogLevel(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

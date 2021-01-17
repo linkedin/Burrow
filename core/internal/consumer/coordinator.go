@@ -106,6 +106,9 @@ func (cc *Coordinator) Start() error {
 	if err != nil {
 		return errors.New("Error starting consumer module: " + err.Error())
 	}
+	// All consumers started, Burrow is ready to serve requests
+	// set the readiness probe
+	cc.App.AppReady = true
 	return nil
 }
 
