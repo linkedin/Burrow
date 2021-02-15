@@ -1,3 +1,14 @@
+## 1.3.5
+
+- #684 - @bai - Add support for Kafka 2.7.0
+- #677 - @CGA1123 - Fix reporting final offset in backfill
+- #678 - @EladLeev - Adding Readiness Endpoint
+- #679 - @bai - Fix broken CI on master
+- #661 - @bai - Bump base alpine image to 3.12, go 1.15.2
+- #652 - @bai - Add support for Kafka 2.6.0
+- #647 - @toddpalino - Change configuration names to allowlist and denylist
+- #576 - @dellalu - send notification only change of status #538
+
 ## 1.3.4
 
 - #636 - @bai - Update sarama to the latest bugfix release, Go 1.14.3
