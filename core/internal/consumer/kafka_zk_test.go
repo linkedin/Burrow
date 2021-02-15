@@ -178,8 +178,8 @@ func TestKafkaZkClient_watchGroupList(t *testing.T) {
 
 func TestKafkaZkClient_resetOffsetWatchAndSend_BadPath(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
-	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
-	mockZookeeper.On("GetW", "/consumers/testgroup/owners/testtopic/0").Return([]byte("testowner"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), nil)
+	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("81234"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath")) // nolint:gocritic
+	mockZookeeper.On("GetW", "/consumers/testgroup/owners/testtopic/0").Return([]byte("testowner"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), nil)                // nolint:gocritic
 
 	module := fixtureKafkaZkModule()
 	module.Configure("test", "consumer.test")
@@ -200,7 +200,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadOffset(t *testing.T) {
 	offsetStat := &zk.Stat{Mtime: 894859}
 	newWatchEventChan := make(chan zk.Event)
 	mockZookeeper.On("GetW", "/consumers/testgroup/offsets/testtopic/0").Return([]byte("notanumber"), offsetStat, func() <-chan zk.Event { return newWatchEventChan }(), nil)
-	mockZookeeper.On("GetW", "/consumers/testgroup/owners/testtopic/0").Return([]byte("testowner"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), nil)
+	mockZookeeper.On("GetW", "/consumers/testgroup/owners/testtopic/0").Return([]byte("testowner"), (*zk.Stat)(nil), (<-chan zk.Event)(nil), nil) // nolint:gocritic
 
 	// This will block if a storage request is sent, as nothing is watching that channel
 	module.running.Add(1)
@@ -218,7 +218,7 @@ func TestKafkaZkClient_resetOffsetWatchAndSend_BadOffset(t *testing.T) {
 
 func TestKafkaZkClient_resetPartitionListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
-	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets/testtopic").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
+	mockZookeeper.On("ChildrenW", "/consumers/testgroup/offsets/testtopic").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath")) // nolint:gocritic
 
 	module := fixtureKafkaZkModule()
 	module.Configure("test", "consumer.test")
@@ -252,7 +252,7 @@ func TestKafkaZkClient_resetTopicListWatchAndAdd_BadPath(t *testing.T) {
 
 func TestKafkaZkClient_resetGroupListWatchAndAdd_BadPath(t *testing.T) {
 	mockZookeeper := helpers.MockZookeeperClient{}
-	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath"))
+	mockZookeeper.On("ChildrenW", "/consumers").Return([]string{}, (*zk.Stat)(nil), (<-chan zk.Event)(nil), errors.New("badpath")) // nolint:gocritic
 
 	module := fixtureKafkaZkModule()
 	module.Configure("test", "consumer.test")
