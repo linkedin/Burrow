@@ -1,5 +1,5 @@
 # stage 1: builder
-FROM golang:1.15.8-alpine as builder
+FROM golang:1.16-alpine as builder
 
 ENV BURROW_SRC /usr/src/Burrow/
 
