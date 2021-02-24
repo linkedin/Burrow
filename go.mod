@@ -14,6 +14,7 @@ require (
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.9.0
+	github.com/prometheus/common v0.17.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/samuel/go-zookeeper v0.0.0-20201211165307-7117e9ea2414
 	github.com/smartystreets/assertions v1.2.0 // indirect
@@ -27,8 +28,11 @@ require (
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.4.1 // indirect
+	golang.org/x/net v0.0.0-20210222171744-9060382bd457 // indirect
+	golang.org/x/sys v0.0.0-20210223212115-eede4237b368 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -38,4 +42,4 @@ require (
 	honnef.co/go/tools v0.1.1 // indirect
 )
 
-go 1.15
+go 1.16
