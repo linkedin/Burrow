@@ -37,9 +37,10 @@ func fixtureModule() *KafkaCluster {
 	}
 
 	viper.Reset()
-	viper.Set("client-profile..client-id", "testid")
+	viper.Set("client-profile.p1.client-id", "testid")
 	viper.Set("cluster.test.class-name", "kafka")
 	viper.Set("cluster.test.servers", []string{"broker1.example.com:1234"})
+	viper.Set("cluster.test.client-profile", "p1")
 
 	return &module
 }
@@ -60,6 +61,7 @@ func TestKafkaCluster_Configure_DefaultIntervals(t *testing.T) {
 
 	assert.Equal(t, int(10), module.offsetRefresh, "Default OffsetRefresh value of 10 did not get set")
 	assert.Equal(t, int(60), module.topicRefresh, "Default TopicRefresh value of 60 did not get set")
+	assert.Equal(t, int(0), module.groupsReaperRefresh, "Default GroupsReaperRefresh value of 0 did not get set")
 }
 
 func TestKafkaCluster_maybeUpdateMetadataAndDeleteTopics_NoUpdate(t *testing.T) {
@@ -278,4 +280,28 @@ func TestKafkaCluster_getOffsets_BrokerFailed(t *testing.T) {
 
 	broker.AssertExpectations(t)
 	client.AssertExpectations(t)
+}
+
+func TestKafkaCluster_reapNonExistingGroups(t *testing.T) {
+	module := fixtureModule()
+	module.Configure("test", "cluster.test")
+
+	// only group1 exists in kafka
+	client := &helpers.MockSaramaClient{}
+	client.On("ListConsumerGroups").Return(map[string]string{"group1": ""}, nil)
+
+	go module.reapNonExistingGroups(client)
+	request := <-module.App.StorageChannel
+	client.AssertExpectations(t)
+
+	assert.Equalf(t, protocol.StorageFetchConsumers, request.RequestType, "Expected request sent with type StorageFetchConsumers, not %v", request.RequestType)
+	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+
+	// burrow have group1, and group2, kafka only knows about group1, so group2 will be deleted by the reaper
+	request.Reply <- []string{"group1", "group2"}
+	request = <-module.App.StorageChannel
+
+	assert.Equalf(t, protocol.StorageSetDeleteGroup, request.RequestType, "Expected request sent with type StorageFetchConsumers, not %v", request.RequestType)
+	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+	assert.Equalf(t, "group2", request.Group, "Expected request sent with group group2, not %v", request.Group)
 }
