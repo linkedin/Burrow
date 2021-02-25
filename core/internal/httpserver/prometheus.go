@@ -3,6 +3,7 @@ package httpserver
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -34,7 +35,7 @@ var (
 			Name: "burrow_kafka_consumer_current_offset",
 			Help: "Latest offset that Burrow is storing for this partition",
 		},
-		[]string{"cluster", "consumer_group", "topic", "partition"},
+		[]string{"cluster", "consumer_group", "topic", "partition", "owner"},
 	)
 
 	consumerPartitionLagGauge = promauto.NewGaugeVec(
@@ -42,7 +43,7 @@ var (
 			Name: "burrow_kafka_consumer_partition_lag",
 			Help: "Number of messages the consumer group is behind by for a partition as reported by Burrow",
 		},
-		[]string{"cluster", "consumer_group", "topic", "partition"},
+		[]string{"cluster", "consumer_group", "topic", "partition", "owner"},
 	)
 
 	topicPartitionOffsetGauge = promauto.NewGaugeVec(
@@ -86,6 +87,7 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 						"consumer_group": consumer,
 						"topic":          partition.Topic,
 						"partition":      strconv.FormatInt(int64(partition.Partition), 10),
+						"owner":          strings.Replace(partition.Owner, "/", "", -1),
 					}
 
 					consumerPartitionCurrentOffset.With(labels).Set(float64(partition.End.Offset))
