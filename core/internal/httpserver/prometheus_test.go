@@ -103,6 +103,16 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 						Offset: 5335,
 					},
 				},
+				{
+					Topic:      "incomplete",
+					Partition:  1,
+					Status:     protocol.StatusOK,
+					CurrentLag: 10,
+					Complete:   1.0,
+					End: &protocol.ConsumerOffset{
+						Offset: 99888,
+					},
+				},
 			},
 			TotalPartitions: 2134,
 			Maxlag:          &protocol.PartitionStatus{},
@@ -142,14 +152,20 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic"} 100`)
 	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="1",topic="testtopic"} 10`)
 	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic1"} 50`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="incomplete"} 0`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="1",topic="incomplete"} 10`)
 
 	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic"} 22663`)
 	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="1",topic="testtopic"} 2488`)
 	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="testtopic1"} 99888`)
+	assert.NotContains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="incomplete"} 5335`)
+	assert.Contains(t, promExp, `burrow_kafka_consumer_current_offset{cluster="testcluster",consumer_group="testgroup",partition="1",topic="incomplete"} 99888`)
 
 	assert.Contains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",partition="0",topic="testtopic"} 6556`)
 	assert.Contains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",partition="1",topic="testtopic"} 5566`)
 	assert.Contains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",partition="0",topic="testtopic1"} 54`)
+	assert.NotContains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="incomplete"} 0`)
+	assert.NotContains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",consumer_group="testgroup",partition="1",topic="incomplete"} 99888`)
 
 	assert.NotContains(t, promExp, "testgroup2")
 }
