@@ -242,6 +242,9 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 	for {
 		select {
 		case msg := <-consumer.Messages():
+			if msg == nil {
+				continue
+			}
 			if module.reportedConsumerGroup != "" {
 				burrowOffset := &protocol.StorageRequest{
 					RequestType: protocol.StorageSetConsumerOffset,
@@ -266,6 +269,9 @@ func (module *KafkaClient) partitionConsumer(consumer sarama.PartitionConsumer, 
 				return
 			}
 		case err := <-consumer.Errors():
+			if err == nil {
+				continue
+			}
 			module.Log.Error("consume error",
 				zap.String("topic", err.Topic),
 				zap.Int32("partition", err.Partition),
