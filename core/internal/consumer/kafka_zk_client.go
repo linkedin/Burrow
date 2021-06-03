@@ -443,7 +443,15 @@ func (module *KafkaZkClient) resetOffsetWatchAndSend(group, topic string, partit
 	}
 	module.running.Add(1)
 	go module.watchOffset(group, topic, partition, offsetEventChan)
-
+	if string(offsetString) == "" {
+		module.Log.Error("badly formatted offset null",
+			zap.String("group", group),
+			zap.String("topic", topic),
+			zap.Int32("partition", partition),
+			zap.String("error", err.Error()),
+		)
+		return
+	}
 	if !resetOnly {
 		offset, err := strconv.ParseInt(string(offsetString), 10, 64)
 		if err != nil {
