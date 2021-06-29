@@ -85,7 +85,7 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 
 					consumerPartitionLagGauge.With(labels).Set(float64(partition.CurrentLag))
 
-					if partition.Complete >= 1.0 {
+					if partition.Complete == 1.0 {
 						consumerPartitionCurrentOffset.With(labels).Set(float64(partition.End.Offset))
 					}
 				}

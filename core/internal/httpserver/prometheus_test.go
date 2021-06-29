@@ -167,5 +167,6 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 	assert.NotContains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",consumer_group="testgroup",partition="0",topic="incomplete"} 0`)
 	assert.NotContains(t, promExp, `burrow_kafka_topic_partition_offset{cluster="testcluster",consumer_group="testgroup",partition="1",topic="incomplete"} 99888`)
 
+	assert.Contains(t, promExp, `burrow_kafka_consumer_partition_lag{cluster="testcluster",consumer_group="testgroup",partition="0",topic="incomplete"} 0`)
 	assert.NotContains(t, promExp, "testgroup2")
 }
