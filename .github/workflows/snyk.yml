@@ -1,0 +1,23 @@
+name: Snyk Docker Scan
+on: pull_request
+jobs:
+  snyk:
+    runs-on: self-hosted
+    steps:
+      - name: Snyk Monitor
+        uses: eeveebank/github-actions-snyk/monitor@master
+        with:
+          org_id: ${{ secrets.SNYK_PLATFORM_DOCKER_ORG_ID }}
+          repository_name: ${{ github.event.repository.name }}
+          snyk_token: ${{ secrets.SNYK_PLATFORM_DOCKER_TOKEN }}
+          integration_id: ${{ secrets.SNYK_PLATFORM_DOCKER_INTEGRATION_ID }}
+      - uses: actions/checkout@v2
+      - name: Build Docker image
+        run: docker build -t ${{ github.event.repository.name }} .
+      - name: Run Snyk Docker Scanning
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_PLATFORM_DOCKER_TOKEN }}
+        with:
+          args: --file=Dockerfile
+          image: ${{ github.event.repository.name }}

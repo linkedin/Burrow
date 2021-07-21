@@ -1,0 +1,17 @@
+name: Gitleaks
+on: pull_request
+jobs:
+  gitleaks:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Extract Depth
+        id: pr_depth
+        shell: bash
+        run: echo "##[set-output name=count;]$(git rev-list origin/master.. --count)"
+      - name: Gitleaks Action
+        uses: eeveebank/github-actions-gitleaks@master
+        with:
+          depth: ${{ steps.pr_depth.outputs.count }}
