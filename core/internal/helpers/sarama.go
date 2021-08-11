@@ -14,6 +14,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -143,6 +144,16 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		saramaConfig.Net.SASL.Password = viper.GetString("sasl." + saslName + ".password")
 	}
 
+	// Timeout for the initial connection
+	if viper.IsSet(configRoot + ".dial-timeout") {
+		saramaConfig.Net.DialTimeout = time.Duration(viper.GetInt(configRoot+".dial-timeout")) * time.Second
+	}
+
+	// Timeout for a request's response
+	if viper.IsSet(configRoot + ".read-timeout") {
+		saramaConfig.Net.ReadTimeout = time.Duration(viper.GetInt(configRoot+".read-timeout")) * time.Second
+	}
+
 	return saramaConfig
 }
 
@@ -184,7 +195,7 @@ type SaramaClient interface {
 	// GetOffset queries the cluster to get the most recent available offset at the given time (in milliseconds) on the
 	// topic/partition combination. Time should be OffsetOldest for the earliest available offset, OffsetNewest for the
 	// offset of the message that will be produced next, or a time.
-	GetOffset(topic string, partitionID int32, time int64) (int64, error)
+	GetOffset(topic string, partitionID int32, timestamp int64) (int64, error)
 
 	// Coordinator returns the coordinating broker for a consumer group. It will return a locally cached value if it's
 	// available. You can call RefreshCoordinator to update the cached value. This function only works on Kafka 0.8.2 and
@@ -281,8 +292,8 @@ func (c *BurrowSaramaClient) RefreshMetadata(topics ...string) error {
 // GetOffset queries the cluster to get the most recent available offset at the given time (in milliseconds) on the
 // topic/partition combination. Time should be OffsetOldest for the earliest available offset, OffsetNewest for the
 // offset of the message that will be produced next, or a time.
-func (c *BurrowSaramaClient) GetOffset(topic string, partitionID int32, time int64) (int64, error) {
-	return c.Client.GetOffset(topic, partitionID, time)
+func (c *BurrowSaramaClient) GetOffset(topic string, partitionID int32, timestamp int64) (int64, error) {
+	return c.Client.GetOffset(topic, partitionID, timestamp)
 }
 
 // Coordinator returns the coordinating broker for a consumer group. It will return a locally cached value if it's
@@ -431,8 +442,8 @@ func (m *MockSaramaClient) RefreshMetadata(topics ...string) error {
 }
 
 // GetOffset mocks SaramaClient.GetOffset
-func (m *MockSaramaClient) GetOffset(topic string, partitionID int32, time int64) (int64, error) {
-	args := m.Called(topic, partitionID, time)
+func (m *MockSaramaClient) GetOffset(topic string, partitionID int32, timestamp int64) (int64, error) {
+	args := m.Called(topic, partitionID, timestamp)
 	return args.Get(0).(int64), args.Error(1)
 }
 
