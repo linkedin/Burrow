@@ -45,7 +45,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	}
 
 	viper.SetDefault(configRoot+".client-id", "burrow-lagchecker")
-	viper.SetDefault(configRoot+".kafka-version", "0.8")
+	viper.SetDefault(configRoot+".kafka-version", "2.8.0")
 
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = viper.GetString(configRoot + ".client-id")
