@@ -179,7 +179,7 @@ type testset struct {
 	timeNow                 int64
 	allowedLag              uint64
 	isLagAlwaysNotZero      bool
-	checkIfOffsetsRewind    bool
+	checkIfOffsetsRewind    int
 	checkIfOffsetsStopped   bool
 	checkIfOffsetsStalled   bool
 	checkIfLagNotDecreasing bool
@@ -212,7 +212,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -234,7 +234,7 @@ var tests = []testset{
 		timeNow:                 900,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -256,7 +256,7 @@ var tests = []testset{
 		timeNow:                 1000,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -278,7 +278,7 @@ var tests = []testset{
 		timeNow:                 1000,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -300,7 +300,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   true,
 		checkIfLagNotDecreasing: true,
@@ -322,7 +322,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   true,
 		checkIfLagNotDecreasing: true,
@@ -344,7 +344,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   true,
 		checkIfLagNotDecreasing: true,
@@ -352,7 +352,7 @@ var tests = []testset{
 		status:                  protocol.StatusStall,
 	},
 
-	// 7 - status is REWIND because the offsets go backwards, even though the lag does decrease (rewind is worse)
+	// 7 - status is OK because the offsets go backwards, but though the lag does decrease within the window (caught up the rewind)
 	{
 		offsets: []*protocol.ConsumerOffset{
 			{Offset: 1000, Order: 1, Timestamp: 100000, Lag: &protocol.Lag{Value: 100}},
@@ -366,12 +366,12 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    true,
+		checkIfOffsetsRewind:    3,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: false,
 		checkIfRecentLagZero:    false,
-		status:                  protocol.StatusRewind,
+		status:                  protocol.StatusOK,
 	},
 
 	// 8 - status is OK because the current lag is 0 (even though the offsets show lag), even though it would be considered stopped due to timestamps
@@ -388,7 +388,7 @@ var tests = []testset{
 		timeNow:                 1000,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -420,7 +420,7 @@ var tests = []testset{
 		timeNow:                 1512224650,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -452,7 +452,7 @@ var tests = []testset{
 		timeNow:                 1512224650,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -479,7 +479,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              0,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: true,
@@ -499,7 +499,7 @@ var tests = []testset{
 		timeNow:                 550,
 		allowedLag:              1,
 		isLagAlwaysNotZero:      false,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   true,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: false,
@@ -521,7 +521,7 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              99,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    false,
+		checkIfOffsetsRewind:    -1,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   true,
 		checkIfLagNotDecreasing: true,
@@ -543,7 +543,29 @@ var tests = []testset{
 		timeNow:                 600,
 		allowedLag:              99,
 		isLagAlwaysNotZero:      true,
-		checkIfOffsetsRewind:    true,
+		checkIfOffsetsRewind:    3,
+		checkIfOffsetsStopped:   false,
+		checkIfOffsetsStalled:   false,
+		checkIfLagNotDecreasing: false,
+		checkIfRecentLagZero:    false,
+		status:                  protocol.StatusOK,
+	},
+
+	// 15 - Rewind, but we did not catch up to the previous point
+	{
+		offsets: []*protocol.ConsumerOffset{
+			{Offset: 1000, Order: 1, Timestamp: 100000, Lag: &protocol.Lag{Value: 100}},
+			{Offset: 2000, Order: 2, Timestamp: 200000, Lag: &protocol.Lag{Value: 150}},
+			{Offset: 3000, Order: 3, Timestamp: 300000, Lag: &protocol.Lag{Value: 200}},
+			{Offset: 2000, Order: 4, Timestamp: 400000, Lag: &protocol.Lag{Value: 1250}},
+			{Offset: 2500, Order: 5, Timestamp: 500000, Lag: &protocol.Lag{Value: 300}},
+		},
+		brokerOffsets:           []int64{4300},
+		currentLag:              300,
+		timeNow:                 600,
+		allowedLag:              0,
+		isLagAlwaysNotZero:      true,
+		checkIfOffsetsRewind:    3,
 		checkIfOffsetsStopped:   false,
 		checkIfOffsetsStalled:   false,
 		checkIfLagNotDecreasing: false,
@@ -557,8 +579,10 @@ func TestCachingEvaluator_CheckRules(t *testing.T) {
 		result := isLagAlwaysNotZero(testSet.offsets, testSet.allowedLag)
 		assert.Equalf(t, testSet.isLagAlwaysNotZero, result, "TEST %v: Expected isLagAlwaysNotZero to return %v, not %v", i, testSet.isLagAlwaysNotZero, result)
 
-		result = checkIfOffsetsRewind(testSet.offsets)
-		assert.Equalf(t, testSet.checkIfOffsetsRewind, result, "TEST %v: Expected checkIfOffsetsRewind to return %v, not %v", i, testSet.checkIfOffsetsRewind, result)
+		resultIndex := checkIfOffsetsRewind(testSet.offsets)
+		assert.Equalf(t, testSet.checkIfOffsetsRewind, resultIndex,
+			"TEST %v: Expected checkIfOffsetsRewind to return %d, "+"not %d", i, testSet.checkIfOffsetsRewind,
+			resultIndex)
 
 		result = checkIfOffsetsStopped(testSet.offsets, testSet.timeNow)
 		assert.Equalf(t, testSet.checkIfOffsetsStopped, result, "TEST %v: Expected checkIfOffsetsStopped to return %v, not %v", i, testSet.checkIfOffsetsStopped, result)
