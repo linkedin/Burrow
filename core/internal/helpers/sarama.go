@@ -24,10 +24,38 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// Since 1.X Kafka has moved to semver, so those have a consistent format. For earlier versions we support formats:
+// * major.minor.very_minor.patch
+// * major.minor.patch
+// * major.minor
+// However, Sarama does not support anything but the "major.minor.very_minor.patch" flavor of these older versions,
+// so we keep these other mappings here as a fallback to not break existing configurations
+var legacyKafkaVersionFallback = map[string]sarama.KafkaVersion{
+	"": sarama.V0_10_2_0,
+	// Only support back as far as 0.8.2, even if they say 0.8.[0,1], we know they actual mean the last version index
+	"0.8.0":  sarama.V0_8_2_0,
+	"0.8.1":  sarama.V0_8_2_1,
+	"0.8.2":  sarama.V0_8_2_2,
+	"0.8":    sarama.V0_8_2_0,
+	"0.9.0":  sarama.V0_9_0_0,
+	"0.9":    sarama.V0_9_0_0,
+	"0.10.0": sarama.V0_10_0_0,
+	"0.10.1": sarama.V0_10_1_0,
+	"0.10.2": sarama.V0_10_2_0,
+	"0.10":   sarama.V0_10_0_0,
+	"0.11.0": sarama.V0_11_0_0,
+	"0.11":   sarama.V0_11_0_0,
+}
+
 func parseKafkaVersion(kafkaVersion string) sarama.KafkaVersion {
 	version, err := sarama.ParseKafkaVersion(kafkaVersion)
 	if err != nil {
-		panic("Unknown Kafka Version: " + kafkaVersion)
+		// try find the version in the legacy matching
+		version1, ok := legacyKafkaVersionFallback[kafkaVersion]
+		if !ok {
+			panic("Unknown Kafka Version: " + kafkaVersion)
+		}
+		version = version1
 	}
 
 	return version
