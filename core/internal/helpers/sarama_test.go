@@ -62,3 +62,35 @@ func TestInitSaramaLogging(t *testing.T) {
 	assert.Equal(t, entries[0].Message, "hello")
 	assert.Equal(t, entries[0].Level, zap.DebugLevel)
 }
+
+func shouldPanicForVersion(t *testing.T, v string) {
+	defer func() { recover() }()
+	out := parseKafkaVersion(v)
+	t.Errorf("Kafka version " + v + " should have panicked, but got: " + out.String())
+}
+
+func TestVersionMapping(t *testing.T) {
+	assert.Equal(t, parseKafkaVersion(""), sarama.V0_10_2_0)
+	assert.Equal(t, parseKafkaVersion("0.10"), sarama.V0_10_0_0)
+	assert.Equal(t, parseKafkaVersion("0.10.2"), sarama.V0_10_2_0)
+	assert.Equal(t, parseKafkaVersion("0.10.2.0"), sarama.V0_10_2_0)
+	// some other legacy cases
+	assert.Equal(t, parseKafkaVersion("0.8.0"), sarama.V0_8_2_0)
+	assert.Equal(t, parseKafkaVersion("0.8.1"), sarama.V0_8_2_1)
+	assert.Equal(t, parseKafkaVersion("0.8.2"), sarama.V0_8_2_2)
+	// and older versions that want to use the 4-part version
+	assert.Equal(t, parseKafkaVersion("0.8.2.2"), sarama.V0_8_2_2)
+	assert.Equal(t, parseKafkaVersion("0.10.2.1"), sarama.V0_10_2_1)
+	assert.Equal(t, parseKafkaVersion("0.11.0.1"), sarama.V0_11_0_1)
+	// check some of the newer versions
+	assert.Equal(t, parseKafkaVersion("1.0.0"), sarama.V1_0_0_0)
+	assert.Equal(t, parseKafkaVersion("1.0.2"), sarama.V1_0_2_0)
+	assert.Equal(t, parseKafkaVersion("2.1.0"), sarama.V2_1_0_0)
+	assert.Equal(t, parseKafkaVersion("2.2.0"), sarama.V2_2_0_0)
+	assert.Equal(t, parseKafkaVersion("3.0.0"), sarama.V3_0_0_0)
+
+	// check that we fail a 4-part version for newer versions
+	shouldPanicForVersion(t, "3.0.0.0")
+	// or for other unknown/unsupported versions
+	shouldPanicForVersion(t, "foo")
+}
