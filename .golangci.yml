@@ -31,7 +31,7 @@ linters-settings:
       - wrapperFunc
       - ifElseChain
   funlen:
-    lines: 200
+    lines: 350
     statements: 200
 
 linters:
@@ -48,15 +48,14 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
+    - revive
     # - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - misspell
     - nakedret
-    - scopelint
+    - exportloopref
     - staticcheck
     - structcheck
     - stylecheck

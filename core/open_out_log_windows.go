@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 /* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version

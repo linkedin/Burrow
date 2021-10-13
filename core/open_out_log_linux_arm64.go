@@ -1,3 +1,4 @@
+//go:build linux && arm64
 // +build linux,arm64
 
 /* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
