@@ -30,8 +30,6 @@ dockers:
 - goos: linux
   goarch: amd64
   goarm: ''
-  binaries:
-  - burrow
   dockerfile: Dockerfile.gorelease
   image_templates:
   - 'docker.pkg.github.com/linkedin/burrow/burrow:latest'
