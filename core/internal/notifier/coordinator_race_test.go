@@ -1,3 +1,4 @@
+//go:build !race
 // +build !race
 
 /* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
