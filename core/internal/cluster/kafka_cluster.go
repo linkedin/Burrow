@@ -12,7 +12,6 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"sync"
 	"time"
 
@@ -329,15 +328,6 @@ func (module *KafkaCluster) reapNonExistingGroups(client helpers.SaramaClient) {
 			continue
 		}
 		if _, ok := kafkaGroups[g]; !ok {
-			request0 := &protocol.EvaluatorRequest{
-				Cluster: module.name,
-				Group:   g,
-				ShowAll: true,
-				Reply:   make(chan *protocol.ConsumerGroupStatus),
-			}
-			module.App.EvaluatorChannel <- request0
-			response := <-request0.Reply
-			httpserver.DeleteMetrics(module.name, g, response)
 			module.Log.Info(fmt.Sprintf("groups reaper: removing non existing kafka consumer group (%s) from burrow", g))
 			request := &protocol.StorageRequest{
 				RequestType: protocol.StorageSetDeleteGroup,
