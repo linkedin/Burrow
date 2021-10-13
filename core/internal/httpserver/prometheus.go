@@ -54,31 +54,6 @@ var (
 	)
 )
 
-func DeleteMetrics(cluster string, consumer string, consumerStatus *protocol.ConsumerGroupStatus) {
-
-	if consumerStatus == nil ||
-		consumerStatus.Status == protocol.StatusNotFound {
-		return
-	}
-	labels := map[string]string{
-		"cluster":        cluster,
-		"consumer_group": consumer,
-	}
-	consumerTotalLagGauge.Delete(labels)
-	consumerStatusGauge.Delete(labels)
-
-	for _, partition := range consumerStatus.Partitions {
-		labels := map[string]string{
-			"cluster":        cluster,
-			"consumer_group": consumer,
-			"topic":          partition.Topic,
-			"partition":      strconv.FormatInt(int64(partition.Partition), 10),
-		}
-		consumerPartitionLagGauge.Delete(labels)
-		consumerPartitionCurrentOffset.Delete(labels)
-	}
-}
-
 func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 	promHandler := promhttp.Handler()
 
