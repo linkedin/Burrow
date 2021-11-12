@@ -369,12 +369,6 @@ func (module *KafkaClient) processConsumerOffsetsMessage(msg *sarama.ConsumerMes
 		zap.Int64("offset_offset", msg.Offset),
 	)
 
-	if len(msg.Value) == 0 {
-		// Tombstone message - we don't handle them for now
-		logger.Debug("dropped tombstone")
-		return
-	}
-
 	var keyver int16
 	keyBuffer := bytes.NewBuffer(msg.Key)
 	err := binary.Read(keyBuffer, binary.BigEndian, &keyver)
@@ -452,6 +446,12 @@ func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *byte
 		return
 	}
 
+	if len(value) == 0 {
+		// Tombstone message - we don't handle them for now
+		logger.Debug("dropped tombstone")
+		return
+	}
+
 	var valueVersion int16
 	valueBuffer := bytes.NewBuffer(value)
 	err := binary.Read(valueBuffer, binary.BigEndian, &valueVersion)
@@ -510,6 +510,18 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 			zap.String("message_type", "metadata"),
 			zap.String("reason", "group"),
 		)
+		return
+	}
+
+	if len(value) == 0 {
+		// Tombstone message - group deleted
+		logger.Debug("removing consumer group due to tombstone")
+		deleteMessage := &protocol.StorageRequest{
+			RequestType: protocol.StorageSetDeleteGroup,
+			Cluster:     module.cluster,
+			Group:       group,
+		}
+		helpers.TimeoutSendStorageRequest(module.App.StorageChannel, deleteMessage, 1)
 		return
 	}
 
