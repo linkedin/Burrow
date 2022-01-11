@@ -13,8 +13,8 @@ package notifier
 import (
 	"crypto/x509"
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"text/template"
 	"time"
 
@@ -128,7 +128,7 @@ func buildRootCAs(extraCaFile string, noVerify bool) *x509.CertPool {
 	}
 
 	if extraCaFile != "" && !noVerify {
-		certs, err := ioutil.ReadFile(extraCaFile)
+		certs, err := os.ReadFile(extraCaFile)
 
 		if err != nil {
 			log.Panicf("Failed to append %q to RootCAs: %v", extraCaFile, err)

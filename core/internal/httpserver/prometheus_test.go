@@ -136,7 +136,7 @@ func TestHttpServer_handlePrometheusMetrics(t *testing.T) {
 	}()
 
 	// Set up a request
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", http.NoBody)
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
