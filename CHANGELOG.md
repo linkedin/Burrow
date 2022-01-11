@@ -1,3 +1,10 @@
+## 1.4.0
+
+- #734 - @bai - Prefer http.NoBody to nil body
+- #733 - @bai - Update Alpine image to 3.15
+- #732 - @bai - Update Go dependencies + address recent Go CVEs (1.17.6)
+- #727 - @ricky26 - Handle consumer group tombstones
+
 ## 1.3.7
 
 - #723 - @bai - Update Go to 1.17.2 and bump golangci-lint
