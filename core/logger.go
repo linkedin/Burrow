@@ -12,7 +12,6 @@ package core
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -36,7 +35,7 @@ func CheckAndCreatePidFile(filename string) bool {
 	// Check if the PID file exists
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		// The file exists, so read it and check if the PID specified is running
-		pidString, err := ioutil.ReadFile(filename)
+		pidString, err := os.ReadFile(filename)
 		if err != nil {
 			fmt.Printf("Cannot read PID file: %v", err)
 			return false
@@ -69,7 +68,7 @@ func CheckAndCreatePidFile(filename string) bool {
 	}
 
 	// Create a PID file, replacing any existing one (as we already checked it)
-	pidfile, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+	pidfile, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		fmt.Printf("Cannot write PID file: %v", err)
 		return false
@@ -169,7 +168,7 @@ func OpenOutLog(filename string) *os.File {
 	}
 
 	// Redirect stdout and stderr to out file
-	logFile, _ := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	logFile, _ := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0o644)
 	internalDup2(logFile.Fd(), 1)
 	internalDup2(logFile.Fd(), 2)
 	return logFile

@@ -13,7 +13,7 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -92,7 +92,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		if caFile == "" {
 			saramaConfig.Net.TLS.Config = &tls.Config{}
 		} else {
-			caCert, err := ioutil.ReadFile(caFile)
+			caCert, err := os.ReadFile(caFile)
 			if err != nil {
 				panic("cannot read TLS CA file: " + err.Error())
 			}

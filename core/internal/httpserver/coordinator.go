@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -99,7 +98,7 @@ func (hc *Coordinator) Configure() {
 			server.TLSConfig = &tls.Config{}
 
 			if caFile != "" {
-				caCert, err := ioutil.ReadFile(caFile)
+				caCert, err := os.ReadFile(caFile)
 				if err != nil {
 					panic("cannot read TLS CA file: " + err.Error())
 				}

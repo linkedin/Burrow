@@ -13,8 +13,8 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"net"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -75,7 +75,7 @@ func ZookeeperConnectTLS(servers []string, sessionTimeout time.Duration, logger 
 // newTLSDialer creates a dialer with TLS configured. It will install caFile as root CA and if both certFile and keyFile are
 // set, it will add those as a certificate.
 func newTLSDialer(addr, caFile, certFile, keyFile string) (zk.Dialer, error) {
-	caCert, err := ioutil.ReadFile(caFile)
+	caCert, err := os.ReadFile(caFile)
 	if err != nil {
 		return nil, errors.New("could not read caFile: " + err.Error())
 	}

@@ -48,7 +48,7 @@ func TestHttpServer_handleAdmin(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
 
 	// Set up a request
-	req, err := http.NewRequest("GET", "/burrow/admin", nil)
+	req, err := http.NewRequest("GET", "/burrow/admin", http.NoBody)
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
@@ -63,7 +63,7 @@ func TestHttpServer_handleReady(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
 
 	// Set up a request
-	req, err := http.NewRequest("GET", "/burrow/admin/ready", nil)
+	req, err := http.NewRequest("GET", "/burrow/admin/ready", http.NoBody)
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter, the app is not ready so we expect "STARTING" and HTTP 503
@@ -92,7 +92,7 @@ func TestHttpServer_getClusterList(t *testing.T) {
 	}()
 
 	// Set up a request
-	req, err := http.NewRequest("GET", "/v3/admin/loglevel", nil)
+	req, err := http.NewRequest("GET", "/v3/admin/loglevel", http.NoBody)
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
@@ -139,7 +139,7 @@ func TestHttpServer_DefaultHandler(t *testing.T) {
 	coordinator := fixtureConfiguredCoordinator()
 
 	// Set up a request
-	req, err := http.NewRequest("GET", "/v3/no/such/uri", nil)
+	req, err := http.NewRequest("GET", "/v3/no/such/uri", http.NoBody)
 	assert.NoError(t, err, "Expected request setup to return no error")
 
 	// Call the handler via httprouter
