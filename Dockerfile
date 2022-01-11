@@ -10,7 +10,7 @@ WORKDIR $BURROW_SRC
 RUN go mod tidy && go build -o /tmp/burrow .
 
 # stage 2: runner
-FROM alpine:3.14
+FROM alpine:3.15
 
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
