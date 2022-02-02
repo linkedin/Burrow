@@ -533,6 +533,26 @@ func (m *MockSaramaConsumer) Close() error {
 	return args.Error(0)
 }
 
+// Pause mocks sarama.Consumer.Pause
+func (m *MockSaramaConsumer) Pause(topicPartitions map[string][]int32) {
+	m.Called()
+}
+
+// Resume mocks sarama.Consumer.Resume
+func (m *MockSaramaConsumer) Resume(topicPartitions map[string][]int32) {
+	m.Called()
+}
+
+// PauseAll mocks sarama.Consumer.PauseAll
+func (m *MockSaramaConsumer) PauseAll() {
+	m.Called()
+}
+
+// ResumeAll mocks sarama.Consumer.ResumeAll
+func (m *MockSaramaConsumer) ResumeAll() {
+	m.Called()
+}
+
 // MockSaramaPartitionConsumer is a mock of sarama.PartitionConsumer. It is used in tests by multiple packages. It
 // should never be used in the normal code.
 type MockSaramaPartitionConsumer struct {
@@ -566,6 +586,22 @@ func (m *MockSaramaPartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 func (m *MockSaramaPartitionConsumer) HighWaterMarkOffset() int64 {
 	args := m.Called()
 	return args.Get(0).(int64)
+}
+
+// IsPaused mocks sarama.PartitionConsumer.IsPaused
+func (m *MockSaramaPartitionConsumer) IsPaused() bool {
+	args := m.Called()
+	return args.Get(0).(bool)
+}
+
+// Pause mocks sarama.PartitionConsumer.Pause
+func (m *MockSaramaPartitionConsumer) Pause() {
+	m.Called()
+}
+
+// Resume mocks sarama.PartitionConsumer.Resume
+func (m *MockSaramaPartitionConsumer) Resume() {
+	m.Called()
 }
 
 func newSaramaZapLogger(logger *zap.Logger) sarama.StdLogger {
