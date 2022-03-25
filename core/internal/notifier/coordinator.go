@@ -48,6 +48,7 @@ import (
 type Module interface {
 	protocol.Module
 	GetName() string
+	GetCluster() string
 	GetGroupAllowlist() *regexp.Regexp
 	GetGroupDenylist() *regexp.Regexp
 	GetLogger() *zap.Logger
@@ -95,7 +96,7 @@ type Coordinator struct {
 
 // getModuleForClass returns the correct module based on the passed className. As part of the Configure steps, if there
 // is any error, it will panic with an appropriate message describing the problem.
-func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string, groupAllowlist, groupDenylist *regexp.Regexp, extras map[string]string, templateOpen, templateClose *template.Template) protocol.Module {
+func getModuleForClass(app *protocol.ApplicationContext, moduleName, className string, groupAllowlist, groupDenylist *regexp.Regexp, extras map[string]string, templateOpen, templateClose *template.Template, cluster string) protocol.Module {
 	logger := app.Logger.With(
 		zap.String("type", "module"),
 		zap.String("coordinator", "notifier"),
@@ -113,6 +114,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
+			cluster:        cluster,
 		}
 	case "email":
 		return &EmailNotifier{
@@ -123,6 +125,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
+			cluster:        cluster,
 		}
 	case "null":
 		return &NullNotifier{
@@ -133,6 +136,7 @@ func getModuleForClass(app *protocol.ApplicationContext, moduleName, className s
 			extras:         extras,
 			templateOpen:   templateOpen,
 			templateClose:  templateClose,
+			cluster:        cluster,
 		}
 	default:
 		panic("Unknown notifier className provided: " + className)
@@ -194,6 +198,8 @@ func (nc *Coordinator) Configure() {
 			groupAllowlist = re
 		}
 
+		cluster := viper.GetString(configRoot + ".cluster")
+
 		// Compile the denylist for the consumer groups to not notify for
 		var groupDenylist *regexp.Regexp
 		denylist := viper.GetString(configRoot + ".group-denylist")
@@ -227,7 +233,7 @@ func (nc *Coordinator) Configure() {
 			templateClose = tmpl.Templates()[0]
 		}
 
-		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupAllowlist, groupDenylist, extras, templateOpen, templateClose)
+		module := getModuleForClass(nc.App, name, viper.GetString(configRoot+".class-name"), groupAllowlist, groupDenylist, extras, templateOpen, templateClose, cluster)
 		module.Configure(name, configRoot)
 		nc.modules[name] = module
 		interval := viper.GetInt64(configRoot + ".interval")
@@ -436,6 +442,9 @@ func (nc *Coordinator) checkAndSendResponseToModules(response *protocol.Consumer
 	for _, genericModule := range nc.modules {
 		module := genericModule.(Module)
 
+		if module.GetCluster() != "" && response.Cluster != module.GetCluster() {
+			continue
+		}
 		// No allowlist means everything passes
 		groupAllowlist := module.GetGroupAllowlist()
 		groupDenylist := module.GetGroupDenylist()

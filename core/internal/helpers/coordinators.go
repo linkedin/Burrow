@@ -74,6 +74,12 @@ func (m *MockModule) GetName() string {
 	return args.String(0)
 }
 
+// GetCluster mocks the notifier.Module GetCluster func
+func (m *MockModule) GetCluster() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 // GetGroupAllowlist mocks the notifier.Module GetGroupAllowlist func
 func (m *MockModule) GetGroupAllowlist() *regexp.Regexp {
 	args := m.Called()

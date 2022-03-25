@@ -202,6 +202,7 @@ type httpResponseConfigModuleNotifierHTTP struct {
 	SendClose      bool              `json:"send-close"`
 	ExtraCa        string            `json:"extra-ca"`
 	NoVerify       string            `json:"noverify"`
+	Cluster        string            `json:"cluster"`
 }
 
 type httpResponseConfigModuleNotifierSlack struct {
@@ -238,6 +239,7 @@ type httpResponseConfigModuleNotifierEmail struct {
 	To             string            `json:"to"`
 	ExtraCa        string            `json:"extra-ca"`
 	NoVerify       string            `json:"noverify"`
+	Cluster        string            `json:"cluster"`
 }
 
 type httpResponseConfigModuleNotifierNull struct {

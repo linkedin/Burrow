@@ -39,6 +39,7 @@ type HTTPNotifier struct {
 	Log *zap.Logger
 
 	name           string
+	cluster        string
 	groupAllowlist *regexp.Regexp
 	groupDenylist  *regexp.Regexp
 	extras         map[string]string
@@ -122,6 +123,10 @@ func (module *HTTPNotifier) Stop() error {
 // GetName returns the configured name of this module
 func (module *HTTPNotifier) GetName() string {
 	return module.name
+}
+
+func (module *HTTPNotifier) GetCluster() string {
+	return module.cluster
 }
 
 // GetGroupAllowlist returns the compiled group allowlist (or nil, if there is not one)
