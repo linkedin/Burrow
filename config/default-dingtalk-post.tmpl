@@ -1,0 +1,52 @@
+{"msgtype": "markdown","markdown": {"title":"Kafka LagChecker", "text": "
+{{- $StatusURL := "https://pkg.go.dev/github.com/linkedin/Burrow/core/protocol#StatusConstant"}}
+{{- $FormatString := "2006-01-02 15:04:05"}}
+# Kafka: {{.Cluster}}
+ConsumerGroup: {{.Group}}{{- with .Result.Status}}
+{{- if eq . 0}}NotFound{{end}}
+{{- if eq . 1}}normal{{end}}
+{{- if eq . 2}}lagging{{end}}
+{{- if eq . 3}}abnormal{{end}}
+{{- end}}
+**Status:** Total(Partitions={{.Result.TotalPartitions}},Lag={{.Result.TotalLag}})[{{- with .Result.Status}}
+{{- if eq . 0}}NotFound{{end}}
+{{- if eq . 1}}{{.}}{{end}}
+{{- if eq . 2}}{{.}}{{end}}
+{{- if eq . 3}}{{.}}{{end}}
+{{- end}}]({{$StatusURL}}){{printf "%.2f" .Result.Complete}}
+{{- if .Result.Maxlag|maxlag}}
+**MaxLagDetails:**
+{{- with .Result.Maxlag}}
+{{.Topic}}[{{.Status.String}}](){{printf "%.2f" .Complete}}
+{{- if .Owner}}\n\tConsumerHost={{.Owner}}{{end}}
+{{- if .ClientID}}\n\tConsumerClientID={{.ClientID}}{{end}}
+\tCurrentLag={{.CurrentLag}}
+\tPartition={{.Partition}}
+{{- end}}
+{{- end}}
+{{- $TotalErrors := len .Result.Partitions}}
+{{- if $TotalErrors}}
+### {{$TotalErrors}} partitions have problems
+>**CountPartitions:**
+{{- range $k,$v := .Result.Partitions|partitioncounts}}
+{{- if ne $v 0}}\n\t{{$k}}={{$v}}{{end}}
+{{- end}}
+**TopicsByStatus:**
+{{- range $k,$v := .Result.Partitions|topicsbystatus}}
+\t{{$k}}={{$v}}
+{{- end}}
+**PartitionDetails:**
+{{- range .Result.Partitions}}
+{{.Topic}}[{{.Status.String}}](){{printf "%.2f" .Complete}}
+{{- if .Owner}}\n\tConsumerHost={{.Owner}}{{end}}
+{{- if .ClientID}}\n\tConsumerClientID={{.ClientID}}{{end}}
+\tCurrentLag={{.CurrentLag}}
+\tPartition={{.Partition}}
+\tStart={{formattimestamp .Start.Timestamp $FormatString}}
+\t\tOffset={{.Start.Offset}}\tLag={{.Start.Lag.Value}}
+\tEnd={{formattimestamp .End.Timestamp $FormatString}}
+\t\tOffset={{.End.Offset}}\tLag={{.End.Lag.Value}}
+{{- end}}
+{{- end}}
+"
+}}
