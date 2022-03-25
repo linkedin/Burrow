@@ -1,0 +1,43 @@
+{"msgtype": "markdown","markdown": {"content": "
+{{- $StatusURL := "https://pkg.go.dev/github.com/linkedin/Burrow/core/protocol#StatusConstant"}}
+{{- $FormatString := "2006-01-02 15:04:05"}}
+# Kafka: {{.Cluster}}
+ConsumerGroup: {{.Group}}{{- with .Result.Status}}
+{{- if eq . 0}}NotFound{{end}}
+{{- if eq . 1}}<font color=\"info\">normal</font>{{end}}
+{{- if eq . 2}}<font color=\"warning\">lagging</font>{{end}}
+{{- if eq . 3}}<font color=\"comment\">abnormal</font>{{end}}
+{{- end}}
+**Status**: Total(Partitions={{.Result.TotalPartitions}},Lag={{.Result.TotalLag}})[{{- with .Result.Status}}
+{{- if eq . 0}}NotFound{{end}}
+{{- if eq . 1}}<font color=\"info\">{{.}}</font>{{end}}
+{{- if eq . 2}}<font color=\"warning\">{{.}}</font>{{end}}
+{{- if eq . 3}}<font color=\"comment\">{{.}}</font>{{end}}
+{{- end}}]({{$StatusURL}}){{printf "%.2f" .Result.Complete}}
+{{printf "StartTime: %s" (.Start.Format $FormatString)}}
+{{- $TotalErrors := len .Result.Partitions}}
+{{- if $TotalErrors}}
+### <font color=\"comment\">{{$TotalErrors}} partitions have problems</font>
+>**CountPartitions:**
+{{- range $k,$v := .Result.Partitions|partitioncounts}}
+{{- if ne $v 0}}\n\t{{$k}}={{$v}}{{end}}
+{{- end}}
+**TopicsByStatus:**
+{{- range $k,$v := .Result.Partitions|topicsbystatus}}
+\t{{$k}}={{$v}}
+{{- end}}
+**PartitionDetails:**
+{{- range .Result.Partitions}}
+{{.Topic}}[{{.Status.String}}](){{printf "%.2f" .Complete}}
+{{- if .Owner}}\n\tConsumerHost={{.Owner}}{{end}}
+{{- if .ClientID}}\n\tConsumerClientID={{.ClientID}}{{end}}
+\tMaxLag={{. | maxlag}}
+\tPartitionID={{.Partition}}
+\tStart={{formattimestamp .Start.Timestamp "01-02 15:04:05"}}
+\t\tOffset={{.Start.Offset}}\tLag={{.Start.Lag.Value}}
+\tEnd={{formattimestamp .End.Timestamp "01-02 15:04:05"}}
+\t\tOffset={{.End.Offset}}\tLag={{.End.Lag.Value}}
+{{- end}}
+{{- end}}
+"
+}}
