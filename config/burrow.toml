@@ -58,6 +58,7 @@ min-distance=1
 
 [notifier.default]
 class-name="http"
+cluster="local"
 url-open="http://someservice.example.com:1467/v1/event"
 interval=60
 timeout=5
