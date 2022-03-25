@@ -39,6 +39,7 @@ type EmailNotifier struct {
 	Log *zap.Logger
 
 	name           string
+	cluster        string
 	groupAllowlist *regexp.Regexp
 	groupDenylist  *regexp.Regexp
 	extras         map[string]string
@@ -138,6 +139,11 @@ func (module *EmailNotifier) Stop() error {
 // GetName returns the configured name of this module
 func (module *EmailNotifier) GetName() string {
 	return module.name
+}
+
+// GetCluster returns the configured name of this module
+func (module *EmailNotifier) GetCluster() string {
+	return module.cluster
 }
 
 // GetGroupAllowlist returns the compiled group allowlist (or nil, if there is not one)
