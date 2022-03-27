@@ -14,7 +14,14 @@ ConsumerGroup: {{.Group}}{{- with .Result.Status}}
 {{- if eq . 2}}<font color=\"warning\">{{.}}</font>{{end}}
 {{- if eq . 3}}<font color=\"comment\">{{.}}</font>{{end}}
 {{- end}}]({{$StatusURL}}){{printf "%.2f" .Result.Complete}}
-{{printf "StartTime: %s" (.Start.Format $FormatString)}}
+{{printf "Time: %s" (formattimestamp 0 $FormatString)}}
+**MaxLagDetails:**\tMaxLag={{.Result.Maxlag|maxlag}}{{- with .Result.Maxlag}}
+{{.Topic}}[{{.Status.String}}](){{printf "%.2f" .Complete}}
+{{- if .Owner}}\n\tConsumerHost={{.Owner}}{{end}}
+{{- if .ClientID}}\n\tConsumerClientID={{.ClientID}}{{end}}
+\tCurrentLag={{.CurrentLag}}
+\tPartition={{.Partition}}
+{{- end}}
 {{- $TotalErrors := len .Result.Partitions}}
 {{- if $TotalErrors}}
 ### <font color=\"comment\">{{$TotalErrors}} partitions have problems</font>
@@ -31,11 +38,11 @@ ConsumerGroup: {{.Group}}{{- with .Result.Status}}
 {{.Topic}}[{{.Status.String}}](){{printf "%.2f" .Complete}}
 {{- if .Owner}}\n\tConsumerHost={{.Owner}}{{end}}
 {{- if .ClientID}}\n\tConsumerClientID={{.ClientID}}{{end}}
-\tMaxLag={{. | maxlag}}
-\tPartitionID={{.Partition}}
-\tStart={{formattimestamp .Start.Timestamp "01-02 15:04:05"}}
+\tCurrentLag={{.CurrentLag}}
+\tPartition={{.Partition}}
+\tStart={{formattimestamp .Start.Timestamp $FormatString}}
 \t\tOffset={{.Start.Offset}}\tLag={{.Start.Lag.Value}}
-\tEnd={{formattimestamp .End.Timestamp "01-02 15:04:05"}}
+\tEnd={{formattimestamp .End.Timestamp $FormatString}}
 \t\tOffset={{.End.Offset}}\tLag={{.End.Lag.Value}}
 {{- end}}
 {{- end}}
