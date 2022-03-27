@@ -164,5 +164,9 @@ func maxLagHelper(a *protocol.PartitionStatus) uint64 {
 }
 
 func formatTimestamp(timestamp int64, formatString string) string {
-	return time.Unix(0, timestamp*int64(time.Millisecond)).Format(formatString)
+	if timestamp > 0 {
+		return time.Unix(0, timestamp*int64(time.Millisecond)).Format(formatString)
+	} else {
+		return time.Now().Format(formatString)
+	}
 }
