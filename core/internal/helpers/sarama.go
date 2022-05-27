@@ -142,15 +142,10 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 
 		saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeGSSAPI
 		saramaConfig.Net.SASL.GSSAPI.AuthType = sarama.KRB5_KEYTAB_AUTH
-		//sasl.kerberos.service.name
 		saramaConfig.Net.SASL.GSSAPI.ServiceName = viper.GetString("kerberos." + saslName + ".servicename")
-		//krb5.conf
-		saramaConfig.Net.SASL.GSSAPI.KerberosConfigPath = viper.GetString("kerberos." + saslName + ".krb5")
-		//realm
+		saramaConfig.Net.SASL.GSSAPI.KerberosConfigPath = viper.GetString("kerberos." + saslName + ".krb5conf")
 		saramaConfig.Net.SASL.GSSAPI.Realm = viper.GetString("kerberos." + saslName + ".realm")
-		//keytab
 		saramaConfig.Net.SASL.GSSAPI.KeyTabPath = viper.GetString("kerberos." + saslName + ".keytab")
-		//username
 		saramaConfig.Net.SASL.GSSAPI.Username = viper.GetString("kerberos." + saslName + ".username")
 	}
 
