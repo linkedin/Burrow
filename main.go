@@ -46,8 +46,8 @@ import (
 
 	"github.com/linkedin/Burrow/core"
 
-	"github.com/kardianos/osext"
 	"github.com/fsnotify/fsnotify"
+	"github.com/kardianos/osext"
 )
 
 // exitCode wraps a return value for the application
