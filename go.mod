@@ -5,7 +5,9 @@ go 1.17
 require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Shopify/sarama v1.31.1
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/karrick/goswarm v1.10.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -26,7 +28,6 @@ require (
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
-	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0 // indirect
