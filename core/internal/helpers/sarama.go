@@ -131,7 +131,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 			}
 		} else if mechanism == "PLAIN" {
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
-			viper.Set("sasl." + saslName + ".handshake-first", true)
+			viper.Set("sasl."+saslName+".handshake-first", true)
 		}
 		saramaConfig.Net.SASL.Handshake = viper.GetBool("sasl." + saslName + ".handshake-first")
 		saramaConfig.Net.SASL.User = viper.GetString("sasl." + saslName + ".username")
