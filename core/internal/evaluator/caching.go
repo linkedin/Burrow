@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 package evaluator
 
@@ -364,7 +363,8 @@ func isLagAlwaysNotZero(offsets []*protocol.ConsumerOffset, allowedLag uint64) b
 }
 
 // Rule 2 - Get the index of of the offset when the consumer offset decreases from one interval to the next.
-//          -1 otherwise, indicating no rewind was found
+//
+//	-1 otherwise, indicating no rewind was found
 func checkIfOffsetsRewind(offsets []*protocol.ConsumerOffset) int {
 	for i := 1; i < len(offsets); i++ {
 		if offsets[i].Offset < offsets[i-1].Offset {
@@ -375,8 +375,9 @@ func checkIfOffsetsRewind(offsets []*protocol.ConsumerOffset) int {
 }
 
 // Rule 2 (part 2) - Its assumed the consumer had a rewind, check to see if the consumer reached the previous offset
-//                   from the rewind, indicating that it had recovered to the previous point and we can check the rest
-//                   of the lag rules for the partition.
+//
+//	from the rewind, indicating that it had recovered to the previous point and we can check the rest
+//	of the lag rules for the partition.
 func checkIfRewindRecovered(offsets []*protocol.ConsumerOffset, resetIndex int) bool {
 	previousProgress := offsets[resetIndex-1]
 	for i := resetIndex; i < len(offsets); i++ {
@@ -388,7 +389,8 @@ func checkIfRewindRecovered(offsets []*protocol.ConsumerOffset, resetIndex int) 
 }
 
 // Rule 3 - If the difference between now and the last offset timestamp is greater than the difference between the last
-//          and first offset timestamps, the consumer has stopped committing offsets for that partition (error)
+//
+//	and first offset timestamps, the consumer has stopped committing offsets for that partition (error)
 func checkIfOffsetsStopped(offsets []*protocol.ConsumerOffset, timeNow int64) bool {
 	firstTimestamp := offsets[0].Timestamp
 	lastTimestamp := offsets[len(offsets)-1].Timestamp
@@ -396,7 +398,8 @@ func checkIfOffsetsStopped(offsets []*protocol.ConsumerOffset, timeNow int64) bo
 }
 
 // Rule 4 - If the consumer is committing offsets that do not change, it's an error (partition is stalled)
-//          NOTE - we already checked for zero lag in Rule 1, so we know that there is currently lag for this partition
+//
+//	NOTE - we already checked for zero lag in Rule 1, so we know that there is currently lag for this partition
 func checkIfOffsetsStalled(offsets []*protocol.ConsumerOffset) bool {
 	for i := 1; i < len(offsets); i++ {
 		if offsets[i].Offset != offsets[i-1].Offset {

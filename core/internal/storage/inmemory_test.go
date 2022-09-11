@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 package storage
 
@@ -400,9 +399,9 @@ type consumerOffsetTest struct {
 // This section tests edge cases of inserting / appending various consumer offsets.
 //
 // When adding tests, remember the following things:
-//     1) All timestamp fields will have "now" added to make them recent enough to not be dropped
-//     2) Tests should be commented with the index number, as well as what they are trying to test and why the expected results are correct
-//     3) If you change an existing test, there needs to be a good explanation as to why along with the PR
+//  1. All timestamp fields will have "now" added to make them recent enough to not be dropped
+//  2. Tests should be commented with the index number, as well as what they are trying to test and why the expected results are correct
+//  3. If you change an existing test, there needs to be a good explanation as to why along with the PR
 var consumerOffsetTests = []consumerOffsetTest{
 	// 0 - appending multiple offsets
 	{

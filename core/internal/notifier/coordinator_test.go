@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 package notifier
 
@@ -474,11 +473,11 @@ var notifyModuleTests = []struct {
 	ExpectID    bool
 	SendOnce    bool
 }{
-	/*{1, 0, false, false, false, false, false},
-	{2, 0, false, false, false, false, false},
-	{1, 0, true, false, false, false, false},
-	{1, 0, false, true, false, false, false},
-	{1, 0, true, true, false, false, false}, */
+	// {1, 0, false, false, false, false, false},
+	// {2, 0, false, false, false, false, false},
+	// {1, 0, true, false, false, false, false},
+	// {1, 0, false, true, false, false, false},
+	// {1, 0, true, true, false, false, false},
 
 	{1, 1, false, false, true, false, false, false},
 	{1, 1, false, true, true, false, false, false},
