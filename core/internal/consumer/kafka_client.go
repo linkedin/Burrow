@@ -22,6 +22,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -521,6 +522,8 @@ func (module *KafkaClient) decodeGroupMetadata(keyBuffer *bytes.Buffer, value []
 			Group:       group,
 		}
 		helpers.TimeoutSendStorageRequest(module.App.StorageChannel, deleteMessage, 1)
+
+		httpserver.DeleteConsumerMetrics(module.name, group)
 		return
 	}
 
