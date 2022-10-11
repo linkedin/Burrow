@@ -199,6 +199,7 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.Sa
 						Cluster:     module.name,
 						Topic:       topic,
 					}
+					httpserver.DeleteTopicMetrics(module.name, topic)
 				}
 			}
 		}

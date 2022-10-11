@@ -67,6 +67,23 @@ func DeleteConsumerMetrics(cluster, consumer string) {
 	consumerPartitionCurrentOffset.DeletePartialMatch(labels)
 }
 
+// DeleteTopicMetrics deletes all metrics that are labeled with a topic
+func DeleteTopicMetrics(cluster, topic string) {
+	labels := map[string]string{
+		"cluster": cluster,
+		"topic":   topic,
+	}
+
+	topicPartitionOffsetGauge.DeletePartialMatch(labels)
+
+	// If a topic is deleted there cannot be any consumers, so delete all consumer metrics too
+	// Not strictly necessary as Kafka will delete the consumer groups, which will eventually trigger DeleteConsumerMetrics
+	consumerPartitionLagGauge.DeletePartialMatch(labels)
+	consumerPartitionCurrentOffset.DeletePartialMatch(labels)
+	consumerTotalLagGauge.DeletePartialMatch(labels)
+	consumerStatusGauge.DeletePartialMatch(labels)
+}
+
 func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 	promHandler := promhttp.Handler()
 
