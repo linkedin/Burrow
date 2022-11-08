@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 package evaluator
 
@@ -191,12 +190,12 @@ type testset struct {
 // code operate properly and give good results every time.
 //
 // When adding tests, remember the following things:
-//     1) The Timestamp fields are in milliseconds, but the timeNow field is in seconds
-//     2) The tests are performed individually and in sequence. This means that it's possible for multiple rules to be triggered
-//     3) The status represents what would be returned for this set of offsets when processing rules in sequence
-//     4) Use this to add tests for offset sets that you think (or know) are producing false results when improving the checks
-//     5) Tests should be commented with the index number, as well as what they are trying to test and why the expected results are correct
-//     5) If you change an existing test, there needs to be a good explanation as to why along with the PR
+//  1. The Timestamp fields are in milliseconds, but the timeNow field is in seconds
+//  2. The tests are performed individually and in sequence. This means that it's possible for multiple rules to be triggered
+//  3. The status represents what would be returned for this set of offsets when processing rules in sequence
+//  4. Use this to add tests for offset sets that you think (or know) are producing false results when improving the checks
+//  5. Tests should be commented with the index number, as well as what they are trying to test and why the expected results are correct
+//  5. If you change an existing test, there needs to be a good explanation as to why along with the PR
 var tests = []testset{
 	// 0 - returns OK because there is zero lag somewhere
 	{

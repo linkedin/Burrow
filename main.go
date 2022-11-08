@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 // Burrow provides advanced Kafka Consumer Lag Checking.
 // It is a monitoring companion for Apache Kafka that provides consumer lag checking as a service without the need for
@@ -15,7 +14,7 @@
 // information. There are also configurable notifiers that can send status out via email or HTTP calls to another
 // service.
 //
-// CLI or Library
+// # CLI or Library
 //
 // Burrow is designed to be run as a standalone application (CLI), and this is what the main package provides. In some
 // situations it may be better for you to wrap Burrow with another application - for example, in environments where you
@@ -26,7 +25,7 @@
 // preparation should happen before starting it. This is the wrapper that provides the CLI interface. The main logic
 // for Burrow is in the core package, while the protocol package provides some of the common interfaces that are used.
 //
-// Additional Documentation
+// # Additional Documentation
 //
 // More documentation on Burrow, including configuration and HTTP requests, can be found at
 // https://github.com/linkedin/Burrow/wiki

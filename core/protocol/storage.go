@@ -1,12 +1,11 @@
-/* Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
+// 2.0 (the "License"); you may not use this file except in compliance with
+// the License. You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 package protocol
 
@@ -100,7 +99,7 @@ func (c StorageRequestConstant) MarshalJSON() ([]byte, error) {
 }
 
 // StorageRequest is sent over the StorageChannel that is stored in the application context. It is a query to either
-// send information to the storage subsystem, or retrieve information from it . The RequestType indiciates the
+// send information to the storage subsystem, or retrieve information from it . The RequestType indicates the
 // particular type of request. "Set" and "Clear" requests do not get a response. "Fetch" requests will send a response
 // over the Reply channel supplied in the request
 type StorageRequest struct {
@@ -122,7 +121,7 @@ type StorageRequest struct {
 	// The ID of the partition to which the request applies
 	Partition int32
 
-	// For StorageSetBrokerOffset requests, TopicPartitionCount indiciates the total number of partitions for the topic
+	// For StorageSetBrokerOffset requests, TopicPartitionCount indicates the total number of partitions for the topic
 	TopicPartitionCount int32
 
 	// For StorageSetBrokerOffset and StorageSetConsumerOffset requests, the offset to store
@@ -186,7 +185,7 @@ type ConsumerOffset struct {
 	// The offset that is stored
 	Offset int64 `json:"offset"`
 
-	// The offst of this __consumer_offsets commit
+	// The offset of this __consumer_offsets commit
 	Order int64 `json:"-"`
 
 	// The timestamp at which the offset was committed
