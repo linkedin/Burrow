@@ -1,3 +1,14 @@
+## 1.6.0
+
+- #773 - @bai - Update Go to v1.20
+- #767 - @curtiseppel - Fix metric leak
+- #765 - @ronilichtman - A few typo fixes in storage.go comments
+- #743 - @lavoiesl - Tweak build flags for internalDup2 on darwin arm64
+
+## 1.5.0
+
+- #739 - @bai - Update sarama to 1.31.1
+
 ## 1.4.0
 
 - #734 - @bai - Prefer http.NoBody to nil body
