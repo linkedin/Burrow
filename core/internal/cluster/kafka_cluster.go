@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/linkedin/Burrow/core/internal/helpers"
+	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
@@ -198,6 +199,7 @@ func (module *KafkaCluster) maybeUpdateMetadataAndDeleteTopics(client helpers.Sa
 						Cluster:     module.name,
 						Topic:       topic,
 					}
+					httpserver.DeleteTopicMetrics(module.name, topic)
 				}
 			}
 		}
@@ -334,6 +336,8 @@ func (module *KafkaCluster) reapNonExistingGroups(client helpers.SaramaClient) {
 				Group:       g,
 			}
 			helpers.TimeoutSendStorageRequest(module.App.StorageChannel, request, 1)
+
+			httpserver.DeleteConsumerMetrics(module.name, g)
 		}
 	}
 }
