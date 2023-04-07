@@ -11,6 +11,7 @@ package storage
 
 import (
 	"container/ring"
+	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"math/rand"
 	"regexp"
 	"sync"
@@ -668,6 +669,7 @@ func (module *InMemoryStorage) deleteGroup(request *protocol.StorageRequest, req
 	clusterMap.consumerLock.Lock()
 	delete(clusterMap.consumer, request.Group)
 	clusterMap.consumerLock.Unlock()
+	httpserver.DeleteConsumerMetrics(request.Cluster, request.Group)
 
 	requestLogger.Debug("ok")
 }
