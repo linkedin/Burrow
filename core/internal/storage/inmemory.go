@@ -666,7 +666,14 @@ func (module *InMemoryStorage) deleteGroup(request *protocol.StorageRequest, req
 	}
 
 	clusterMap.consumerLock.Lock()
-	delete(clusterMap.consumer, request.Group)
+	if group, ok := clusterMap.consumer[request.Group]; ok && request.Topic != "" {
+		delete(group.topics, request.Topic)
+		if len(group.topics) == 0 {
+			delete(clusterMap.consumer, request.Group)
+		}
+	} else {
+		delete(clusterMap.consumer, request.Group)
+	}
 	clusterMap.consumerLock.Unlock()
 
 	requestLogger.Debug("ok")
