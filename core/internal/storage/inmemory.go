@@ -11,7 +11,6 @@ package storage
 
 import (
 	"container/ring"
-	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"math/rand"
 	"regexp"
 	"sync"
@@ -21,6 +20,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"github.com/linkedin/Burrow/core/internal/httpserver"
 	"github.com/linkedin/Burrow/core/protocol"
 )
 
