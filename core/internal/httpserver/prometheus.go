@@ -29,6 +29,14 @@ var (
 		[]string{"cluster", "consumer_group"},
 	)
 
+	partitionStatusGauge = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "burrow_kafka_topic_partition_status",
+			Help: "The status of topic partition. It is calculated from the highest status for the individual partitions. Statuses are an index list from OK, WARN, STOP, STALL, REWIND",
+		},
+		[]string{"cluster", "consumer_group", "topic", "partition"},
+	)
+
 	consumerPartitionCurrentOffset = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "burrow_kafka_consumer_current_offset",
@@ -117,6 +125,7 @@ func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 
 					if partition.Complete == 1.0 {
 						consumerPartitionCurrentOffset.With(labels).Set(float64(partition.End.Offset))
+						partitionStatusGauge.With(labels).Set(float64(partition.Status))
 					}
 				}
 			}
