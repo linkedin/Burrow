@@ -24,7 +24,7 @@ var (
 	consumerStatusGauge = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "burrow_kafka_consumer_status",
-			Help: "The status of the consumer group. It is calculated from the highest status for the individual partitions. Statuses are an index list from NOTFOUND, OK, WARN, ERR, STOP, STALL, REWIND",
+			Help: "The status of the consumer group. It is calculated from the highest status for the individual partitions. Statuses are an index list from NOTFOUND, OK, WARN, or ERR",
 		},
 		[]string{"cluster", "consumer_group"},
 	)
