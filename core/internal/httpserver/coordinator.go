@@ -155,6 +155,7 @@ func (hc *Coordinator) Configure() {
 
 	// TODO: This should really have authentication protecting it
 	hc.router.DELETE("/v3/kafka/:cluster/consumer/:consumer", hc.handleConsumerDelete)
+	hc.router.DELETE("/v3/kafka/:cluster/consumer/:consumer/topic/:topic", hc.handleConsumerDelete)
 	hc.router.GET("/v3/admin/loglevel", hc.getLogLevel)
 	hc.router.POST("/v3/admin/loglevel", hc.setLogLevel)
 }

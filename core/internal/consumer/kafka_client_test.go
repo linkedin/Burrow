@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 

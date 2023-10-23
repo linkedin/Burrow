@@ -41,7 +41,8 @@ This product includes/uses go-zookeeper (https://github.com/samuel/go-zookeeper/
 Copyright (c) 2013, Samuel Stauffer <samuel@descolada.com>
 License: BSD
 
-This product includes/uses sarama (https://github.com/Shopify/sarama/)
-Copyright (c) 2013 Evan Huus
+This product includes/uses sarama (https://github.com/IBM/sarama/)
+Copyright (c) 2013 Shopify
+Copyright (c) 2023 IBM Corporation
 License: MIT
 

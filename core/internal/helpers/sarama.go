@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 )

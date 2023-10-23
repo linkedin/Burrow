@@ -271,6 +271,7 @@ func (hc *Coordinator) handleConsumerDelete(w http.ResponseWriter, r *http.Reque
 		RequestType: protocol.StorageSetDeleteGroup,
 		Cluster:     params.ByName("cluster"),
 		Group:       params.ByName("consumer"),
+		Topic:       params.ByName("topic"),
 	}
 	hc.App.StorageChannel <- request
 
