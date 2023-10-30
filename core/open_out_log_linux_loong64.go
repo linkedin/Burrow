@@ -1,7 +1,5 @@
-//go:build !windows && !(linux && arm64) && !(linux && loong64)
-// +build !windows
-// +build !linux !arm64
-// +build !linux !loong64
+//go:build linux && loong64
+// +build linux,loong64
 
 // Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
 // 2.0 (the "License"); you may not use this file except in compliance with
@@ -18,6 +16,8 @@ import (
 	"syscall"
 )
 
-func internalDup2(oldfd, newfd uintptr) error {
-	return syscall.Dup2(int(oldfd), int(newfd))
+// linux_loong64 doesn't have syscall.Dup2, so use
+// the nearly identical syscall.Dup3 instead
+func internalDup2(oldfd uintptr, newfd uintptr) error {
+	return syscall.Dup3(int(oldfd), int(newfd), 0)
 }
