@@ -112,6 +112,10 @@ func ValidateHostList(hosts []string) bool {
 // ValidateHostPort returns true if the provided string is of the form "hostname:port", where hostname is a valid
 // hostname or IP address (as parsed by ValidateIP or ValidateHostname), and port is a valid integer.
 func ValidateHostPort(host string, allowBlankHost bool) bool {
+	if strings.HasPrefix(host, "unix:") {
+		return true
+	}
+
 	// Must be hostname:port, ipv4:port, or [ipv6]:port. Optionally allow blank hostname
 	hostname, portString, err := net.SplitHostPort(host)
 	if err != nil {
