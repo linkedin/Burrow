@@ -89,7 +89,9 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		caFile := viper.GetString("tls." + tlsName + ".cafile")
 
 		if caFile == "" {
-			saramaConfig.Net.TLS.Config = &tls.Config{}
+			saramaConfig.Net.TLS.Config = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}
 		} else {
 			caCert, err := os.ReadFile(caFile)
 			if err != nil {
@@ -98,6 +100,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
 			saramaConfig.Net.TLS.Config = &tls.Config{
+				MinVersion: tls.VersionTLS12,
 				RootCAs: caCertPool,
 			}
 
