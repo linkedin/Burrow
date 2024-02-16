@@ -73,6 +73,7 @@ func DeleteConsumerMetrics(cluster, consumer string) {
 	consumerStatusGauge.Delete(labels)
 	consumerPartitionLagGauge.DeletePartialMatch(labels)
 	consumerPartitionCurrentOffset.DeletePartialMatch(labels)
+	partitionStatusGauge.DeletePartialMatch(labels)
 }
 
 // DeleteTopicMetrics deletes all metrics that are labeled with a topic
