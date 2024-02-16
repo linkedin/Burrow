@@ -93,6 +93,19 @@ func DeleteTopicMetrics(cluster, topic string) {
 	consumerStatusGauge.DeletePartialMatch(labels)
 }
 
+// DeleteConsumerTopicMetrics deletes all metrics that are labeled with the provided consumer group AND topic
+func DeleteConsumerTopicMetrics(cluster, consumer string, topic string) {
+	labels := map[string]string{
+		"cluster":        cluster,
+		"consumer_group": consumer,
+		"topic":          topic,
+	}
+
+	partitionStatusGauge.DeletePartialMatch(labels)
+	consumerPartitionCurrentOffset.DeletePartialMatch(labels)
+	consumerPartitionLagGauge.DeletePartialMatch(labels)
+}
+
 func (hc *Coordinator) handlePrometheusMetrics() http.HandlerFunc {
 	promHandler := promhttp.Handler()
 
