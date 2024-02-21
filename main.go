@@ -41,6 +41,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/spf13/viper"
 
 	"github.com/linkedin/Burrow/core"

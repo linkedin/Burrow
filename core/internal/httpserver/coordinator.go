@@ -130,6 +130,10 @@ func (hc *Coordinator) Configure() {
 
 	hc.router.Handler(http.MethodGet, "/metrics", hc.handlePrometheusMetrics())
 
+	// For profiling
+	// https://github.com/julienschmidt/httprouter/issues/236#issuecomment-377326986
+	hc.router.Handler(http.MethodGet, "/debug/pprof/*item", http.DefaultServeMux)
+
 	// All valid paths go here
 	hc.router.GET("/v3/kafka", hc.handleClusterList)
 	hc.router.GET("/v3/kafka/:cluster", hc.handleClusterDetail)
