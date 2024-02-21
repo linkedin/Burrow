@@ -1,1 +1,5 @@
-* @bai
+# https://help.github.com/articles/about-codeowners/
+# NB: order is important, the last rule to match wins
+
+# Catchall
+* @transferwise/realtime-data-platform
