@@ -1,0 +1,31 @@
+name: Build and test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build_package:
+    name: "Build & Test"
+    runs-on:
+      - self-hosted
+      - production
+      - large
+    container: docker.tw.ee/actions_golang1_20
+
+    steps:
+      - name: "Checkout git repo"
+        uses: actions/checkout@v3
+      # Work around git repo permissions issues
+      # See: https://github.com/transferwise/gradlewise/issues/60
+      - name: "Add repo as safe directory"
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+      - name: Run test suite
+        run: make test
+      - name: Run linter
+        run: make lint
