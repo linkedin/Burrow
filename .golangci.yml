@@ -33,13 +33,41 @@ linters-settings:
   funlen:
     lines: 350
     statements: 200
+  revive:
+    # default rules derived from upstream revive repo
+    # https://github.com/walles/revive/blob/f417cbd57c6d90b43bdb7f113c222e5aeef117e5/defaults.toml
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      # - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf    
+      - name: empty-block
+      - name: superfluous-else
+      # - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
 
 linters:
   disable-all: true
   enable:
     - bodyclose
     # - deadcode
-    - depguard
+    # - depguard
     - dogsled
     # - dupl
     # - errcheck
