@@ -667,16 +667,26 @@ func (module *InMemoryStorage) deleteGroup(request *protocol.StorageRequest, req
 	}
 
 	clusterMap.consumerLock.Lock()
+	deleteAllGroupMetrics := true
 	if group, ok := clusterMap.consumer[request.Group]; ok && request.Topic != "" {
 		delete(group.topics, request.Topic)
 		if len(group.topics) == 0 {
 			delete(clusterMap.consumer, request.Group)
+		} else {
+			// The consumer group consumes other topics, thus we need to keep its metrics
+			deleteAllGroupMetrics = false
 		}
 	} else {
 		delete(clusterMap.consumer, request.Group)
 	}
 	clusterMap.consumerLock.Unlock()
-	httpserver.DeleteConsumerMetrics(request.Cluster, request.Group)
+
+	if deleteAllGroupMetrics {
+		httpserver.DeleteConsumerMetrics(request.Cluster, request.Group)
+	} else {
+		// only a specific topic was deleted and the consumer group still exists, thus we delete only a subset of the metrics
+		httpserver.DeleteConsumerTopicMetrics(request.Cluster, request.Group, request.Topic)
+	}
 
 	requestLogger.Debug("ok")
 }
