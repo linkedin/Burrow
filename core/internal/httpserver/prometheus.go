@@ -94,7 +94,7 @@ func DeleteTopicMetrics(cluster, topic string) {
 }
 
 // DeleteConsumerTopicMetrics deletes all metrics that are labeled with the provided consumer group AND topic
-func DeleteConsumerTopicMetrics(cluster, consumer string, topic string) {
+func DeleteConsumerTopicMetrics(cluster, consumer, topic string) {
 	labels := map[string]string{
 		"cluster":        cluster,
 		"consumer_group": consumer,
