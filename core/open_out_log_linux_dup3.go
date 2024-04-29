@@ -1,6 +1,6 @@
 //go:build linux && (arm64 || riscv64)
-// +build linux,arm64
-// +build linux,riscv64
+// +build linux
+// +build arm64 riscv64
 
 // Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
 // 2.0 (the "License"); you may not use this file except in compliance with
