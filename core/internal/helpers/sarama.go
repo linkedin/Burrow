@@ -10,17 +10,28 @@
 package helpers
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/oauth2"
+	oauth2cc "golang.org/x/oauth2/clientcredentials"
 
 	"github.com/Shopify/sarama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
+)
+
+const (
+	defaultTimeoutSeconds = 5
 )
 
 // Since 1.X Kafka has moved to semver, so those have a consistent format. For earlier versions we support formats:
@@ -80,6 +91,7 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	saramaConfig.Consumer.Return.Errors = true
 
 	// Configure TLS if enabled
+	tlsConfig := &tls.Config{}
 	if viper.IsSet(configRoot + ".tls") {
 		tlsName := viper.GetString(configRoot + ".tls")
 
@@ -97,9 +109,8 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 			}
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
-			saramaConfig.Net.TLS.Config = &tls.Config{
-				RootCAs: caCertPool,
-			}
+			tlsConfig.RootCAs = caCertPool
+			saramaConfig.Net.TLS.Config = tlsConfig
 
 			if certFile != "" && keyFile != "" {
 				cert, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -134,6 +145,39 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		saramaConfig.Net.SASL.Password = viper.GetString("sasl." + saslName + ".password")
 	}
 
+	// Configure OAuth if enabled
+	if viper.IsSet(configRoot + ".oauth") {
+		oauthName := viper.GetString(configRoot + ".oauth")
+
+		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeOAuth
+		saramaConfig.Net.SASL.Handshake = true
+
+		oauthConfig := &oauth2cc.Config{
+			ClientID:     viper.GetString("oauth." + oauthName + ".client-id"),
+			ClientSecret: viper.GetString("oauth." + oauthName + ".client-secret"),
+			TokenURL:     viper.GetString("oauth." + oauthName + ".token-url"),
+			Scopes:       strings.Split(viper.GetString("oauth."+oauthName+".scopes"), " "),
+		}
+
+		extensionsJSON := viper.GetString("oauth." + oauthName + ".extensions")
+		extensions := map[string]string{}
+		if extensionsJSON != "" {
+			// Defaults to empty map if input is malformed.
+			_ = json.Unmarshal([]byte(extensionsJSON), &extensions)
+		}
+
+		client := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
+			Timeout: defaultTimeoutSeconds * time.Second,
+		}
+		ctx := context.WithValue(context.TODO(), oauth2.HTTPClient, client)
+
+		saramaConfig.Net.SASL.TokenProvider = NewTokenProvider(ctx, oauthConfig, extensions)
+	}
+
 	// Timeout for the initial connection
 	if viper.IsSet(configRoot + ".dial-timeout") {
 		saramaConfig.Net.DialTimeout = time.Duration(viper.GetInt(configRoot+".dial-timeout")) * time.Second
@@ -145,6 +189,31 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 	}
 
 	return saramaConfig
+}
+
+// TokenProvider generates OAuth access tokens for Sarama Kafka clients.
+type TokenProvider struct {
+	config      *oauth2cc.Config
+	extensions  map[string]string
+	tokenSource oauth2.TokenSource
+}
+
+// NewTokenProvider returns a new NewTokenProvider.
+func NewTokenProvider(ctx context.Context, config *oauth2cc.Config, extensions map[string]string) *TokenProvider {
+	return &TokenProvider{
+		config:      config,
+		extensions:  extensions,
+		tokenSource: config.TokenSource(ctx),
+	}
+}
+
+// Token returns a new *sarama.AccessToken or an error as appropriate.
+func (t *TokenProvider) Token() (*sarama.AccessToken, error) {
+	token, err := t.tokenSource.Token()
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch OAuth token: %w", err)
+	}
+	return &sarama.AccessToken{Token: token.AccessToken, Extensions: t.extensions}, nil
 }
 
 // SaramaClient is an internal interface to the sarama.Client. We use our own interface because while sarama.Client is

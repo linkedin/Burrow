@@ -47,12 +47,19 @@ type httpResponseSASLProfile struct {
 	Username       string `json:"username"`
 }
 
+type httpResponseOAUTHProfile struct {
+	Name           string `json:"name"`
+	HandshakeFirst bool   `json:"handshake-first"`
+	ClientID       string `json:"client-id"`
+}
+
 type httpResponseClientProfile struct {
-	Name         string                   `json:"name"`
-	ClientID     string                   `json:"client-id"`
-	KafkaVersion string                   `json:"kafka-version"`
-	TLS          *httpResponseTLSProfile  `json:"tls"`
-	SASL         *httpResponseSASLProfile `json:"sasl"`
+	Name         string                    `json:"name"`
+	ClientID     string                    `json:"client-id"`
+	KafkaVersion string                    `json:"kafka-version"`
+	TLS          *httpResponseTLSProfile   `json:"tls"`
+	SASL         *httpResponseSASLProfile  `json:"sasl"`
+	OAUTH        *httpResponseOAUTHProfile `json:"oauth"`
 }
 
 type httpResponseClusterList struct {

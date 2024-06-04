@@ -64,6 +64,19 @@ func getSASLProfile(name string) *httpResponseSASLProfile {
 	}
 }
 
+func getOAUTHProfile(name string) *httpResponseOAUTHProfile {
+	configRoot := "oauth." + name
+	if !viper.IsSet(configRoot) {
+		return nil
+	}
+
+	return &httpResponseOAUTHProfile{
+		Name:           name,
+		HandshakeFirst: viper.GetBool(configRoot + ".handshake-first"),
+		ClientID:       viper.GetString(configRoot + ".client-id"),
+	}
+}
+
 func getClientProfile(name string) httpResponseClientProfile {
 	configRoot := "client-profile." + name
 	return httpResponseClientProfile{
@@ -72,6 +85,7 @@ func getClientProfile(name string) httpResponseClientProfile {
 		KafkaVersion: viper.GetString(configRoot + ".kafka-version"),
 		TLS:          getTLSProfile(viper.GetString(configRoot + ".tls")),
 		SASL:         getSASLProfile(viper.GetString(configRoot + ".sasl")),
+		OAUTH:        getOAUTHProfile(viper.GetString(configRoot + ".oauth")),
 	}
 }
 
