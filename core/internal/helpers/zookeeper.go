@@ -12,14 +12,13 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"net"
 	"os"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/linkedin/go-zk"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
@@ -36,12 +35,7 @@ type BurrowZookeeperClient struct {
 // timeout it's possible to reestablish a connection to a different server and keep the same session. This is means any
 // ephemeral nodes and watches are maintained.
 func ZookeeperConnect(servers []string, sessionTimeout time.Duration, logger *zap.Logger) (protocol.ZookeeperClient, <-chan zk.Event, error) {
-	// We need a function to set the logger for the ZK connection
-	zkSetLogger := func(c *zk.Conn) {
-		c.SetLogger(zap.NewStdLog(logger))
-	}
-
-	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout, zkSetLogger)
+	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout)
 	return &BurrowZookeeperClient{client: zkconn}, connEventChan, err
 }
 
@@ -57,23 +51,18 @@ func ZookeeperConnectTLS(servers []string, sessionTimeout time.Duration, logger 
 
 	logger.Info("starting zookeeper (TLS)", zap.String("caFile", caFile), zap.String("certFile", certFile), zap.String("keyFile", keyFile))
 
-	dialer, err := newTLSDialer(servers[0], caFile, certFile, keyFile)
+	dialer, err := newTLSDialer(caFile, certFile, keyFile)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// We need a function to set the logger for the ZK connection
-	zkSetLogger := func(c *zk.Conn) {
-		c.SetLogger(zap.NewStdLog(logger))
-	}
-
-	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout, zk.WithDialer(dialer), zkSetLogger)
+	zkconn, connEventChan, err := zk.Connect(servers, sessionTimeout, zk.WithDialer(dialer))
 	return &BurrowZookeeperClient{client: zkconn}, connEventChan, err
 }
 
 // newTLSDialer creates a dialer with TLS configured. It will install caFile as root CA and if both certFile and keyFile are
 // set, it will add those as a certificate.
-func newTLSDialer(addr, caFile, certFile, keyFile string) (zk.Dialer, error) {
+func newTLSDialer(caFile, certFile, keyFile string) (zk.Dialer, error) {
 	caCert, err := os.ReadFile(caFile)
 	if err != nil {
 		return nil, errors.New("could not read caFile: " + err.Error())
@@ -96,9 +85,11 @@ func newTLSDialer(addr, caFile, certFile, keyFile string) (zk.Dialer, error) {
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	return func(string, string, time.Duration) (net.Conn, error) {
-		return tls.Dial("tcp", addr, tlsConfig)
-	}, nil
+	tlsDialer := &tls.Dialer{
+		Config: tlsConfig,
+	}
+
+	return tlsDialer, nil
 }
 
 // Close shuts down the connection to the Zookeeper ensemble.

@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/linkedin/go-zk"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
