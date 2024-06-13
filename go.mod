@@ -7,10 +7,10 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/karrick/goswarm v1.10.0
+	github.com/linkedin/go-zk v0.1.4
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
-	github.com/samuel/go-zookeeper v0.0.0-20201211165307-7117e9ea2414
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
 	github.com/xdg/scram v1.0.5

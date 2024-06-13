@@ -37,7 +37,7 @@ This product includes/uses eapache/queue (https://github.com/eapache/queue/)
 Copyright (c) 2014 Evan Huus
 License: MIT
 
-This product includes/uses go-zookeeper (https://github.com/samuel/go-zookeeper/)
+This product includes/uses go-zk (https://github.com/linkedin/go-zk/)
 Copyright (c) 2013, Samuel Stauffer <samuel@descolada.com>
 License: BSD
 

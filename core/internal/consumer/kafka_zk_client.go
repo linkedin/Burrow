@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/linkedin/go-zk"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
