@@ -36,12 +36,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/viper"
+	_ "go.uber.org/automaxprocs"
 
 	"github.com/linkedin/Burrow/core"
 )
@@ -67,8 +67,6 @@ func handleExit() {
 func main() {
 	// This makes sure that we panic and run defers correctly
 	defer handleExit()
-
-	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// The only command line arg is the config file
 	configPath := flag.String("config-dir", ".", "Directory that contains the configuration file")
