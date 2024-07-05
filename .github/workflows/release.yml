@@ -27,11 +27,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Login to GitHub Registry
-        run: |
-          docker login docker.pkg.github.com -u bai -p "${GITHUB_TOKEN}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Login to GitHub Registry
+#        run: |
+#          docker login docker.pkg.github.com -u bai -p "${GITHUB_TOKEN}"
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
