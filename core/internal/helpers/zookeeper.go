@@ -12,6 +12,7 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	stderrors "errors"
 	"net"
 	"os"
 	"time"
@@ -57,9 +58,24 @@ func ZookeeperConnectTLS(servers []string, sessionTimeout time.Duration, logger 
 
 	logger.Info("starting zookeeper (TLS)", zap.String("caFile", caFile), zap.String("certFile", certFile), zap.String("keyFile", keyFile))
 
-	dialer, err := newTLSDialer(servers[0], caFile, certFile, keyFile)
-	if err != nil {
-		return nil, nil, err
+	var dialer zk.Dialer = nil
+	var connectivityErrors error
+
+	for _, server := range servers {
+		var err error
+		dialer, err = newTLSDialer(server, caFile, certFile, keyFile)
+		if err != nil {
+			logger.Error("failed to create TLS dialer to server", zap.String("server", server), zap.Error(err))
+			connectivityErrors = stderrors.Join(connectivityErrors, err)
+		} else {
+			// we found a working server, so we can stop looking
+			logger.Info("created TLS dialer to server", zap.String("server", server))
+			break
+		}
+	}
+
+	if dialer == nil {
+		return nil, nil, connectivityErrors
 	}
 
 	// We need a function to set the logger for the ZK connection
