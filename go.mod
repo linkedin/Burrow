@@ -1,6 +1,7 @@
 module github.com/linkedin/Burrow
 
 go 1.22
+toolchain go1.22.0
 
 require (
 	github.com/IBM/sarama v1.43.2
