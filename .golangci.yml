@@ -55,7 +55,7 @@ linters-settings:
       - name: time-naming
       - name: unexported-return
       - name: indent-error-flow
-      - name: errorf    
+      - name: errorf
       - name: empty-block
       - name: superfluous-else
       # - name: unused-parameter
@@ -83,7 +83,7 @@ linters:
     - ineffassign
     - misspell
     - nakedret
-    - exportloopref
+    - copyloopvar
     - staticcheck
     # - structcheck
     - stylecheck

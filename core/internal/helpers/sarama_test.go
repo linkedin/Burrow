@@ -65,7 +65,7 @@ func TestInitSaramaLogging(t *testing.T) {
 func shouldPanicForVersion(t *testing.T, v string) {
 	defer func() { recover() }()
 	out := parseKafkaVersion(v)
-	t.Errorf("Kafka version " + v + " should have panicked, but got: " + out.String())
+	t.Errorf("Kafka version %s should have panicked, but got: %s", v, out.String())
 }
 
 func TestVersionMapping(t *testing.T) {

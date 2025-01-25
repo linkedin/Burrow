@@ -77,7 +77,7 @@ func newTLSDialer(caFile, certFile, keyFile string) (zk.Dialer, error) {
 		RootCAs: caCertPool,
 	}
 
-	if len(certFile) > 0 && len(keyFile) > 0 {
+	if certFile != "" && keyFile != "" {
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
 			return nil, errors.New("cannot read TLS certificate or key file: " + err.Error())
