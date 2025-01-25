@@ -16,7 +16,7 @@ package protocol
 import (
 	"sync"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/linkedin/go-zk"
 	"go.uber.org/zap"
 )
 
