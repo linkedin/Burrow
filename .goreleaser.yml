@@ -36,7 +36,9 @@ dockers:
   goarch: amd64
   dockerfile: Dockerfile.gorelease
   image_templates:
+  - 'docker.pkg.github.com/linkedin/burrow/burrow:latest'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:latest-amd64'
+  - 'docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-amd64'
   extra_files:
   - docker-config/burrow.toml
@@ -64,5 +66,6 @@ dockers:
 docker_manifests:
 - name_template: "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}"
   image_templates:
+  - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}"
   - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-amd64"
   - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-arm64"
