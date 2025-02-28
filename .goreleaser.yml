@@ -17,7 +17,7 @@ archives:
 - formats: [tar.gz]
   format_overrides:
   - goos: windows
-    formats: [zip]
+    formats: [zip,tar.gz]
   files:
   - LICENSE
   - NOTICE
