@@ -1,3 +1,4 @@
+[![Release](https://img.shields.io/github/v/release/linkedin/Burrow)](https://github.com/linkedin/Burrow/releases)
 [![Join the chat at https://gitter.im/linkedin-Burrow/Lobby](https://badges.gitter.im/linkedin-Burrow/Lobby.svg)](https://gitter.im/linkedin-Burrow/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://github.com/linkedin/Burrow/actions/workflows/ci.yml/badge.svg)](https://github.com/linkedin/Burrow/actions/workflows/ci.yml)
 [![go report card](https://goreportcard.com/badge/github.com/linkedin/Burrow)](https://goreportcard.com/report/github.com/linkedin/Burrow)
