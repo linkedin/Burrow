@@ -227,6 +227,22 @@ func (module *KafkaCluster) generateOffsetRequests(client helpers.SaramaClient) 
 			}
 			if _, ok := requests[broker.ID()]; !ok {
 				requests[broker.ID()] = &sarama.OffsetRequest{}
+				// Match the version of the client as sarama's getOffset function does
+				// https://github.com/IBM/sarama/blob/main/client.go#L863-L876
+				if client.Config().Version.IsAtLeast(sarama.V2_1_0_0) {
+					// Version 4 adds the current leader epoch, which is used for fencing.
+					requests[broker.ID()].Version = 4
+				} else if client.Config().Version.IsAtLeast(sarama.V2_0_0_0) {
+					// Version 3 is the same as version 2.
+					requests[broker.ID()].Version = 3
+				} else if client.Config().Version.IsAtLeast(sarama.V0_11_0_0) {
+					// Version 2 adds the isolation level, which is used for transactional reads.
+					requests[broker.ID()].Version = 2
+				} else if client.Config().Version.IsAtLeast(sarama.V0_10_1_0) {
+					// Version 1 removes MaxNumOffsets.  From this version forward, only a single
+					// offset can be returned.
+					requests[broker.ID()].Version = 1
+				}
 			}
 			brokers[broker.ID()] = broker
 			requests[broker.ID()].AddBlock(topic, partitionID, sarama.OffsetNewest, 1)

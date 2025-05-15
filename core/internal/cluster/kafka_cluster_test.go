@@ -172,6 +172,7 @@ func TestKafkaCluster_generateOffsetRequests(t *testing.T) {
 	// Set up the mock to return the leader broker for a test topic and partition
 	client := &helpers.MockSaramaClient{}
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
+	client.On("Config").Return(sarama.NewConfig())
 
 	requests, brokers := module.generateOffsetRequests(client)
 
@@ -199,6 +200,7 @@ func TestKafkaCluster_generateOffsetRequests_NoLeader(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(nilBroker, errors.New("no leader error"))
 	client.On("Leader", "testtopic", int32(1)).Return(broker, nil)
+	client.On("Config").Return(sarama.NewConfig())
 
 	requests, brokers := module.generateOffsetRequests(client)
 
@@ -233,6 +235,7 @@ func TestKafkaCluster_getOffsets(t *testing.T) {
 	var nilBroker *helpers.BurrowSaramaBroker
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
 	client.On("Leader", "testtopic", int32(1)).Return(nilBroker, errors.New("no leader error"))
+	client.On("Config").Return(sarama.NewConfig())
 
 	go module.getOffsets(client)
 	request := <-module.App.StorageChannel
@@ -274,7 +277,7 @@ func TestKafkaCluster_getOffsets_BrokerFailed(t *testing.T) {
 	// Set up the mock to return the leader broker for a test topic and partition
 	client := &helpers.MockSaramaClient{}
 	client.On("Leader", "testtopic", int32(0)).Return(broker, nil)
-
+	client.On("Config").Return(sarama.NewConfig())
 	module.getOffsets(client)
 
 	broker.AssertExpectations(t)
