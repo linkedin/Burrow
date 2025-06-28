@@ -134,6 +134,20 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		saramaConfig.Net.SASL.Password = viper.GetString("sasl." + saslName + ".password")
 	}
 
+	// Configure kerberos if enabled
+	if viper.IsSet(configRoot + ".kerberos") {
+		saslName := viper.GetString(configRoot + ".kerberos")
+		saramaConfig.Net.SASL.Enable = true
+
+		saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeGSSAPI
+		saramaConfig.Net.SASL.GSSAPI.AuthType = sarama.KRB5_KEYTAB_AUTH
+		saramaConfig.Net.SASL.GSSAPI.ServiceName = viper.GetString("kerberos." + saslName + ".servicename")
+		saramaConfig.Net.SASL.GSSAPI.KerberosConfigPath = viper.GetString("kerberos." + saslName + ".krb5conf")
+		saramaConfig.Net.SASL.GSSAPI.Realm = viper.GetString("kerberos." + saslName + ".realm")
+		saramaConfig.Net.SASL.GSSAPI.KeyTabPath = viper.GetString("kerberos." + saslName + ".keytab")
+		saramaConfig.Net.SASL.GSSAPI.Username = viper.GetString("kerberos." + saslName + ".username")
+	}
+
 	// Timeout for the initial connection
 	if viper.IsSet(configRoot + ".dial-timeout") {
 		saramaConfig.Net.DialTimeout = time.Duration(viper.GetInt(configRoot+".dial-timeout")) * time.Second

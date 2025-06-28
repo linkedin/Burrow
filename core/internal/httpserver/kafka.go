@@ -64,6 +64,22 @@ func getSASLProfile(name string) *httpResponseSASLProfile {
 	}
 }
 
+func getKerberosProfile(name string) *httpResponseKerberosProfile {
+	configRoot := "kerberos." + name
+	if !viper.IsSet(configRoot) {
+		return nil
+	}
+
+	return &httpResponseKerberosProfile{
+		Name:        name,
+		KeyTab:      viper.GetString(configRoot + ".keytab"),
+		Krb5Conf:    viper.GetString(configRoot + ".krb5conf"),
+		Realm:       viper.GetString(configRoot + ".realm"),
+		ServiceName: viper.GetString(configRoot + ".servicename"),
+		Username:    viper.GetString(configRoot + ".username"),
+	}
+}
+
 func getClientProfile(name string) httpResponseClientProfile {
 	configRoot := "client-profile." + name
 	return httpResponseClientProfile{
@@ -72,6 +88,7 @@ func getClientProfile(name string) httpResponseClientProfile {
 		KafkaVersion: viper.GetString(configRoot + ".kafka-version"),
 		TLS:          getTLSProfile(viper.GetString(configRoot + ".tls")),
 		SASL:         getSASLProfile(viper.GetString(configRoot + ".sasl")),
+		Kerberos:     getKerberosProfile(viper.GetString(configRoot + ".kerberos")),
 	}
 }
 
