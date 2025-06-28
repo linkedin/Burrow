@@ -171,7 +171,13 @@ func (hc *Coordinator) Start() error {
 	listeners := make(map[string]net.Listener)
 
 	for name, server := range hc.servers {
-		ln, err := net.Listen("tcp", hc.servers[name].Addr)
+		network := "tcp"
+		if strings.HasPrefix(hc.servers[name].Addr, "unix:") {
+			network = "unix"
+			hc.servers[name].Addr = hc.servers[name].Addr[len("unix:"):]
+		}
+
+		ln, err := net.Listen(network, hc.servers[name].Addr)
 		if err != nil {
 			hc.Log.Error("failed to listen", zap.String("listener", hc.servers[name].Addr), zap.Error(err))
 			for _, listenerToClose := range listeners {
@@ -184,10 +190,14 @@ func (hc *Coordinator) Start() error {
 			}
 			return err
 		}
+
 		hc.Log.Info("started listener", zap.String("listener", ln.Addr().String()))
-		listeners[name] = tcpKeepAliveListener{
-			Keepalive:   server.IdleTimeout,
-			TCPListener: ln.(*net.TCPListener),
+		listeners[name] = ln
+		if network == "tcp" {
+			listeners[name] = tcpKeepAliveListener{
+				Keepalive:   server.IdleTimeout,
+				TCPListener: ln.(*net.TCPListener),
+			}
 		}
 	}
 
