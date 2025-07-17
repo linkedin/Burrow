@@ -4,10 +4,14 @@ FROM golang:1.24.1-alpine as builder
 ENV BURROW_SRC /usr/src/Burrow/
 
 RUN apk add --no-cache git curl
-COPY . $BURROW_SRC
 WORKDIR $BURROW_SRC
 
-RUN go mod tidy && go build -o /tmp/burrow .
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . $BURROW_SRC
+RUN go build -o /tmp/burrow .
 
 # stage 2: runner
 FROM alpine:3.21
