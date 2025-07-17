@@ -1,5 +1,5 @@
 # stage 1: builder
-FROM golang:1.24.1-alpine as builder
+FROM golang:1.24.5-alpine as builder
 
 ENV BURROW_SRC /usr/src/Burrow/
 
@@ -14,7 +14,7 @@ COPY . $BURROW_SRC
 RUN go build -o /tmp/burrow .
 
 # stage 2: runner
-FROM alpine:3.21
+FROM alpine:3.22
 
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
