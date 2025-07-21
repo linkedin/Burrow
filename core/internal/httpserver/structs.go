@@ -47,12 +47,22 @@ type httpResponseSASLProfile struct {
 	Username       string `json:"username"`
 }
 
+type httpResponseKerberosProfile struct {
+	Name        string `json:"name"`
+	KeyTab      string `json:"keytab"`
+	Krb5Conf    string `json:"krb5conf"`
+	Realm       string `json:"realm"`
+	ServiceName string `json:"servicename"`
+	Username    string `json:"username"`
+}
+
 type httpResponseClientProfile struct {
-	Name         string                   `json:"name"`
-	ClientID     string                   `json:"client-id"`
-	KafkaVersion string                   `json:"kafka-version"`
-	TLS          *httpResponseTLSProfile  `json:"tls"`
-	SASL         *httpResponseSASLProfile `json:"sasl"`
+	Name         string                       `json:"name"`
+	ClientID     string                       `json:"client-id"`
+	KafkaVersion string                       `json:"kafka-version"`
+	TLS          *httpResponseTLSProfile      `json:"tls"`
+	SASL         *httpResponseSASLProfile     `json:"sasl"`
+	Kerberos     *httpResponseKerberosProfile `json:"kerberos"`
 }
 
 type httpResponseClusterList struct {
