@@ -12,6 +12,7 @@ package helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"os"
 	"time"
 
@@ -132,6 +133,29 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 		saramaConfig.Net.SASL.Handshake = viper.GetBool("sasl." + saslName + ".handshake-first")
 		saramaConfig.Net.SASL.User = viper.GetString("sasl." + saslName + ".username")
 		saramaConfig.Net.SASL.Password = viper.GetString("sasl." + saslName + ".password")
+	}
+
+	if iamName := viper.GetString(configRoot + ".iam"); iamName != "" {
+		iamRoot := "iam." + iamName
+		region := viper.GetString(iamRoot + ".region")
+		if region == "" {
+			panic(fmt.Sprintf("iam.%s: region is required", iamName))
+		}
+
+		// IAM auth *requires* TLS
+		if !saramaConfig.Net.TLS.Enable {
+			panic(fmt.Sprintf("client-profile %s uses iam.%s but has no tls profile",
+				profileName, iamName))
+		}
+
+		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.Handshake = true
+		saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeOAuth
+		saramaConfig.Net.SASL.TokenProvider = &iamTokenProvider{
+			region:  region,
+			roleArn: viper.GetString(iamRoot + ".role-arn"),
+			profile: viper.GetString(iamRoot + ".profile"),
+		}
 	}
 
 	// Timeout for the initial connection
