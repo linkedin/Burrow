@@ -68,3 +68,18 @@ template-close="conf/default-http-delete.tmpl"
 method-close="DELETE"
 send-close=true
 threshold=1
+
+# TLS+IAM example
+# This example assumes EKS pod identity; otherwise, one needs to
+# provide the role-arn value explicitly.
+#[iam.eks]
+#region = "us-west-1"
+### Not needed with pod identity
+### role-arn = "arn:aws:iam::123456789012:role/burrow-eks-role"
+
+
+#[client-profile.msk-iam]
+#kafka-version = "2.0.0"
+#client-id     = "burrow"
+#tls           = "msk-tls"
+#iam           = "eks"
