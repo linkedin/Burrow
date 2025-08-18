@@ -7,6 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/karrick/goswarm v1.10.0
 	github.com/linkedin/go-zk v0.1.4
 	github.com/pborman/uuid v1.2.1
