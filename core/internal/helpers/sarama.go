@@ -129,6 +129,9 @@ func GetSaramaConfigFromClientProfile(profileName string) *sarama.Config {
 			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
 				return &XDGSCRAMClient{HashGeneratorFcn: SHA512}
 			}
+		} else if mechanism == "PLAIN" {
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+			viper.Set("sasl."+saslName+".handshake-first", true)
 		}
 		saramaConfig.Net.SASL.Handshake = viper.GetBool("sasl." + saslName + ".handshake-first")
 		saramaConfig.Net.SASL.User = viper.GetString("sasl." + saslName + ".username")
