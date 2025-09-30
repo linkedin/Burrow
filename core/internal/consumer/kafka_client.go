@@ -410,6 +410,28 @@ func readString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 	return string(strbytes), nil
 }
 
+func readCompactString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
+	var strlen uint8
+	err := binary.Read(buf, binary.BigEndian, &strlen)
+	if err != nil {
+		return "", err
+	}
+
+	// For compact strings, length 0 means null, length 1 means empty string
+	if strlen <= 1 {
+		return "", nil // null or empty string
+	}
+
+	// For actual content, we need to read (length - 1) bytes
+	actualLength := int(strlen - 1)
+	strbytes := make([]byte, actualLength)
+	n, err := buf.Read(strbytes)
+	if (err != nil) || (n != actualLength) {
+		return "", errors.New("compact string underflow")
+	}
+	return string(strbytes), nil
+}
+
 func (module *KafkaClient) acceptConsumerGroup(group string) bool {
 	if (module.groupAllowlist != nil) && (!module.groupAllowlist.MatchString(group)) {
 		return false
@@ -467,6 +489,8 @@ func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *byte
 		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV0)
 	case 3:
 		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV3)
+	case 4:
+		module.decodeAndSendOffset(offsetOrder, offsetKey, valueBuffer, offsetLogger, decodeOffsetValueV4)
 	default:
 		offsetLogger.Warn("failed to decode",
 			zap.String("reason", "value version"),
@@ -816,21 +840,29 @@ func decodeOffsetKeyV0(buf *bytes.Buffer) (offsetKey, string) {
 	return offsetKey, ""
 }
 
+// Error constants for offset value decoding
+const (
+	errOffset      = "offset"
+	errLeaderEpoch = "leaderEpoch"
+	errMetadata    = "metadata"
+	errTimestamp   = "timestamp"
+)
+
 func decodeOffsetValueV0(valueBuffer *bytes.Buffer) (offsetValue, string) {
 	var err error
 	offsetValue := offsetValue{}
 
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
 	if err != nil {
-		return offsetValue, "offset"
+		return offsetValue, errOffset
 	}
 	_, err = readString(valueBuffer)
 	if err != nil {
-		return offsetValue, "metadata"
+		return offsetValue, errMetadata
 	}
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Timestamp)
 	if err != nil {
-		return offsetValue, "timestamp"
+		return offsetValue, errTimestamp
 	}
 	return offsetValue, ""
 }
@@ -841,20 +873,53 @@ func decodeOffsetValueV3(valueBuffer *bytes.Buffer) (offsetValue, string) {
 
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
 	if err != nil {
-		return offsetValue, "offset"
+		return offsetValue, errOffset
 	}
 	var leaderEpoch int32
 	err = binary.Read(valueBuffer, binary.BigEndian, &leaderEpoch)
 	if err != nil {
-		return offsetValue, "leaderEpoch"
+		return offsetValue, errLeaderEpoch
 	}
 	_, err = readString(valueBuffer)
 	if err != nil {
-		return offsetValue, "metadata"
+		return offsetValue, errMetadata
 	}
 	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Timestamp)
 	if err != nil {
-		return offsetValue, "timestamp"
+		return offsetValue, errTimestamp
 	}
+	return offsetValue, ""
+}
+
+func decodeOffsetValueV4(valueBuffer *bytes.Buffer) (offsetValue, string) {
+	var err error
+	offsetValue := offsetValue{}
+
+	// Read offset (8 bytes)
+	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Offset)
+	if err != nil {
+		return offsetValue, errOffset
+	}
+
+	// Read leader epoch (4 bytes)
+	var leaderEpoch int32
+	err = binary.Read(valueBuffer, binary.BigEndian, &leaderEpoch)
+	if err != nil {
+		return offsetValue, errLeaderEpoch
+	}
+
+	// V4 uses compact strings for metadata
+	_, err = readCompactString(valueBuffer)
+	if err != nil {
+		return offsetValue, errMetadata
+	}
+
+	// Read timestamp (8 bytes)
+	err = binary.Read(valueBuffer, binary.BigEndian, &offsetValue.Timestamp)
+	if err != nil {
+		return offsetValue, errTimestamp
+	}
+
+	// Skip tagged fields as we only need offset and timestamp
 	return offsetValue, ""
 }

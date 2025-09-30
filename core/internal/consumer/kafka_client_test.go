@@ -283,6 +283,41 @@ func TestKafkaClient_readString_Underflow(t *testing.T) {
 	assert.NotNil(t, err, "Expected readString to return an error")
 }
 
+func TestKafkaClient_readCompactString(t *testing.T) {
+	// Test with compact string containing "test" (length 5 = 4 + 1)
+	buf := bytes.NewBuffer([]byte("\x05test"))
+	result, err := readCompactString(buf)
+
+	assert.Equalf(t, "test", result, "Expected readCompactString to return test, not %v", result)
+	assert.Nil(t, err, "Expected readCompactString to return no error")
+}
+
+func TestKafkaClient_readCompactString_Empty(t *testing.T) {
+	// Test with empty string (length 1)
+	buf := bytes.NewBuffer([]byte("\x01"))
+	result, err := readCompactString(buf)
+
+	assert.Equalf(t, "", result, "Expected readCompactString to return empty string, not %v", result)
+	assert.Nil(t, err, "Expected readCompactString to return no error")
+}
+
+func TestKafkaClient_readCompactString_Null(t *testing.T) {
+	// Test with null string (length 0)
+	buf := bytes.NewBuffer([]byte("\x00"))
+	result, err := readCompactString(buf)
+
+	assert.Equalf(t, "", result, "Expected readCompactString to return empty string, not %v", result)
+	assert.Nil(t, err, "Expected readCompactString to return no error")
+}
+
+func TestKafkaClient_readCompactString_Underflow(t *testing.T) {
+	buf := bytes.NewBuffer([]byte("\x05tes"))
+	result, err := readCompactString(buf)
+
+	assert.Equalf(t, "", result, "Expected readCompactString to return empty string, not %v", result)
+	assert.NotNil(t, err, "Expected readCompactString to return an error")
+}
+
 func TestKafkaClient_decodeMetadataValueHeader(t *testing.T) {
 	buf := bytes.NewBuffer([]byte("\x00\x08testtype\x00\x00\x00\x01\x00\x0ctestprotocol\x00\x0atestleader"))
 	result, errorAt := decodeMetadataValueHeader(buf)
@@ -473,9 +508,9 @@ func TestKafkaClient_decodeOffsetValueV0(t *testing.T) {
 }
 
 var decodeOffsetValueV0Errors = []errorTestSetBytesWithString{
-	{[]byte("\x00\x00\x00\x00\x00"), "offset"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), "metadata"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00"), "timestamp"},
+	{[]byte("\x00\x00\x00\x00\x00"), errOffset},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), errMetadata},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08testdata\x00\x00\x00\x00"), errTimestamp},
 }
 
 func TestKafkaClient_decodeOffsetValueV0_Errors(t *testing.T) {
@@ -495,15 +530,41 @@ func TestKafkaClient_decodeOffsetValueV3(t *testing.T) {
 }
 
 var decodeOffsetValueV3Errors = []errorTestSetBytesWithString{
-	{[]byte("\x00\x00\x00\x00\x00"), "offset"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00"), "leaderEpoch"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), "metadata"},
-	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x00\x08testdata\x00\x00\x00\x00"), "timestamp"},
+	{[]byte("\x00\x00\x00\x00\x00"), errOffset},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00"), errLeaderEpoch},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x08tes"), errMetadata},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x00\x08testdata\x00\x00\x00\x00"), errTimestamp},
 }
 
 func TestKafkaClient_decodeOffsetValueV3_Errors(t *testing.T) {
 	for _, values := range decodeOffsetValueV3Errors {
 		_, errorAt := decodeOffsetValueV3(bytes.NewBuffer(values.Bytes))
+		assert.Equalf(t, values.ErrorAt, errorAt, "Expected errorAt to be %v, not %v", values.ErrorAt, errorAt)
+	}
+}
+
+func TestKafkaClient_decodeOffsetValueV4(t *testing.T) {
+	// V4 format: offset + leaderEpoch + compact metadata + timestamp
+	// offset=8372, leaderEpoch=0, metadata="testdata" (compact length=9), timestamp=1637
+	buf := bytes.NewBuffer([]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x09testdata\x00\x00\x00\x00\x00\x00\x06\x65"))
+	result, errorAt := decodeOffsetValueV4(buf)
+
+	assert.Equalf(t, "", errorAt, "Expected decodeOffsetValueV4 to return empty errorAt, not %v", errorAt)
+	assert.Equalf(t, int64(8372), result.Offset, "Expected Offset to be 8372, not %v", result.Offset)
+	assert.Equalf(t, int64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
+}
+
+var decodeOffsetValueV4Errors = []errorTestSetBytesWithString{
+	{[]byte("\x00\x00\x00\x00\x00"), errOffset},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00"), errLeaderEpoch},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00"), errMetadata},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x05tes"), errMetadata},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x01\x00\x00\x00\x00"), errTimestamp},
+}
+
+func TestKafkaClient_decodeOffsetValueV4_Errors(t *testing.T) {
+	for _, values := range decodeOffsetValueV4Errors {
+		_, errorAt := decodeOffsetValueV4(bytes.NewBuffer(values.Bytes))
 		assert.Equalf(t, values.ErrorAt, errorAt, "Expected errorAt to be %v, not %v", values.ErrorAt, errorAt)
 	}
 }
@@ -526,6 +587,29 @@ func TestKafkaClient_decodeKeyAndOffset(t *testing.T) {
 	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
 	assert.Equalf(t, int64(8372), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
 	assert.Equalf(t, int64(543), request.Order, "Expected Order to be 543, not %v", request.Offset)
+	assert.Equalf(t, int64(1637), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
+}
+
+func TestKafkaClient_decodeKeyAndOffset_ValueVersion4(t *testing.T) {
+	module := fixtureModule()
+	viper.Set("consumer.test.group-allowlist", "test.*")
+	module.Configure("test", "consumer.test")
+
+	keyBuf := bytes.NewBuffer([]byte("\x00\x09testgroup\x00\x09testtopic\x00\x00\x00\x0b"))
+	// V4 format: version + offset + leaderEpoch + compact metadata + timestamp
+	// Using same test values as V0 and V3: offset=8372, timestamp=1637
+	valueBytes := []byte("\x00\x04\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x09testdata\x00\x00\x00\x00\x00\x00\x06\x65")
+
+	go module.decodeKeyAndOffset(543, keyBuf, valueBytes, zap.NewNop())
+	request := <-module.App.StorageChannel
+
+	assert.Equalf(t, protocol.StorageSetConsumerOffset, request.RequestType, "Expected request sent with type StorageSetConsumerOffset, not %v", request.RequestType)
+	assert.Equalf(t, "test", request.Cluster, "Expected request sent with cluster test, not %v", request.Cluster)
+	assert.Equalf(t, "testtopic", request.Topic, "Expected request sent with topic testtopic, not %v", request.Topic)
+	assert.Equalf(t, int32(11), request.Partition, "Expected request sent with partition 11, not %v", request.Partition)
+	assert.Equalf(t, "testgroup", request.Group, "Expected request sent with Group testgroup, not %v", request.Group)
+	assert.Equalf(t, int64(8372), request.Offset, "Expected Offset to be 8372, not %v", request.Offset)
+	assert.Equalf(t, int64(543), request.Order, "Expected Order to be 543, not %v", request.Order)
 	assert.Equalf(t, int64(1637), request.Timestamp, "Expected Timestamp to be 1637, not %v", request.Timestamp)
 }
 
