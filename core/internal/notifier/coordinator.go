@@ -364,10 +364,11 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 		timeNow := time.Now()
 		sendBefore := timeNow.Add(-time.Duration(nc.minInterval) * time.Second)
 
-		// Fire off evaluation requests for every group we know about
+		// Fire off evaluation requests for every group we know about. This loop writes groupInfo.LastEval,
+		// so it needs the write lock on the cluster - a read lock is not enough
 		nc.clusterLock.RLock()
 		for cluster, consumerGroup := range nc.clusters {
-			consumerGroup.Lock.RLock()
+			consumerGroup.Lock.Lock()
 			for consumer, groupInfo := range consumerGroup.Groups {
 				if groupInfo.LastEval.Before(sendBefore) {
 					nc.Log.Debug("Evaluating group", zap.String("group", consumer))
@@ -381,7 +382,7 @@ func (nc *Coordinator) sendEvaluatorRequests() {
 					groupInfo.LastEval = timeNow
 				}
 			}
-			consumerGroup.Lock.RUnlock()
+			consumerGroup.Lock.Unlock()
 		}
 		nc.clusterLock.RUnlock()
 
