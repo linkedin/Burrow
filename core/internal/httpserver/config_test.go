@@ -325,3 +325,23 @@ func TestHttpServer_configNotifierDetail(t *testing.T) {
 	coordinator.router.ServeHTTP(rr, req)
 	assert.Equalf(t, http.StatusNotFound, rr.Code, "Expected response code to be 404, not %v", rr.Code)
 }
+
+func TestHttpServer_configNotifierDetail_UnknownClass(t *testing.T) {
+	coordinator := fixtureConfiguredCoordinator()
+	setupConfiguration()
+	viper.Set("notifier.badnotifier.class-name", "unknownclass")
+
+	// A notifier with an unhandled class-name should return an error, not an empty 200 response
+	req, err := http.NewRequest("GET", "/v3/config/notifier/badnotifier", http.NoBody)
+	assert.NoError(t, err, "Expected request setup to return no error")
+	rr := httptest.NewRecorder()
+	coordinator.router.ServeHTTP(rr, req)
+	assert.Equalf(t, http.StatusInternalServerError, rr.Code, "Expected response code to be 500, not %v", rr.Code)
+
+	// Parse response body
+	decoder := json.NewDecoder(rr.Body)
+	var resp httpResponseError
+	err = decoder.Decode(&resp)
+	assert.NoError(t, err, "Expected body decode to return no error")
+	assert.True(t, resp.Error, "Expected response Error to be true")
+}
