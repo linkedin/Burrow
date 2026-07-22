@@ -502,9 +502,8 @@ func (module *KafkaClient) decodeKeyAndOffset(offsetOrder int64, keyBuffer *byte
 func (module *KafkaClient) decodeAndSendOffset(offsetOrder int64, offsetKey offsetKey, valueBuffer *bytes.Buffer, logger *zap.Logger, decoder func(*bytes.Buffer) (offsetValue, string)) {
 	offsetValue, errorAt := decoder(valueBuffer)
 	if errorAt != "" {
+		// Don't log offsetValue fields - the decoder returned early, so they are zero or only partially filled in
 		logger.Warn("failed to decode",
-			zap.Int64("offset", offsetValue.Offset),
-			zap.Int64("timestamp", offsetValue.Timestamp),
 			zap.String("reason", errorAt),
 		)
 		return

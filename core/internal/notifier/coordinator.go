@@ -310,14 +310,14 @@ func (nc *Coordinator) manageEvalLoop() {
 		nc.doEvaluations = true
 		nc.running.Add(1)
 		go nc.sendEvaluatorRequests()
-		nc.Log.Info("starting evaluations", zap.Error(err))
+		nc.Log.Info("starting evaluations")
 
 		// Wait for ZK session expiration, and stop doing evaluations if it happens
 		nc.App.ZookeeperExpired.L.Lock()
 		nc.App.ZookeeperExpired.Wait()
 		nc.App.ZookeeperExpired.L.Unlock()
 		nc.doEvaluations = false
-		nc.Log.Info("stopping evaluations", zap.Error(err))
+		nc.Log.Info("stopping evaluations")
 
 		// Wait for the ZK connection to come back before trying again
 		for !nc.App.ZookeeperConnected {
