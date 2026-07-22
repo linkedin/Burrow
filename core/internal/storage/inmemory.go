@@ -858,6 +858,11 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 		}
 
 		for p, partition := range partitions {
+			if p >= len(topicMap) {
+				// The topic may have been recreated with fewer partitions
+				break
+			}
+
 			// Build the slice of broker offsets to return
 			partition.BrokerOffsets = make([]int64, 0, module.intervals)
 			brokerOffsetPtr := topicMap[p].Next()
@@ -867,7 +872,7 @@ func (module *InMemoryStorage) fetchConsumer(request *protocol.StorageRequest, r
 				}
 			})
 
-			if len(partition.Offsets) > 0 {
+			if len(partition.BrokerOffsets) > 0 && len(partition.Offsets) > 0 {
 				brokerOffset := partition.BrokerOffsets[len(partition.BrokerOffsets)-1]
 				lastOffset := partition.Offsets[len(partition.Offsets)-1]
 				if lastOffset != nil {

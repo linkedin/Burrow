@@ -1135,6 +1135,66 @@ func TestInMemoryStorage_fetchConsumer_BadGroup(t *testing.T) {
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
+func TestInMemoryStorage_fetchConsumer_RecreatedTopicEmptyRing(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Simulate a topic delete + recreate that left a partition ring with no offsets yet
+	clusterMap := module.offsets["testcluster"]
+	clusterMap.brokerLock.Lock()
+	clusterMap.broker["testtopic"][0] = ring.New(module.intervals)
+	clusterMap.brokerLock.Unlock()
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	// Can't read a reply without concurrency
+	go module.fetchConsumer(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type protocol.ConsumerTopics")
+	val := response.(protocol.ConsumerTopics)
+	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
+	assert.Len(t, val["testtopic"][0].BrokerOffsets, 0, "Expected no broker offsets for the recreated partition")
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumer_RecreatedTopicFewerPartitions(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Simulate a topic delete + recreate with fewer partitions than the consumer has
+	clusterMap := module.offsets["testcluster"]
+	clusterMap.brokerLock.Lock()
+	clusterMap.broker["testtopic"] = make([]*ring.Ring, 0)
+	clusterMap.brokerLock.Unlock()
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	// Can't read a reply without concurrency
+	go module.fetchConsumer(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type protocol.ConsumerTopics")
+	val := response.(protocol.ConsumerTopics)
+	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
+	assert.Len(t, val["testtopic"][0].BrokerOffsets, 0, "Expected no broker offsets for the missing partition")
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
 func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 	// We can't insert these offsets normally, so we need to mash them into the module
 	module := startWithTestBrokerOffsets("")
