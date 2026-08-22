@@ -44,6 +44,9 @@ import (
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/linkedin/Burrow/core"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/kardianos/osext"
 )
 
 // exitCode wraps a return value for the application
@@ -81,6 +84,24 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Failed reading configuration:", err.Error())
 		panic(exitCode{1})
 	}
+
+	// auto reload on config change
+	viper.WatchConfig()
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Fprintln(os.Stderr, "Config file changed: ", e.Name)
+		file, err := osext.Executable()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed retrieving executable name:", err.Error())
+			fmt.Fprintln(os.Stderr, "Manual restart is needed")
+			return
+		}
+		err = syscall.Exec(file, os.Args, os.Environ())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed restarting:", err.Error())
+			fmt.Fprintln(os.Stderr, "Manual restart is needed")
+			return
+		}
+	})
 
 	// setup viper to be able to read env variables with a configured prefix
 	viper.SetDefault("general.env-var-prefix", "burrow")
