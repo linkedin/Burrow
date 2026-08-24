@@ -281,7 +281,7 @@ func evaluatePartitionStatus(partition *protocol.ConsumerPartition, minimumCompl
 	}
 
 	// Slice the offsets to remove all nil entries (they'll be at the start)
-	firstOffset := len(partition.Offsets) - 1
+	firstOffset := len(partition.Offsets) // defaults to the length, so if all offsets are nil we make an empty slice
 	for i, offset := range partition.Offsets {
 		if offset != nil {
 			firstOffset = i
