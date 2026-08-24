@@ -304,6 +304,9 @@ func (hc *Coordinator) configNotifierDetail(w http.ResponseWriter, r *http.Reque
 			hc.configNotifierSlack(w, r, configRoot)
 		case "null":
 			hc.configNotifierNull(w, r, configRoot)
+		default:
+			// Without this, an unhandled class-name would return an empty response with a 200 status code
+			hc.writeErrorResponse(w, r, http.StatusInternalServerError, "unknown notifier class")
 		}
 	}
 }
