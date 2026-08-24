@@ -18,6 +18,10 @@ FROM alpine:3.22
 
 LABEL maintainer="LinkedIn Burrow https://github.com/linkedin/Burrow"
 
+RUN adduser -u 10001 burrow -D
+USER burrow
+WORKDIR /app
+
 COPY --from=builder /tmp/burrow /app/
 COPY docker-config/burrow.toml /etc/burrow/
 
