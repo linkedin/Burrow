@@ -1182,6 +1182,70 @@ func TestInMemoryStorage_fetchConsumer_Expired(t *testing.T) {
 	assert.False(t, ok, "Expected channel to be closed")
 }
 
+func TestInMemoryStorage_fetchConsumer_RecreatedTopicNoBrokerOffsets(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Simulate the state left behind when a consumer commit races the two halves of a deleteTopic on
+	// another worker and the topic is then recreated: the broker ring for the partition exists (created
+	// by addBrokerOffset growing the partition list) but holds no offsets yet
+	clusterMap := module.offsets["testcluster"]
+	clusterMap.brokerLock.Lock()
+	clusterMap.broker["testtopic"][0] = ring.New(module.intervals)
+	clusterMap.brokerLock.Unlock()
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	// Can't read a reply without concurrency
+	go module.fetchConsumer(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type protocol.ConsumerTopics")
+	val := response.(protocol.ConsumerTopics)
+	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
+	assert.Equal(t, uint64(0), val["testtopic"][0].CurrentLag, "Expected current lag to be zero when no broker offset is known")
+	assert.Len(t, val["testtopic"][0].Offsets, 10, "Expected consumer offsets to still be returned")
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
+func TestInMemoryStorage_fetchConsumer_RecreatedTopicFewerPartitions(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Simulate the broker view of the topic having fewer partitions than the consumer snapshot, as
+	// happens when the topic is recreated with fewer partitions while a fetch is in flight
+	clusterMap := module.offsets["testcluster"]
+	clusterMap.brokerLock.Lock()
+	clusterMap.broker["testtopic"] = clusterMap.broker["testtopic"][:0]
+	clusterMap.brokerLock.Unlock()
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	// Can't read a reply without concurrency
+	go module.fetchConsumer(&request, module.Log)
+	response := <-request.Reply
+
+	assert.IsType(t, protocol.ConsumerTopics{}, response, "Expected response to be of type protocol.ConsumerTopics")
+	val := response.(protocol.ConsumerTopics)
+	assert.Len(t, val["testtopic"], 1, "One partition for topic not returned")
+	assert.Equal(t, uint64(0), val["testtopic"][0].CurrentLag, "Expected current lag to be zero when the broker partition is not known")
+
+	_, ok := <-request.Reply
+	assert.False(t, ok, "Expected channel to be closed")
+}
+
 // TODO: Test for clear consumer offsets, including clear for missing group
 
 func TestInMemoryStorage_fetchConsumersForTopic(t *testing.T) {
