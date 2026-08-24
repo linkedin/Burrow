@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"text/template"
 	"time"
 
@@ -91,109 +92,148 @@ type HTTPRequest struct {
 	Group    string
 }
 
+var notifyHTTPModuleTests = []struct {
+	ChangeHost bool
+}{
+	{false},
+	{true},
+}
+
 func TestHttpNotifier_Notify_Open(t *testing.T) {
-	// handler that validates that we get the right values
-	requestHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Must get an appropriate Content-Type header
-		headers, ok := r.Header["Content-Type"]
-		assert.True(t, ok, "Expected to receive Content-Type header")
-		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
-		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
-		tokenHeaders, ok := r.Header["Token"]
-		assert.True(t, ok, "Expected to receive Token header")
-		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
+	for i, testSet := range notifyHTTPModuleTests {
+		fmt.Printf("Running test %v - %v\n", i, testSet)
 
-		assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+		// handler that validates that we get the right values
+		requestHandler := func(w http.ResponseWriter, r *http.Request) {
+			// Must get an appropriate Content-Type header
+			headerContentType, ok := r.Header["Content-Type"]
+			assert.True(t, ok, "Expected to receive Content-Type header")
+			assert.Len(t, headerContentType, 1, "Expected to receive exactly one Content-Type header")
+			assert.Equalf(t, "application/json", headerContentType[0], "Expected Content-Type header to be 'application/json', not '%v'", headerContentType[0])
 
-		decoder := json.NewDecoder(r.Body)
-		var req HTTPRequest
-		err := decoder.Decode(&req)
-		if err != nil {
-			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			tokenHeaders, ok := r.Header["Token"]
+			assert.True(t, ok, "Expected to receive Token header")
+			assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
+
+			host := r.Host
+			if testSet.ChangeHost {
+				assert.Equalf(t, "newhost", host, "Expected host to be 'newhost', not '%v'", host)
+			} else {
+				assert.True(t, strings.Contains(r.Host, "127.0.0.1"), "Expected host to be localhost")
+			}
+
+			assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+
+			decoder := json.NewDecoder(r.Body)
+			var req HTTPRequest
+			err := decoder.Decode(&req)
+			if err != nil {
+				assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			assert.Equalf(t, "template_open", req.Template, "Expected Template to be template_open, not %v", req.Template)
+			assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
+			assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
+			assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+
+			fmt.Fprint(w, "ok")
 		}
 
-		assert.Equalf(t, "template_open", req.Template, "Expected Template to be template_open, not %v", req.Template)
-		assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
-		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
-		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+		// create test server with handler
+		ts := httptest.NewServer(http.HandlerFunc(requestHandler))
+		defer ts.Close()
 
-		fmt.Fprint(w, "ok")
+		module := fixtureHTTPNotifier()
+		viper.Set("notifier.test.url-open", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
+
+		if testSet.ChangeHost {
+			viper.Set("notifier.test.headers", map[string]string{"Token": "testtoken", "Host": "newhost"})
+		}
+
+		// Template sends the ID, cluster, and group
+		module.templateOpen, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
+
+		module.Configure("test", "notifier.test")
+
+		status := &protocol.ConsumerGroupStatus{
+			Status:  protocol.StatusWarning,
+			Cluster: "testcluster",
+			Group:   "testgroup",
+		}
+
+		module.Notify(status, "testidstring", time.Now(), false)
 	}
-
-	// create test server with handler
-	ts := httptest.NewServer(http.HandlerFunc(requestHandler))
-	defer ts.Close()
-
-	module := fixtureHTTPNotifier()
-	viper.Set("notifier.test.url-open", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
-
-	// Template sends the ID, cluster, and group
-	module.templateOpen, _ = template.New("test").Parse("{\"template\":\"template_open\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
-
-	module.Configure("test", "notifier.test")
-
-	status := &protocol.ConsumerGroupStatus{
-		Status:  protocol.StatusWarning,
-		Cluster: "testcluster",
-		Group:   "testgroup",
-	}
-
-	module.Notify(status, "testidstring", time.Now(), false)
 }
 
 func TestHttpNotifier_Notify_Close(t *testing.T) {
-	// handler that validates that we get the right values
-	requestHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Must get an appropriate Content-Type header
-		headers, ok := r.Header["Content-Type"]
-		assert.True(t, ok, "Expected to receive Content-Type header")
-		assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
-		assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
-		tokenHeaders, ok := r.Header["Token"]
-		assert.True(t, ok, "Expected to receive Token header")
-		assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
+	for i, testSet := range notifyHTTPModuleTests {
 
-		assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+		fmt.Printf("Running test %v - %v\n", i, testSet)
+		// handler that validates that we get the right values
+		requestHandler := func(w http.ResponseWriter, r *http.Request) {
+			// Must get an appropriate Content-Type header
+			headers, ok := r.Header["Content-Type"]
+			assert.True(t, ok, "Expected to receive Content-Type header")
+			assert.Len(t, headers, 1, "Expected to receive exactly one Content-Type header")
+			assert.Equalf(t, "application/json", headers[0], "Expected Content-Type header to be 'application/json', not '%v'", headers[0])
 
-		decoder := json.NewDecoder(r.Body)
-		var req HTTPRequest
-		err := decoder.Decode(&req)
-		if err != nil {
-			assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			tokenHeaders, ok := r.Header["Token"]
+			assert.True(t, ok, "Expected to receive Token header")
+			assert.Equalf(t, "testtoken", tokenHeaders[0], "Expected Token header to be 'testtoken', not '%v'", tokenHeaders[0])
+
+			host := r.Host
+			if testSet.ChangeHost {
+				assert.Equalf(t, "newhost", host, "Expected host to be 'newhost', not '%v'", host)
+			} else {
+				assert.True(t, strings.Contains(r.Host, "127.0.0.1"), "Expected host to be localhost")
+			}
+
+			assert.Equalf(t, "id=testidstring", r.URL.RawQuery, "Expected URL querystring to be id=testidstring, not %v", r.URL)
+
+			decoder := json.NewDecoder(r.Body)
+			var req HTTPRequest
+			err := decoder.Decode(&req)
+			if err != nil {
+				assert.Failf(t, "Failed to decode message body", "Failed to decode message body: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			assert.Equalf(t, "template_close", req.Template, "Expected Template to be template_close, not %v", req.Template)
+			assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
+			assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
+			assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+
+			fmt.Fprint(w, "ok")
 		}
 
-		assert.Equalf(t, "template_close", req.Template, "Expected Template to be template_close, not %v", req.Template)
-		assert.Equalf(t, "testidstring", req.ID, "Expected ID to be testidstring, not %v", req.ID)
-		assert.Equalf(t, "testcluster", req.Cluster, "Expected Cluster to be testcluster, not %v", req.Cluster)
-		assert.Equalf(t, "testgroup", req.Group, "Expected Group to be testgroup, not %v", req.Group)
+		// create test server with handler
+		ts := httptest.NewServer(http.HandlerFunc(requestHandler))
+		defer ts.Close()
 
-		fmt.Fprint(w, "ok")
+		module := fixtureHTTPNotifier()
+		viper.Set("notifier.test.send-close", true)
+		viper.Set("notifier.test.url-close", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
+
+		if testSet.ChangeHost {
+			viper.Set("notifier.test.headers", map[string]string{"Token": "testtoken", "Host": "newhost"})
+		}
+
+		// Template sends the ID, cluster, and group
+		module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
+
+		module.Configure("test", "notifier.test")
+
+		status := &protocol.ConsumerGroupStatus{
+			Status:  protocol.StatusWarning,
+			Cluster: "testcluster",
+			Group:   "testgroup",
+		}
+
+		module.Notify(status, "testidstring", time.Now(), true)
 	}
-
-	// create test server with handler
-	ts := httptest.NewServer(http.HandlerFunc(requestHandler))
-	defer ts.Close()
-
-	module := fixtureHTTPNotifier()
-	viper.Set("notifier.test.send-close", true)
-	viper.Set("notifier.test.url-close", fmt.Sprintf("%s?id={{.ID}}", ts.URL))
-
-	// Template sends the ID, cluster, and group
-	module.templateClose, _ = template.New("test").Parse("{\"template\":\"template_close\",\"id\":\"{{.ID}}\",\"cluster\":\"{{.Cluster}}\",\"group\":\"{{.Group}}\"}")
-
-	module.Configure("test", "notifier.test")
-
-	status := &protocol.ConsumerGroupStatus{
-		Status:  protocol.StatusWarning,
-		Cluster: "testcluster",
-		Group:   "testgroup",
-	}
-
-	module.Notify(status, "testidstring", time.Now(), true)
 }
