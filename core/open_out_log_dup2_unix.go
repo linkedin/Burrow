@@ -1,7 +1,5 @@
-//go:build !windows && !(linux && arm64) && !(linux && loong64)
-// +build !windows
-// +build !linux !arm64
-// +build !linux !loong64
+//go:build !arm64 && !loong64 && !riscv64
+// +build !arm64,!loong64,!riscv64
 
 // Copyright 2017 LinkedIn Corp. Licensed under the Apache License, Version
 // 2.0 (the "License"); you may not use this file except in compliance with
