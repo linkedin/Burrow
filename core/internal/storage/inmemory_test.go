@@ -1308,3 +1308,62 @@ func TestInMemoryStorage_fetchConsumersForTopic_BadCluster(t *testing.T) {
 	assert.Nil(t, response, "Expected response to be nil")
 	assert.False(t, ok, "Expected channel to be closed")
 }
+
+func TestInMemoryStorage_fetchConsumer_EmptyBrokerOffsets(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Clear broker offsets for the partition so BrokerOffsets will be empty
+	clusterMap := module.offsets["testcluster"]
+	clusterMap.brokerLock.Lock()
+	clusterMap.broker["testtopic"][0] = ring.New(module.intervals)
+	clusterMap.brokerLock.Unlock()
+
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	go module.fetchConsumer(&request, module.Log)
+	response, ok := <-request.Reply
+
+	assert.True(t, ok, "Expected channel to be open")
+	assert.NotNil(t, response, "Expected response to be not nil")
+	val := response.(protocol.ConsumerTopics)
+	assert.Contains(t, val, "testtopic")
+}
+
+func TestInMemoryStorage_fetchConsumer_FewerPartitions(t *testing.T) {
+	startTime := (time.Now().Unix() * 1000) - 100000
+	module := startWithTestConsumerOffsets("", startTime)
+
+	// Add partition 1 to consumer
+	consumerReq := protocol.StorageRequest{
+		RequestType: protocol.StorageSetConsumerOffset,
+		Cluster:     "testcluster",
+		Topic:       "testtopic",
+		Group:       "testgroup",
+		Partition:   1,
+		Offset:      1500,
+		Timestamp:   1000000,
+	}
+	module.addConsumerOffset(&consumerReq, module.Log)
+
+	// Broker only has partition 0 (len(topicMap) == 1), while consumer has partition 0 and 1
+	request := protocol.StorageRequest{
+		RequestType: protocol.StorageFetchConsumer,
+		Cluster:     "testcluster",
+		Group:       "testgroup",
+		Reply:       make(chan interface{}),
+	}
+
+	go module.fetchConsumer(&request, module.Log)
+	response, ok := <-request.Reply
+
+	assert.True(t, ok, "Expected channel to be open")
+	assert.NotNil(t, response, "Expected response to be not nil")
+	val := response.(protocol.ConsumerTopics)
+	assert.Contains(t, val, "testtopic")
+}
