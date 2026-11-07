@@ -68,8 +68,6 @@ func TestCoordinator_StartStop(t *testing.T) {
 	mockClient.On("Exists", "/test/path").Return(true, &zk.Stat{}, nil)
 	mockClient.On("Exists", "/test/path/burrow").Return(false, &zk.Stat{}, nil)
 
-	mockClient.On("Create", "/test", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", zk.ErrNodeExists)
-	mockClient.On("Create", "/test/path", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", zk.ErrNodeExists)
 	mockClient.On("Create", "/test/path/burrow", []byte{}, int32(0), zk.WorldACL(zk.PermAll)).Return("", nil)
 	mockClient.On("Close").Run(func(args mock.Arguments) { close(eventChan) }).Return()
 
@@ -83,6 +81,7 @@ func TestCoordinator_StartStop(t *testing.T) {
 
 	err = coordinator.Stop()
 	assert.Nil(t, err, "Expected Stop to not return an error")
+	mockClient.AssertExpectations(t)
 }
 
 func TestCoordinator_mainLoop(t *testing.T) {
