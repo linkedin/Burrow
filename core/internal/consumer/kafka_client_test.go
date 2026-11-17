@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -310,6 +311,18 @@ func TestKafkaClient_readCompactString_Null(t *testing.T) {
 	assert.Nil(t, err, "Expected readCompactString to return no error")
 }
 
+func TestKafkaClient_readCompactString_MultiByteLength(t *testing.T) {
+	// Strings of 127 bytes or more have a length (N + 1) that takes more than one byte as an UNSIGNED_VARINT
+	// 200 + 1 = 201 is encoded as 0xc9 0x01
+	expected := strings.Repeat("m", 200)
+	buf := bytes.NewBuffer(append([]byte("\xc9\x01"), expected...))
+	result, err := readCompactString(buf)
+
+	assert.Equalf(t, expected, result, "Expected readCompactString to return the 200 byte string, not %v", result)
+	assert.Nil(t, err, "Expected readCompactString to return no error")
+	assert.Equalf(t, 0, buf.Len(), "Expected readCompactString to consume the whole buffer, %v bytes left", buf.Len())
+}
+
 func TestKafkaClient_readCompactString_Underflow(t *testing.T) {
 	buf := bytes.NewBuffer([]byte("\x05tes"))
 	result, err := readCompactString(buf)
@@ -554,11 +567,24 @@ func TestKafkaClient_decodeOffsetValueV4(t *testing.T) {
 	assert.Equalf(t, int64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
 }
 
+func TestKafkaClient_decodeOffsetValueV4_LongMetadata(t *testing.T) {
+	// offset=8372, leaderEpoch=0, metadata=200 bytes (compact length=201 as varint 0xc9 0x01), timestamp=1637
+	value := []byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\xc9\x01")
+	value = append(value, strings.Repeat("m", 200)...)
+	value = append(value, "\x00\x00\x00\x00\x00\x00\x06\x65\x00"...)
+	result, errorAt := decodeOffsetValueV4(bytes.NewBuffer(value))
+
+	assert.Equalf(t, "", errorAt, "Expected decodeOffsetValueV4 to return empty errorAt, not %v", errorAt)
+	assert.Equalf(t, int64(8372), result.Offset, "Expected Offset to be 8372, not %v", result.Offset)
+	assert.Equalf(t, int64(1637), result.Timestamp, "Expected Timestamp to be 1637, not %v", result.Timestamp)
+}
+
 var decodeOffsetValueV4Errors = []errorTestSetBytesWithString{
 	{[]byte("\x00\x00\x00\x00\x00"), errOffset},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00"), errLeaderEpoch},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00"), errMetadata},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x05tes"), errMetadata},
+	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\xc9\x01tes"), errMetadata},
 	{[]byte("\x00\x00\x00\x00\x00\x00\x20\xb4\x00\x00\x00\x00\x01\x00\x00\x00\x00"), errTimestamp},
 }
 
