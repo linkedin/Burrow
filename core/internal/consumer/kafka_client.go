@@ -411,8 +411,8 @@ func readString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 }
 
 func readCompactString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
-	var strlen uint8
-	err := binary.Read(buf, binary.BigEndian, &strlen)
+	// The length (N + 1) is encoded as an UNSIGNED_VARINT, so strings of 127 bytes or more use more than one byte
+	strlen, err := binary.ReadUvarint(buf)
 	if err != nil {
 		return "", err
 	}
@@ -423,6 +423,9 @@ func readCompactString(buf *bytes.Buffer) (string, error) { // nolint:interfacer
 	}
 
 	// For actual content, we need to read (length - 1) bytes
+	if strlen-1 > uint64(buf.Len()) {
+		return "", errors.New("compact string underflow")
+	}
 	actualLength := int(strlen - 1)
 	strbytes := make([]byte, actualLength)
 	n, err := buf.Read(strbytes)
