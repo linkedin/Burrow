@@ -34,15 +34,15 @@ snapshot:
 dockers:
 - goos: linux
   goarch: amd64
+  use: buildx
   dockerfile: Dockerfile.gorelease
   image_templates:
-  - 'docker.pkg.github.com/linkedin/burrow/burrow:latest'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:latest-amd64'
-  - 'docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}'
   - 'docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-amd64'
   extra_files:
   - docker-config/burrow.toml
   build_flag_templates:
+  - "--platform=linux/amd64"
   - "--label=org.label-schema.schema-version=1.0"
   - "--label=org.label-schema.version={{ .Version }}"
   - "--label=org.label-schema.name={{ .ProjectName }}"
@@ -51,6 +51,7 @@ dockers:
 
 - goos: linux
   goarch: arm64
+  use: buildx
   dockerfile: Dockerfile.gorelease
   image_templates:
   - 'docker.pkg.github.com/linkedin/burrow/burrow:latest-arm64'
@@ -58,6 +59,7 @@ dockers:
   extra_files:
   - docker-config/burrow.toml
   build_flag_templates:
+  - "--platform=linux/arm64"
   - "--label=org.label-schema.schema-version=1.0"
   - "--label=org.label-schema.version={{ .Version }}"
   - "--label=org.label-schema.name={{ .ProjectName }}"
@@ -66,6 +68,9 @@ dockers:
 docker_manifests:
 - name_template: "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}"
   image_templates:
-  - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}"
   - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-amd64"
   - "docker.pkg.github.com/linkedin/burrow/burrow:{{ .Tag }}-arm64"
+- name_template: "docker.pkg.github.com/linkedin/burrow/burrow:latest"
+  image_templates:
+  - "docker.pkg.github.com/linkedin/burrow/burrow:latest-amd64"
+  - "docker.pkg.github.com/linkedin/burrow/burrow:latest-arm64"
